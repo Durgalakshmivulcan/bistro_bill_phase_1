@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Getting Started - Bistro Bill User Manual</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Bistro Bill User Manual</h1>
+            <nav class="breadcrumb">
+                <a href="index.html">Home</a> &gt; Getting Started
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <article>
+            <h1>Getting Started with Bistro Bill</h1>
+
+            <section class="intro">
+                <p>Welcome to Bistro Bill, your comprehensive restaurant management and point-of-sale system. This guide will help you understand the basic layout, navigation, and core concepts of the application.</p>
+            </section>
+
+            <section id="system-overview">
+                <h2>System Overview</h2>
+                <p>Bistro Bill is a web-based restaurant management system that combines point-of-sale operations, inventory management, customer relationship management, and business analytics into one integrated platform.</p>
+
+                <h3>Key Features</h3>
+                <ul>
+                    <li><strong>Point of Sale (POS):</strong> Take orders, manage tables, process payments</li>
+                    <li><strong>Catalog Management:</strong> Manage products, menus, and pricing across different sales channels</li>
+                    <li><strong>Inventory Tracking:</strong> Monitor stock levels, create purchase orders, track suppliers</li>
+                    <li><strong>Customer Management:</strong> Build customer profiles, loyalty programs, and track order history</li>
+                    <li><strong>Marketing Tools:</strong> Create discounts, promotions, and collect customer feedback</li>
+                    <li><strong>Analytics & Reports:</strong> Sales reports, GST reports, audit logs</li>
+                    <li><strong>Business Settings:</strong> Configure branches, taxes, payment methods, and operating hours</li>
+                </ul>
+            </section>
+
+            <section id="login">
+                <h2>Login and Role-Based Access</h2>
+                <p>Bistro Bill uses role-based access control, meaning what you see and can do depends on your assigned role:</p>
+
+                <div class="info-box">
+                    <h3>User Roles</h3>
+                    <ul>
+                        <li><strong>Cashier:</strong> Access to POS, order taking, table management, and customer information</li>
+                        <li><strong>Manager:</strong> All cashier features plus catalog, inventory, purchase orders, marketing, and reports</li>
+                        <li><strong>Owner:</strong> All manager features plus business settings, branch management, and full system configuration</li>
+                        <li><strong>Super Admin:</strong> Platform-wide administration including business owner management and system settings</li>
+                    </ul>
+                </div>
+
+                <p>When you log in, you'll be directed to your default dashboard based on your role. Your username and role are displayed in the top-right corner of the screen.</p>
+            </section>
+
+            <section id="dashboard-layout">
+                <h2>Understanding Dashboard Layout</h2>
+                <p>Most features in Bistro Bill use the <strong>Dashboard Layout</strong>, which provides consistent navigation and structure across the application.</p>
+
+                <h3>Dashboard Layout Components</h3>
+
+                <div class="component-grid">
+                    <div class="component-card">
+                        <h4>1. Sidebar Navigation</h4>
+                        <p>Located on the left side of the screen (can be toggled on mobile). The sidebar contains links to all major modules:</p>
+                        <ul>
+                            <li>Business Owner Dashboard</li>
+                            <li>Point of Sale</li>
+                            <li>All Orders</li>
+                            <li>Reservations</li>
+                            <li>Catalog</li>
+                            <li>Inventory</li>
+                            <li>Purchase Order</li>
+                            <li>Customers</li>
+                            <li>Marketing</li>
+                            <li>Analytics & Reports</li>
+                            <li>Manage Resources</li>
+                            <li>Business Settings</li>
+                        </ul>
+                        <p class="note"><strong>Note:</strong> You'll only see menu items your role has permission to access.</p>
+                    </div>
+
+                    <div class="component-card">
+                        <h4>2. Top Bar</h4>
+                        <p>Located at the top of every page, the top bar includes:</p>
+                        <ul>
+                            <li><strong>Menu Toggle:</strong> Hamburger icon (on mobile) to show/hide sidebar</li>
+                            <li><strong>Page Title:</strong> Shows the current page or module name</li>
+                            <li><strong>Search Bar:</strong> Global search functionality (centered on desktop)</li>
+                            <li><strong>Notifications Bell:</strong> View system notifications and alerts</li>
+                            <li><strong>Profile Menu:</strong> Access to My Account, Manage Password, and Logout</li>
+                        </ul>
+                    </div>
+
+                    <div class="component-card">
+                        <h4>3. Main Content Area</h4>
+                        <p>The central area where page content, forms, tables, and data are displayed. This area updates when you navigate to different pages while the sidebar and top bar remain constant.</p>
+                    </div>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Dashboard Layout showing sidebar, top bar, and main content area]</em></p>
+                </div>
+            </section>
+
+            <section id="pos-layout">
+                <h2>Understanding POS Layout</h2>
+                <p>The <strong>Point of Sale (POS) Layout</strong> is a specialized interface designed for taking orders and managing restaurant operations. It has a different structure from the Dashboard Layout to optimize the order-taking workflow.</p>
+
+                <h3>POS vs Dashboard Layout</h3>
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Feature</th>
+                                <th>Dashboard Layout</th>
+                                <th>POS Layout</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Navigation</td>
+                                <td>Full sidebar with all modules</td>
+                                <td>Simplified, focused on POS operations</td>
+                            </tr>
+                            <tr>
+                                <td>Use Case</td>
+                                <td>Configuration, reporting, management</td>
+                                <td>Order taking, payment processing</td>
+                            </tr>
+                            <tr>
+                                <td>Typical Users</td>
+                                <td>Managers, Owners, Admins</td>
+                                <td>Cashiers, Servers, Kitchen Staff</td>
+                            </tr>
+                            <tr>
+                                <td>Pages Included</td>
+                                <td>Dashboard, Catalog, Inventory, Reports, Settings</td>
+                                <td>Take Order, My Orders, Table View, Reservations</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="note"><strong>Tip:</strong> You can quickly switch between POS and Dashboard views using the sidebar navigation. The system remembers your last location in each layout.</p>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: POS Layout showing the Take Order interface]</em></p>
+                </div>
+            </section>
+
+            <section id="navigation-patterns">
+                <h2>Navigation Patterns</h2>
+                <p>Understanding how to navigate efficiently in Bistro Bill will help you work faster and find what you need quickly.</p>
+
+                <h3>Common Navigation Actions</h3>
+                <ul>
+                    <li><strong>Accessing Modules:</strong> Click any item in the sidebar to navigate to that module</li>
+                    <li><strong>Breadcrumbs:</strong> Many pages show breadcrumb navigation at the top to track your location</li>
+                    <li><strong>Back to Dashboard:</strong> Click the Bistro Bill logo in the sidebar to return to your main dashboard</li>
+                    <li><strong>Quick Search:</strong> Use the search bar in the top bar to find products, customers, or orders</li>
+                    <li><strong>Action Buttons:</strong> Look for "Add New," "Edit," "Delete," and other action buttons typically located at the top-right of list pages</li>
+                </ul>
+
+                <h3>Standard Page Layouts</h3>
+                <p>Most feature pages in Bistro Bill follow consistent patterns:</p>
+                <ul>
+                    <li><strong>List/Dashboard Pages:</strong> Show tables or cards with data, filters, search, and action buttons</li>
+                    <li><strong>Add/Create Pages:</strong> Forms with required fields, validation, and Save/Cancel buttons</li>
+                    <li><strong>Edit Pages:</strong> Pre-filled forms with the ability to update and save changes</li>
+                    <li><strong>View/Details Pages:</strong> Read-only display of complete record information with Edit and Delete options</li>
+                </ul>
+            </section>
+
+            <section id="mobile-responsive">
+                <h2>Mobile and Tablet Access</h2>
+                <p>Bistro Bill is fully responsive and works on tablets and mobile devices. On smaller screens:</p>
+                <ul>
+                    <li>The sidebar is hidden by default - tap the menu icon (☰) in the top-left to open it</li>
+                    <li>Tables may scroll horizontally or stack vertically for easier viewing</li>
+                    <li>Action buttons may be grouped into dropdown menus</li>
+                    <li>The search bar may be hidden in the top bar - access it via a search icon</li>
+                </ul>
+            </section>
+
+            <section id="notifications">
+                <h2>Notifications and Alerts</h2>
+                <p>Bistro Bill keeps you informed about important events through the notification system:</p>
+                <ul>
+                    <li>Click the <strong>bell icon</strong> in the top bar to view notifications</li>
+                    <li>Notifications include purchase order updates, approvals, system alerts, and more</li>
+                    <li>Each notification shows the date and can be dismissed individually</li>
+                </ul>
+            </section>
+
+            <section id="next-steps">
+                <h2>Next Steps</h2>
+                <p>Now that you understand the basic layout and navigation, explore the specific modules relevant to your role:</p>
+
+                <div class="role-links">
+                    <div class="role-card">
+                        <h3>Cashier Users</h3>
+                        <p>Start with:</p>
+                        <ul>
+                            <li><a href="pos-overview.html">POS Overview & Take Order</a></li>
+                            <li><a href="pos-overview.html#table-management">Table Management</a></li>
+                            <li><a href="customers.html">Customer Management</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="role-card">
+                        <h3>Manager Users</h3>
+                        <p>Start with:</p>
+                        <ul>
+                            <li><a href="catalog.html">Catalog & Products</a></li>
+                            <li><a href="inventory.html">Inventory Management</a></li>
+                            <li><a href="purchase-orders.html">Purchase Orders</a></li>
+                            <li><a href="marketing.html">Marketing & Discounts</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="role-card">
+                        <h3>Owner Users</h3>
+                        <p>Start with:</p>
+                        <ul>
+                            <li><a href="business-settings.html">Business Settings</a></li>
+                            <li><a href="analytics-reports.html">Analytics & Reports</a></li>
+                            <li><a href="business-settings.html#branch-management">Branch Management</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="role-card">
+                        <h3>Super Admin Users</h3>
+                        <p>Start with:</p>
+                        <ul>
+                            <li><a href="super-admin.html">Platform Dashboard</a></li>
+                            <li><a href="super-admin.html#business-owners">Business Owner Management</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tips">
+                <h2>Quick Tips for New Users</h2>
+                <div class="tips-grid">
+                    <div class="tip-card">
+                        <h4>💡 Use Search</h4>
+                        <p>The global search bar helps you quickly find products, customers, or orders without navigating through menus.</p>
+                    </div>
+                    <div class="tip-card">
+                        <h4>💡 Watch for Active Indicators</h4>
+                        <p>The current page is highlighted in the sidebar with a yellow background (matching Bistro Bill's brand color).</p>
+                    </div>
+                    <div class="tip-card">
+                        <h4>💡 Check Required Fields</h4>
+                        <p>When filling out forms, fields marked with an asterisk (*) are required before you can save.</p>
+                    </div>
+                    <div class="tip-card">
+                        <h4>💡 Confirm Before Deleting</h4>
+                        <p>The system will always ask for confirmation before permanently deleting records to prevent accidental data loss.</p>
+                    </div>
+                </div>
+            </section>
+
+            <nav class="page-navigation">
+                <a href="index.html" class="btn-secondary">← Back to Home</a>
+                <a href="pos-overview.html" class="btn-primary">Next: POS Overview →</a>
+            </nav>
+        </article>
+    </main>
+
+    <footer>
+        <p>Bistro Bill User Manual | Version 1.0 | Last Updated: February 2026</p>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Point of Sale (POS) - Bistro Bill User Manual</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Bistro Bill User Manual</h1>
+            <nav class="breadcrumb">
+                <a href="index.html">Home</a> &gt; <a href="pos-overview.html">Point of Sale</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <article>
+            <h1>Point of Sale (POS) Overview</h1>
+
+            <section class="intro">
+                <p>The Point of Sale (POS) system is the heart of Bistro Bill, designed for cashiers and servers to take orders, manage tables, and process payments efficiently. This guide covers the Take Order workflow, table management, and kitchen display operations.</p>
+            </section>
+
+            <nav class="page-toc">
+                <h2>On This Page</h2>
+                <ul>
+                    <li><a href="#take-order">Take Order Workflow</a></li>
+                    <li><a href="#product-selection">Product Selection & Menu Navigation</a></li>
+                    <li><a href="#order-customization">Order Customization & Notes</a></li>
+                    <li><a href="#cart-management">Cart Management</a></li>
+                    <li><a href="#payment-processing">Payment Processing</a></li>
+                    <li><a href="#order-confirmation">Order Confirmation & Receipts</a></li>
+                    <li><a href="#table-management">Table Management</a></li>
+                    <li><a href="#kds">Kitchen Display System (KDS)</a></li>
+                    <li><a href="#common-scenarios">Common Scenarios</a></li>
+                </ul>
+            </nav>
+
+            <!-- TAKE ORDER WORKFLOW -->
+            <section id="take-order">
+                <h2>Take Order Workflow</h2>
+                <p>The Take Order interface is the primary screen for creating new customer orders. It's optimized for speed and ease of use during busy service periods.</p>
+
+                <h3>Accessing Take Order</h3>
+                <ol>
+                    <li>Navigate to <strong>Point of Sale</strong> from the main sidebar</li>
+                    <li>Click <strong>Take A Order</strong> in the POS navigation bar</li>
+                    <li>The Take Order screen opens with a two-panel layout: menu selection on the left, order details on the right</li>
+                </ol>
+
+                <h3>Order Type Selection</h3>
+                <p>At the top of the screen, select the order type using the tabbed interface:</p>
+                <ul>
+                    <li><strong>Dine In:</strong> For customers eating at the restaurant (requires table and server assignment)</li>
+                    <li><strong>Takeaway:</strong> For customers picking up orders to go</li>
+                    <li><strong>Subscription:</strong> For recurring subscription-based orders</li>
+                    <li><strong>Catering:</strong> For bulk catering orders with time slot scheduling</li>
+                </ul>
+
+                <div class="info-box">
+                    <h4>Interface Layout</h4>
+                    <p>The Take Order screen is split into two main sections:</p>
+                    <ul>
+                        <li><strong>Left Panel:</strong> Menu browsing, product search, and item selection</li>
+                        <li><strong>Right Panel:</strong> Order details including table/customer info, cart items, and payment summary</li>
+                    </ul>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Take Order main interface showing order type tabs, menu grid, and order panel]</em></p>
+                </div>
+            </section>
+
+            <!-- PRODUCT SELECTION -->
+            <section id="product-selection">
+                <h2>Product Selection & Menu Navigation</h2>
+                <p>The left panel provides multiple ways to browse and select menu items efficiently.</p>
+
+                <h3>Search Products</h3>
+                <p>Use the search bar at the top to quickly find items:</p>
+                <ul>
+                    <li>Search by <strong>product name</strong> (e.g., "Biryani", "Dosa")</li>
+                    <li>Search by <strong>SKU code</strong> for faster lookup</li>
+                    <li>Search by <strong>barcode</strong> using a barcode scanner</li>
+                    <li>Search by <strong>tag</strong> (e.g., "vegetarian", "spicy")</li>
+                    <li>Search by <strong>brand</strong> name</li>
+                </ul>
+
+                <h3>Browse by Meal Time</h3>
+                <p>The left sidebar provides meal time filters:</p>
+                <ul>
+                    <li><strong>Recommended:</strong> Shows popular and featured items</li>
+                    <li><strong>Breakfast:</strong> Morning menu items</li>
+                    <li><strong>Lunch:</strong> Afternoon menu items</li>
+                    <li><strong>Dinner:</strong> Evening menu items</li>
+                </ul>
+
+                <h3>Browse by Category</h3>
+                <p>Below the meal time filters, browse by food categories:</p>
+                <ul>
+                    <li>🥟 Appetizers</li>
+                    <li>🍛 Main Courses</li>
+                    <li>🍽️ Thalis</li>
+                    <li>🍚 Rice Dishes</li>
+                    <li>🥤 Beverages</li>
+                    <li>🍜 Curries</li>
+                    <li>🍱 Combos</li>
+                    <li>🍰 Desserts</li>
+                </ul>
+
+                <h3>View Mode Options</h3>
+                <p>Toggle between different view modes using the icons next to the search bar:</p>
+                <ul>
+                    <li><strong>Grid View (default):</strong> Shows product cards with images, names, and prices</li>
+                    <li><strong>List View:</strong> Compact list format showing more items at once</li>
+                    <li><strong>Large Grid View:</strong> Larger product cards with more details</li>
+                </ul>
+
+                <h3>Product Cards</h3>
+                <p>Each product card displays:</p>
+                <ul>
+                    <li><strong>Product image</strong> (top of card)</li>
+                    <li><strong>Availability indicator:</strong> Green dot (available) or Red dot (unavailable)</li>
+                    <li><strong>Product name</strong></li>
+                    <li><strong>Price</strong> in rupees (₹)</li>
+                </ul>
+
+                <div class="tip-box">
+                    <h4>💡 Quick Selection Tip</h4>
+                    <p>Click or tap any product card to add it to the order. If the product has variants or add-ons, a modal will open for customization before adding to cart.</p>
+                </div>
+
+                <h3>Quantity Adjustment</h3>
+                <p>After adding an item to the cart:</p>
+                <ol>
+                    <li>The item appears in the <strong>Add Items</strong> section on the right panel</li>
+                    <li>Use the <strong>minus (−)</strong> button to decrease quantity</li>
+                    <li>Use the <strong>plus (+)</strong> button to increase quantity</li>
+                    <li>The price automatically updates based on quantity</li>
+                </ol>
+
+                <h3>Product Modifiers</h3>
+                <p>Many products support customization through:</p>
+                <ul>
+                    <li><strong>Variants:</strong> Different sizes, preparations, or styles (e.g., "Small", "Medium", "Large" or "Mild", "Spicy")</li>
+                    <li><strong>Add-ons:</strong> Extra ingredients or sides (e.g., "Extra Cheese", "Add Egg", "Side Raita")</li>
+                    <li><strong>Special Instructions:</strong> Custom modifications (see Order Customization section)</li>
+                </ul>
+                <p>When you click a product with variants or add-ons, a customization modal opens. Select your options and click "Add to Order" to confirm.</p>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Product grid view with search bar and category filters visible]</em></p>
+                </div>
+            </section>
+
+            <!-- ORDER CUSTOMIZATION -->
+            <section id="order-customization">
+                <h2>Order Customization & Notes</h2>
+                <p>Add special requests, dietary notes, and other customizations to ensure accurate order fulfillment.</p>
+
+                <h3>Adding Order Notes</h3>
+                <ol>
+                    <li>In the right panel, click the <strong>Order Note's</strong> button (pencil icon)</li>
+                    <li>A modal opens with a text area</li>
+                    <li>Type special instructions such as:
+                        <ul>
+                            <li>"Extra spicy"</li>
+                            <li>"No onions"</li>
+                            <li>"Make it less oily"</li>
+                            <li>"Serve hot"</li>
+                        </ul>
+                    </li>
+                    <li>Click <strong>Save</strong> to attach the note to the order</li>
+                </ol>
+
+                <h3>Item-Specific Notes</h3>
+                <p>For notes about individual items (not the whole order):</p>
+                <ul>
+                    <li>Use product variants and add-ons when available</li>
+                    <li>Add item-level instructions during the customization modal</li>
+                    <li>These notes appear next to the specific item in the kitchen display</li>
+                </ul>
+
+                <div class="warning-box">
+                    <h4>⚠️ Important Note</h4>
+                    <p>Order notes are visible to kitchen staff on the Kitchen Display System (KDS). Be clear and specific to avoid confusion during food preparation.</p>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Order Notes modal with text area for special instructions]</em></p>
+                </div>
+            </section>
+
+            <!-- CART MANAGEMENT -->
+            <section id="cart-management">
+                <h2>Cart Management</h2>
+                <p>The right panel displays all order details. For Dine In orders, it's organized into expandable sections (accordion format).</p>
+
+                <h3>Dine In Order Sections</h3>
+
+                <h4>1. Table & Captain Details</h4>
+                <p>Click to expand and configure:</p>
+                <ul>
+                    <li><strong>Table:</strong> Select from dropdown (e.g., "Table 1", "Table 2")</li>
+                    <li><strong>Select Server:</strong> Assign a captain/server to the table</li>
+                    <li><strong>Guest Count:</strong> Use + and − buttons to set number of guests</li>
+                </ul>
+
+                <h4>2. Customer Details</h4>
+                <p>Click to expand and add customer information:</p>
+                <ul>
+                    <li>Search for existing customer by name or phone</li>
+                    <li>Select customer to link order to their profile (for loyalty points, order history)</li>
+                    <li>Or proceed without linking to a customer (walk-in guest)</li>
+                </ul>
+
+                <h4>3. Add Items</h4>
+                <p>This section displays all items added to the cart:</p>
+                <ul>
+                    <li><strong>Item name</strong> with variant details (if applicable)</li>
+                    <li><strong>Quantity controls:</strong> Use + and − buttons to adjust</li>
+                    <li><strong>Unit price</strong></li>
+                    <li><strong>Line total</strong> (quantity × price)</li>
+                    <li><strong>Remove button:</strong> Trash icon to delete item from cart</li>
+                </ul>
+
+                <h4>4. Payment Summary</h4>
+                <p>Click to expand and view order totals:</p>
+                <ul>
+                    <li><strong>Subtotal:</strong> Sum of all item prices</li>
+                    <li><strong>Discount:</strong> Any applied discounts (percentage or fixed amount)</li>
+                    <li><strong>Tax/GST:</strong> Calculated tax amount based on product tax rates</li>
+                    <li><strong>Service Charge:</strong> Optional service fee (if configured)</li>
+                    <li><strong>Grand Total:</strong> Final amount to be paid</li>
+                </ul>
+
+                <h3>Order Actions</h3>
+                <p>Four action buttons are available above the accordion sections:</p>
+
+                <div class="action-grid">
+                    <div class="action-card">
+                        <h4>🔄 Reset Order</h4>
+                        <p>Clears all items and resets the order to start fresh. A confirmation prompt appears before resetting.</p>
+                    </div>
+
+                    <div class="action-card">
+                        <h4>📝 Order Note's</h4>
+                        <p>Opens a modal to add or edit order-level special instructions visible to kitchen staff.</p>
+                    </div>
+
+                    <div class="action-card">
+                        <h4>🚫 Cancel Order</h4>
+                        <p>Cancels the current order. You'll be asked to select a cancellation reason before confirming.</p>
+                    </div>
+
+                    <div class="action-card">
+                        <h4>✋ Hold Order</h4>
+                        <p>Temporarily saves the order without processing payment. Useful for serving other customers, then resuming later.</p>
+                    </div>
+                </div>
+
+                <h3>Updating Cart Items</h3>
+                <p>To modify items already in the cart:</p>
+                <ul>
+                    <li><strong>Change quantity:</strong> Click + or − next to the item</li>
+                    <li><strong>Remove item:</strong> Click the trash/delete icon</li>
+                    <li><strong>Add more items:</strong> Select from the menu on the left panel</li>
+                </ul>
+
+                <div class="tip-box">
+                    <h4>💡 Quick Tip</h4>
+                    <p>Items are added to cart immediately when clicked. You don't need to confirm each selection separately—just keep adding items and adjust quantities as needed.</p>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Right panel showing accordion sections - Table Details, Customer Details, Add Items, and Payment Summary]</em></p>
+                </div>
+            </section>
+
+            <!-- PAYMENT PROCESSING -->
+            <section id="payment-processing">
+                <h2>Payment Processing</h2>
+                <p>Once the order is ready, process payment using one of three footer buttons.</p>
+
+                <h3>Payment Options</h3>
+
+                <h4>1. Save Order (📑)</h4>
+                <p>Saves the order without processing payment. Use this for:</p>
+                <ul>
+                    <li>Dine-in orders where payment happens after the meal</li>
+                    <li>Orders that need kitchen approval before billing</li>
+                    <li>Holding an order temporarily</li>
+                </ul>
+                <p><strong>Result:</strong> Order is sent to kitchen, visible in "My Orders" and kitchen display. Status: "Saved" or "Pending Payment".</p>
+
+                <h4>2. Quick Settle (💳)</h4>
+                <p>Fast payment for simple transactions. Steps:</p>
+                <ol>
+                    <li>Click <strong>Quick Settle</strong></li>
+                    <li>A modal shows the total amount</li>
+                    <li>Select payment method:
+                        <ul>
+                            <li><strong>Cash:</strong> Customer pays with physical currency</li>
+                            <li><strong>Card:</strong> Debit/credit card payment</li>
+                            <li><strong>UPI:</strong> Digital payment via UPI apps</li>
+                            <li><strong>Wallet:</strong> Digital wallet (Paytm, PhonePe, etc.)</li>
+                        </ul>
+                    </li>
+                    <li>Click <strong>Confirm</strong></li>
+                    <li>Order is marked complete and sent to kitchen</li>
+                </ol>
+                <p><strong>Result:</strong> "Payment Successful" confirmation appears. Order status changes to "Paid" or "Processing".</p>
+
+                <h4>3. Checkout (🛍️)</h4>
+                <p>Full checkout flow with advanced options:</p>
+                <ol>
+                    <li>Click <strong>Checkout</strong></li>
+                    <li>Payment modal opens showing:
+                        <ul>
+                            <li>Order summary with itemized breakdown</li>
+                            <li>Total amount due</li>
+                            <li>Payment method selection</li>
+                            <li>Option to apply discount codes</li>
+                            <li>Option to split bill (multiple payment methods)</li>
+                        </ul>
+                    </li>
+                    <li>Select payment method(s)</li>
+                    <li>Enter payment details if needed</li>
+                    <li>Click <strong>Process Payment</strong></li>
+                    <li>Wait for payment confirmation</li>
+                </ol>
+                <p><strong>Result:</strong> Receipt is generated, order sent to kitchen, transaction logged.</p>
+
+                <h3>Payment Method Details</h3>
+
+                <div class="payment-methods">
+                    <h4>Cash Payment</h4>
+                    <ul>
+                        <li>Enter amount received from customer</li>
+                        <li>System calculates change to return</li>
+                        <li>Cash drawer can be opened automatically (if connected)</li>
+                    </ul>
+
+                    <h4>Card Payment</h4>
+                    <ul>
+                        <li>Process through integrated card reader (if connected)</li>
+                        <li>Enter last 4 digits for manual entry</li>
+                        <li>Supports Visa, Mastercard, Rupay, Amex</li>
+                    </ul>
+
+                    <h4>UPI Payment</h4>
+                    <ul>
+                        <li>Generate QR code for customer to scan</li>
+                        <li>Or enter UPI transaction ID manually</li>
+                        <li>Verify payment received before completing</li>
+                    </ul>
+
+                    <h4>Digital Wallet</h4>
+                    <ul>
+                        <li>Select wallet provider (Paytm, PhonePe, Google Pay, etc.)</li>
+                        <li>Process through integrated payment gateway</li>
+                        <li>Or enter transaction ID manually</li>
+                    </ul>
+                </div>
+
+                <h3>Applying Discounts</h3>
+                <p>Before processing payment, you can apply discounts:</p>
+                <ul>
+                    <li>Enter a <strong>coupon code</strong> in the discount field</li>
+                    <li>Or manually apply a <strong>percentage discount</strong> (requires manager approval)</li>
+                    <li>Or apply a <strong>fixed amount discount</strong></li>
+                </ul>
+                <p>The discount is reflected in the Payment Summary section and deducted from the grand total.</p>
+
+                <div class="warning-box">
+                    <h4>⚠️ Manager Approval</h4>
+                    <p>Manual discounts above a certain threshold may require manager approval. The system will prompt for a manager PIN or login before applying the discount.</p>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Checkout modal showing payment method selection, discount field, and total amount]</em></p>
+                </div>
+            </section>
+
+            <!-- ORDER CONFIRMATION -->
+            <section id="order-confirmation">
+                <h2>Order Confirmation & Receipt Printing</h2>
+                <p>After successful payment, Bistro Bill generates receipts and order confirmations.</p>
+
+                <h3>Payment Success Screen</h3>
+                <p>Upon completing payment:</p>
+                <ul>
+                    <li>A <strong>"Payment Successful"</strong> modal appears with a checkmark icon</li>
+                    <li>Shows transaction summary (amount, payment method, date/time)</li>
+                    <li>Options available:
+                        <ul>
+                            <li><strong>Print Receipt:</strong> Sends to configured receipt printer</li>
+                            <li><strong>Email Receipt:</strong> Sends PDF to customer email (if provided)</li>
+                            <li><strong>SMS Receipt:</strong> Sends text message with order details</li>
+                            <li><strong>Close:</strong> Returns to Take Order screen for next customer</li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <h3>Receipt Contents</h3>
+                <p>Printed receipts include:</p>
+                <ul>
+                    <li><strong>Restaurant details:</strong> Name, branch, address, contact</li>
+                    <li><strong>Order number</strong> and <strong>date/time</strong></li>
+                    <li><strong>Table number</strong> (for dine-in) or <strong>order type</strong></li>
+                    <li><strong>Server name</strong> (if assigned)</li>
+                    <li><strong>Itemized list:</strong> Product names, quantities, prices</li>
+                    <li><strong>Subtotal, tax, discounts, grand total</strong></li>
+                    <li><strong>Payment method</strong> and <strong>amount paid</strong></li>
+                    <li><strong>GST/Tax number</strong> (for compliance)</li>
+                    <li><strong>Thank you message</strong> and <strong>feedback request</strong></li>
+                </ul>
+
+                <h3>Kitchen Order Ticket (KOT)</h3>
+                <p>Simultaneously, a Kitchen Order Ticket is sent to the Kitchen Display System (KDS) containing:</p>
+                <ul>
+                    <li>Order number and timestamp</li>
+                    <li>Table number and server name</li>
+                    <li>Items to prepare with quantities</li>
+                    <li>Special instructions/notes</li>
+                    <li>Priority indicator (normal, rush, etc.)</li>
+                </ul>
+
+                <div class="info-box">
+                    <h4>Automatic Printing</h4>
+                    <p>If receipt printers are configured in Business Settings, receipts print automatically after payment confirmation. KOTs print immediately when order is saved or paid.</p>
+                </div>
+
+                <h3>Order Tracking</h3>
+                <p>After order confirmation:</p>
+                <ul>
+                    <li>Order appears in <strong>My Orders</strong> tab with current status</li>
+                    <li>Kitchen staff see it in the <strong>Kitchen Display System</strong></li>
+                    <li>Customers can track order status (if online ordering enabled)</li>
+                    <li>Managers can view in <strong>All Orders</strong> analytics</li>
+                </ul>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Payment Successful modal with receipt options]</em></p>
+                </div>
+            </section>
+
+            <!-- TABLE MANAGEMENT -->
+            <section id="table-management">
+                <h2>Table Management</h2>
+                <p>Bistro Bill's table management system helps you efficiently manage dine-in service by visualizing restaurant seating, tracking table status, and managing orders by location.</p>
+
+                <h3>Accessing Table View</h3>
+                <ol>
+                    <li>Navigate to <strong>Point of Sale</strong> from the main sidebar</li>
+                    <li>Click <strong>Table View</strong> in the POS navigation bar</li>
+                    <li>The table layout displays with three dining areas: <strong>Non-AC</strong>, <strong>AC</strong>, and <strong>Family Section</strong></li>
+                </ol>
+
+                <h3>Table Status Indicators</h3>
+                <p>Each table displays a color-coded status indicator in the center of the table card, with matching chair colors:</p>
+
+                <div class="status-indicators">
+                    <div class="status-item">
+                        <span class="status-badge" style="background-color: #bbf7d0; color: #15803d; padding: 4px 12px; border-radius: 12px; font-weight: 600;">● Available</span>
+                        <p>Table is empty and ready for new customers. Green indicator and green chairs.</p>
+                    </div>
+
+                    <div class="status-item">
+                        <span class="status-badge" style="background-color: #bfdbfe; color: #1e40af; padding: 4px 12px; border-radius: 12px; font-weight: 600;">● Running</span>
+                        <p>Table is currently occupied with an active order in progress. Blue indicator and blue chairs.</p>
+                    </div>
+
+                    <div class="status-item">
+                        <span class="status-badge" style="background-color: #fecaca; color: #b91c1c; padding: 4px 12px; border-radius: 12px; font-weight: 600;">● Reserved</span>
+                        <p>Table is reserved for upcoming customers. Red indicator and red chairs.</p>
+                    </div>
+                </div>
+
+                <h3>Dining Areas</h3>
+                <p>The restaurant is divided into three distinct areas, each displayed in a separate section:</p>
+
+                <ul>
+                    <li><strong>Non-AC Area:</strong> Standard dining section with 9 tables (mix of square and long tables)</li>
+                    <li><strong>AC Area:</strong> Air-conditioned dining section with 5 tables (includes larger 8-10 seat tables)</li>
+                    <li><strong>Family Section:</strong> Private family dining area with 9 tables</li>
+                </ul>
+
+                <p>Each table card shows:</p>
+                <ul>
+                    <li><strong>Table ID:</strong> Unique identifier (e.g., "T-01", "T-02")</li>
+                    <li><strong>Status indicator:</strong> Colored circle in the center</li>
+                    <li><strong>Visual chairs:</strong> Graphical representation of seating capacity (4, 8, or 10 chairs)</li>
+                    <li><strong>Table shape:</strong> Square tables for 4 guests, long rectangular tables for 8-10 guests</li>
+                </ul>
+
+                <div class="info-box">
+                    <h4>Responsive Layout</h4>
+                    <p>The table grid adjusts automatically based on screen size:</p>
+                    <ul>
+                        <li><strong>Mobile:</strong> 2-column grid for easy viewing on phones</li>
+                        <li><strong>Tablet:</strong> 3-4 column grid with medium spacing</li>
+                        <li><strong>Desktop:</strong> 5-column grid with full details</li>
+                    </ul>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Table View showing Non-AC, AC, and Family Section areas with color-coded table status]</em></p>
+                </div>
+
+                <h3>Assigning Orders to Tables</h3>
+                <p>When creating a Dine In order in the Take Order screen, assign customers to a table:</p>
+
+                <ol>
+                    <li>Select <strong>Dine In</strong> as the order type (top tabs)</li>
+                    <li>In the right panel, click <strong>Table & Captain Details</strong> to expand the section</li>
+                    <li>Set the <strong>Guest Count</strong> using + and − buttons (e.g., 04 guests)</li>
+                    <li>Select the <strong>Floor/Area</strong> from the dropdown:
+                        <ul>
+                            <li>AC</li>
+                            <li>Non-AC</li>
+                            <li>Outdoor</li>
+                        </ul>
+                    </li>
+                    <li>Click the <strong>Select Table</strong> dropdown to view available tables</li>
+                    <li>Check the checkbox next to the desired table (e.g., T-01, T-02, T-03, T-04)</li>
+                    <li>Selected tables are highlighted with a yellow background</li>
+                    <li>Select a <strong>Captain/Server</strong> from the dropdown (e.g., Ramesh, Suresh, Mahesh)</li>
+                    <li>Continue adding items and complete the order</li>
+                </ol>
+
+                <div class="tip-box">
+                    <h4>💡 Quick Tip</h4>
+                    <p>Only tables that match the selected floor/area are shown in the dropdown. This prevents accidentally assigning customers to tables in the wrong section of the restaurant.</p>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Table & Captain Details accordion expanded, showing guest count, floor selection, table dropdown, and captain assignment]</em></p>
+                </div>
+
+                <h3>Merging Tables for Large Parties</h3>
+                <p>For groups larger than a single table's capacity, you can merge multiple tables together:</p>
+
+                <ol>
+                    <li>In the <strong>Table & Captain Details</strong> section, select the floor/area</li>
+                    <li>Click the <strong>Select Table</strong> dropdown</li>
+                    <li>Check the checkboxes for <strong>multiple adjacent tables</strong> (e.g., T-02 and T-03)</li>
+                    <li>All selected tables are highlighted in yellow</li>
+                    <li>Set the total <strong>Guest Count</strong> for the combined tables</li>
+                    <li>Assign a server to manage the merged table group</li>
+                    <li>The order is now linked to all selected tables</li>
+                </ol>
+
+                <div class="info-box">
+                    <h4>Merged Table Behavior</h4>
+                    <p>When tables are merged:</p>
+                    <ul>
+                        <li>All selected tables change status to "Running" (blue)</li>
+                        <li>The order appears linked to multiple table IDs</li>
+                        <li>Only one bill is generated for all merged tables</li>
+                        <li>All tables are freed simultaneously when the order is closed</li>
+                    </ul>
+                </div>
+
+                <div class="warning-box">
+                    <h4>⚠️ Best Practice</h4>
+                    <p>Only merge tables that are physically adjacent to each other in the restaurant. This makes it easier for servers to manage the group and ensures a better dining experience.</p>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Table selection dropdown with multiple tables checked (T-02 and T-03) highlighted in yellow]</em></p>
+                </div>
+
+                <h3>Transferring Orders Between Tables</h3>
+                <p>If customers need to move to a different table, you can transfer their order without losing any data:</p>
+
+                <ol>
+                    <li>Navigate to <strong>Table View</strong> or <strong>My Orders</strong></li>
+                    <li>Click on the table or order with the "Running" status</li>
+                    <li>The order details card opens (shows current table number, e.g., "Table No.: T-01")</li>
+                    <li>Click the <strong>Transfer Table</strong> button (black button, bottom right)</li>
+                    <li>The Transfer Table modal opens showing:
+                        <ul>
+                            <li>Current table badge at the top (gray background)</li>
+                            <li>Search input field with placeholder "Search here..."</li>
+                        </ul>
+                    </li>
+                    <li>Type the destination table ID in the search field (e.g., "T-05")</li>
+                    <li>Click the <strong>Transfer</strong> button to confirm</li>
+                    <li>The order is moved to the new table</li>
+                </ol>
+
+                <p><strong>What happens during transfer:</strong></p>
+                <ul>
+                    <li>The original table status changes back to "Available" (green)</li>
+                    <li>The new table status becomes "Running" (blue)</li>
+                    <li>All order items, notes, and payment details remain intact</li>
+                    <li>The order history logs the table transfer with timestamp</li>
+                    <li>Kitchen staff are notified of the table change</li>
+                </ul>
+
+                <div class="tip-box">
+                    <h4>💡 Common Use Cases</h4>
+                    <ul>
+                        <li>Customer requests a quieter table</li>
+                        <li>Moving to accommodate a larger or smaller group</li>
+                        <li>Transferring from outdoor to indoor seating (or vice versa)</li>
+                        <li>Resolving double-booking conflicts</li>
+                    </ul>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Transfer Table modal showing current table T-01 at top, search field, and Cancel/Transfer buttons]</em></p>
+                </div>
+
+                <h3>Closing Tables and Checkout Process</h3>
+                <p>When customers are ready to pay and leave, close the table to make it available for new guests:</p>
+
+                <h4>Step 1: Access Order Details</h4>
+                <ol>
+                    <li>Go to <strong>Table View</strong> and click on the table with "Running" status</li>
+                    <li>Or navigate to <strong>My Orders</strong> and find the order</li>
+                    <li>The order details drawer opens on the right side</li>
+                </ol>
+
+                <h4>Step 2: Review Order Summary</h4>
+                <p>Verify the order details before proceeding:</p>
+                <ul>
+                    <li>Table number and area (e.g., "Table No.: T-02 (AC)")</li>
+                    <li>All ordered items with quantities and prices</li>
+                    <li>Subtotal, discounts, taxes, and tips</li>
+                    <li><strong>Total Payable</strong> amount</li>
+                </ul>
+
+                <h4>Step 3: Initiate Checkout</h4>
+                <p>Click the <strong>Checkout</strong> button (shopping bag icon) in the footer of the order panel to open the payment modal.</p>
+
+                <h4>Step 4: Select Payment Type</h4>
+                <p>The Payment Modal provides five payment options:</p>
+
+                <div class="payment-types">
+                    <h5>1. Full Payment</h5>
+                    <p>Customer pays the entire bill immediately. This is the most common option.</p>
+                    <ul>
+                        <li>Select payment mode: Cash, Card, or UPI</li>
+                        <li>Enter amount using the numeric keypad</li>
+                        <li>Click <strong>Confirm Payment</strong></li>
+                        <li>Table closes automatically after successful payment</li>
+                    </ul>
+
+                    <h5>2. Split Payment</h5>
+                    <p>Divide the bill among multiple guests or payment methods.</p>
+                    <ul>
+                        <li>Enter first payment amount and select mode (e.g., ₹300 Cash)</li>
+                        <li>Click "Add Split" to add another payment</li>
+                        <li>Enter second payment amount and mode (e.g., ₹330 Card)</li>
+                        <li>Continue adding splits until total matches bill</li>
+                        <li>Each split is tracked separately in the summary</li>
+                        <li>Click <strong>Confirm Payment</strong> when all splits are added</li>
+                    </ul>
+
+                    <h5>3. Partial Payment</h5>
+                    <p>Customer pays part of the bill now, with the remainder marked as due.</p>
+                    <ul>
+                        <li>Enter the partial amount received (e.g., ₹400 of ₹630 total)</li>
+                        <li>Select payment mode</li>
+                        <li>Click <strong>Confirm Payment</strong></li>
+                        <li>Remaining balance (₹230) is marked as "Amount Due"</li>
+                        <li>Table remains in "Running" status until full payment received</li>
+                    </ul>
+
+                    <h5>4. Due (Pay Later)</h5>
+                    <p>Mark the entire bill as due for later payment (e.g., for regular customers or corporate accounts).</p>
+                    <ul>
+                        <li>Select "Due" payment type</li>
+                        <li>Add optional notes (customer name, reason)</li>
+                        <li>Click <strong>Mark as Due</strong></li>
+                        <li>Order is saved with "Due" status</li>
+                        <li>Table can be closed or kept running depending on settings</li>
+                    </ul>
+
+                    <h5>5. Non-Chargeable</h5>
+                    <p>Close the order without charging (complimentary meals, staff meals, promotional offers).</p>
+                    <ul>
+                        <li>Select "Non-Chargeable" payment type</li>
+                        <li>Choose a reason from the dropdown:
+                            <ul>
+                                <li>"Owner's Order"</li>
+                                <li>"Guest didn't like food"</li>
+                                <li>"Promotional offer"</li>
+                                <li>"Staff meal"</li>
+                                <li>"Others" (with remarks)</li>
+                            </ul>
+                        </li>
+                        <li>Add optional remarks for record-keeping</li>
+                        <li>Click <strong>Confirm</strong></li>
+                        <li>Table closes immediately, no payment recorded</li>
+                    </ul>
+                </div>
+
+                <h4>Step 5: Enter Payment Details</h4>
+                <p>Use the <strong>numeric keypad</strong> to enter payment amounts:</p>
+                <ul>
+                    <li>Click number buttons (1-9) to build the amount</li>
+                    <li>Use decimal point (.) for paisa/cents</li>
+                    <li>Click <strong>C</strong> to clear last digit</li>
+                    <li>Click <strong>AC</strong> (All Clear) to reset the entire amount</li>
+                    <li>The amount appears in the display field above the keypad</li>
+                </ul>
+
+                <h4>Step 6: Confirm Payment and Close Table</h4>
+                <ol>
+                    <li>Review the bill summary on the right side of the payment modal:
+                        <ul>
+                            <li>Subtotal</li>
+                            <li>Discount sales</li>
+                            <li>Charges</li>
+                            <li>Tax</li>
+                            <li>Tips (optional - add if given by customer)</li>
+                            <li><strong>Total Payable</strong></li>
+                            <li>Amount Collected (what you entered)</li>
+                            <li>Amount Due (remaining balance, if any)</li>
+                        </ul>
+                    </li>
+                    <li>Click <strong>Confirm Payment</strong> button at the bottom</li>
+                    <li>Payment success confirmation modal appears</li>
+                    <li>Receipt is printed automatically (if printer configured)</li>
+                    <li>Table status changes from "Running" (blue) to "Available" (green)</li>
+                </ol>
+
+                <div class="info-box">
+                    <h4>Quick Settle Alternative</h4>
+                    <p>For faster checkout with cash or card only (no splits, no tips):</p>
+                    <ol>
+                        <li>Click <strong>Quick Settle</strong> button (credit card icon) instead of Checkout</li>
+                        <li>The Quick Settle modal shows the total amount</li>
+                        <li>Click <strong>Cash</strong> or <strong>Card</strong> button</li>
+                        <li>Payment is processed immediately</li>
+                        <li>Table closes automatically</li>
+                    </ol>
+                    <p>This is ideal for simple transactions without customization.</p>
+                </div>
+
+                <h4>Alternative: Cancel Order (Before Payment)</h4>
+                <p>If the order needs to be cancelled before payment:</p>
+                <ol>
+                    <li>Open the order details</li>
+                    <li>Click <strong>Cancel Order</strong> button (in order actions)</li>
+                    <li>Select a cancellation reason:
+                        <ul>
+                            <li>"Order Placed by Mistake"</li>
+                            <li>"Restaurant-Specific Cancellation"</li>
+                            <li>"Incorrect Order Details"</li>
+                            <li>"Duplicate Order"</li>
+                            <li>"Unavailability of Items"</li>
+                            <li>"Others" (with explanation)</li>
+                        </ul>
+                    </li>
+                    <li>Add optional remarks</li>
+                    <li>Click <strong>Confirm Cancel</strong></li>
+                    <li>Order is marked cancelled</li>
+                    <li>Table status changes back to "Available" (green)</li>
+                </ol>
+
+                <div class="warning-box">
+                    <h4>⚠️ Manager Approval Required</h4>
+                    <p>Certain actions require manager authorization:</p>
+                    <ul>
+                        <li>Manual discounts above a threshold amount</li>
+                        <li>Non-chargeable orders</li>
+                        <li>Cancelling orders after payment</li>
+                        <li>Voiding transactions</li>
+                    </ul>
+                    <p>The system will prompt for a manager PIN when required.</p>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Payment Modal showing payment type selection, numeric keypad, payment modes (Cash/Card/UPI), and bill summary on the right]</em></p>
+                </div>
+
+                <h3>Managing Held and Saved Orders</h3>
+                <p>Orders can be temporarily saved without closing the table:</p>
+
+                <h4>Hold Order</h4>
+                <ul>
+                    <li>Click <strong>Hold Order</strong> button (hand icon) in order actions</li>
+                    <li>Order is saved with "On Hold" status</li>
+                    <li>Table remains "Running" (blue)</li>
+                    <li>Useful when customers step out or need time to decide on more items</li>
+                </ul>
+
+                <h4>Save Order (Without Payment)</h4>
+                <ul>
+                    <li>Click <strong>Save Order</strong> button (bookmark icon) in the footer</li>
+                    <li>Order is sent to kitchen for preparation</li>
+                    <li>Table status shows "Running"</li>
+                    <li>Payment can be processed later (common for dine-in where customers pay after eating)</li>
+                </ul>
+
+                <h4>Resuming Held/Saved Orders</h4>
+                <ol>
+                    <li>Go to <strong>My Orders</strong> tab</li>
+                    <li>Find the order with "On Hold" or "Saved" status</li>
+                    <li>Click to open order details</li>
+                    <li>Add more items if needed, or proceed directly to checkout</li>
+                </ol>
+
+                <div class="tip-box">
+                    <h4>💡 Best Practice</h4>
+                    <p>For dine-in orders, use <strong>Save Order</strong> to send items to the kitchen immediately, then return to the table later for payment when customers finish their meal. This keeps service flowing smoothly.</p>
+                </div>
+            </section>
+
+            <!-- KITCHEN DISPLAY SYSTEM -->
+            <section id="kds">
+                <h2>Kitchen Display System (KDS)</h2>
+                <p>The Kitchen Display System (KDS) is a digital order management interface designed for kitchen staff to view, track, and manage incoming orders in real-time. It replaces traditional paper tickets with an organized digital board that helps kitchen teams prepare orders efficiently.</p>
+
+                <h3>Accessing the KDS</h3>
+                <ol>
+                    <li>Navigate to <strong>Point of Sale</strong> from the main sidebar</li>
+                    <li>Click <strong>KDS</strong> in the POS navigation bar</li>
+                    <li>A modal opens prompting you to <strong>Select the Kitchen</strong></li>
+                    <li>Choose from available kitchen stations:
+                        <ul>
+                            <li><strong>Kitchen-1:</strong> Main hot kitchen for entrees and mains</li>
+                            <li><strong>Kitchen-2:</strong> Secondary kitchen (if multiple stations exist)</li>
+                            <li><strong>Beverages:</strong> Drink preparation station</li>
+                        </ul>
+                    </li>
+                    <li>The KDS board loads showing all orders for that kitchen station</li>
+                </ol>
+
+                <div class="info-box">
+                    <h4>Multiple Kitchen Stations</h4>
+                    <p>Restaurants with multiple kitchen areas (e.g., hot kitchen, cold prep, beverages, desserts) can configure separate KDS screens for each station. Orders are automatically routed to the appropriate kitchen based on the items ordered.</p>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: KDS Modal showing Kitchen-1, Kitchen-2, and Beverages selection options]</em></p>
+                </div>
+
+                <h3>KDS Interface Overview</h3>
+                <p>The KDS uses a <strong>Kanban board layout</strong> with four columns representing order status:</p>
+
+                <div class="kds-columns">
+                    <div class="status-item">
+                        <h4>1. New Orders (Blue)</h4>
+                        <p>Orders that have just arrived and need to be started. This is where all incoming orders first appear.</p>
+                    </div>
+
+                    <div class="status-item">
+                        <h4>2. Orders Ready (Green)</h4>
+                        <p>Orders that are fully prepared and ready for service or pickup. Server notification is sent automatically.</p>
+                    </div>
+
+                    <div class="status-item">
+                        <h4>3. Orders Served (Gray)</h4>
+                        <p>Orders that have been picked up by servers or handed to customers. Archived for reference.</p>
+                    </div>
+
+                    <div class="status-item">
+                        <h4>4. Cancelled Orders (Red)</h4>
+                        <p>Orders that were cancelled before completion. Includes cancellation reason and timestamp.</p>
+                    </div>
+                </div>
+
+                <p>Each column shows a count in the header (e.g., "New Orders (6)") indicating the number of orders in that status.</p>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Full KDS board showing all four columns with order cards distributed across statuses]</em></p>
+                </div>
+
+                <h3>Order Card Details</h3>
+                <p>Each order appears as a white card with the following information:</p>
+
+                <h4>Card Header</h4>
+                <ul>
+                    <li><strong>Order ID:</strong> Unique identifier (e.g., #ORD-0803)</li>
+                    <li><strong>Elapsed Time:</strong> How long since order was placed (e.g., 00:01 for 1 minute, 03:45 for 3 hours 45 minutes)</li>
+                </ul>
+
+                <h4>Order Metadata</h4>
+                <ul>
+                    <li><strong>KOT No:</strong> Kitchen Order Ticket number (e.g., 01, 02, 03)</li>
+                    <li><strong>Order Time:</strong> Time the order was placed (e.g., 06:38 PM)</li>
+                    <li><strong>Order Type:</strong> Dine In, Take Away, or Delivery</li>
+                    <li><strong>Order Source:</strong> "Bistro Bill" for in-house orders, or third-party platform name (e.g., "Zomato", "Swiggy")</li>
+                    <li><strong>Table/Location:</strong> For dine-in, shows table number and area (e.g., "Table No: T-01 | Non-AC | Floor-01"). For takeaway/delivery, shows "-"</li>
+                </ul>
+
+                <h4>Item List</h4>
+                <p>All items in the order are listed with color-coded status indicators:</p>
+                <ul>
+                    <li><strong>White background (default):</strong> Item not yet started</li>
+                    <li><strong>Yellow background:</strong> Item currently being prepared, with countdown timer (e.g., "Preparing in 00:25:00")</li>
+                    <li><strong>Green background:</strong> Item is ready, with "Ready" badge</li>
+                </ul>
+
+                <p>Each item row shows:</p>
+                <ul>
+                    <li>Item name (e.g., "Keema Khichdi")</li>
+                    <li>Variant details (e.g., "Extra Spicy", "Small (500g)")</li>
+                    <li>Quantity (e.g., "Qty: 1", "Qty: 2")</li>
+                    <li>Status badge (if preparing or ready)</li>
+                </ul>
+
+                <div class="tip-box">
+                    <h4>💡 Visual Priority System</h4>
+                    <p>The elapsed time in the top-right of each card helps kitchen staff prioritize orders. Orders with longer wait times should be addressed first to maintain service speed.</p>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Close-up of an order card showing order ID, elapsed time, KOT number, order metadata, and itemized list with color-coded statuses]</em></p>
+                </div>
+
+                <h3>Order Queue and Priority Display</h3>
+                <p>The KDS automatically organizes orders to help kitchen staff manage workflow:</p>
+
+                <h4>Automatic Sorting</h4>
+                <ul>
+                    <li>Orders appear in the "New Orders" column as soon as they're placed</li>
+                    <li>Within each column, orders are sorted by time (oldest at top, newest at bottom)</li>
+                    <li>This ensures first-in, first-out (FIFO) order processing</li>
+                </ul>
+
+                <h4>Rush Order Indicators</h4>
+                <p>Orders with special notes like "RUSH ORDER" or "URGENT" are displayed prominently:</p>
+                <ul>
+                    <li>Rush orders may appear with a priority badge or different border color (depending on configuration)</li>
+                    <li>Notes from the POS (added via "Order Note's" button) appear in the order card</li>
+                    <li>Kitchen staff can quickly identify time-sensitive orders</li>
+                </ul>
+
+                <h4>Third-Party Platform Orders</h4>
+                <p>Orders from Zomato, Swiggy, and other delivery platforms are clearly marked:</p>
+                <ul>
+                    <li>Source field shows platform name (e.g., "Zomato")</li>
+                    <li>These orders often have stricter preparation time requirements</li>
+                    <li>Delivery orders show "-" in the table field since there's no physical table</li>
+                </ul>
+
+                <h3>Order Status Workflow</h3>
+                <p>Kitchen staff manage orders by moving them through these statuses:</p>
+
+                <h4>Step 1: New Order Arrives</h4>
+                <ol>
+                    <li>Order appears in <strong>New Orders</strong> column (blue header)</li>
+                    <li>Kitchen staff reviews items and special instructions</li>
+                    <li>Optionally, staff can use <strong>Select All</strong> button to mark all items for preparation</li>
+                </ol>
+
+                <h4>Step 2: Start Preparation</h4>
+                <ol>
+                    <li>Click individual items or use <strong>Select All</strong> to select items</li>
+                    <li>Click <strong>Prepare</strong> button at the bottom of the card</li>
+                    <li>Selected items change to yellow background with countdown timer</li>
+                    <li>Timer shows estimated time remaining (e.g., "Preparing in 00:25:00" for 25 minutes)</li>
+                    <li>Order remains in "New Orders" column until all items are marked ready</li>
+                </ol>
+
+                <h4>Step 3: Mark Items as Ready</h4>
+                <ol>
+                    <li>When an item is fully prepared, select it from the list</li>
+                    <li>Click <strong>Ready</strong> button</li>
+                    <li>Item background changes to green with "Ready" badge</li>
+                    <li>When <strong>all items</strong> in an order are marked ready, the entire order card automatically moves to the <strong>Orders Ready</strong> column (green header)</li>
+                </ol>
+
+                <h4>Step 4: Order Pickup/Service</h4>
+                <ol>
+                    <li>Server is notified that order is ready (via notification or server tablet)</li>
+                    <li>Server picks up the food from the kitchen pass</li>
+                    <li>Order is served to the customer (dine-in) or handed over (takeaway/delivery)</li>
+                    <li>Order moves to <strong>Orders Served</strong> column (gray header)</li>
+                </ol>
+
+                <h4>Alternative: Cancel Order</h4>
+                <p>If an order needs to be cancelled:</p>
+                <ol>
+                    <li>Manager or authorized staff cancels the order from POS or My Orders screen</li>
+                    <li>Order automatically moves to <strong>Cancelled Orders</strong> column (red header)</li>
+                    <li>Cancelled orders remain visible for reference but are no longer actionable</li>
+                </ol>
+
+                <div class="warning-box">
+                    <h4>⚠️ All Items Must Be Ready</h4>
+                    <p>An order only moves to "Orders Ready" when <strong>every single item</strong> in that order is marked as ready. If one item is still preparing, the order stays in "New Orders" even if other items are done. This prevents incomplete orders from being served.</p>
+                </div>
+
+                <h3>KDS Control Bar</h3>
+                <p>The top control bar provides additional functionality:</p>
+
+                <h4>Kitchen Selector Dropdown</h4>
+                <ul>
+                    <li>Located at the top-right of the screen</li>
+                    <li>Allows switching between kitchen stations without leaving the KDS</li>
+                    <li>Options: Kitchen-1, Kitchen-2, Beverages (or as configured)</li>
+                    <li>Useful for kitchen managers overseeing multiple stations</li>
+                </ul>
+
+                <h4>Refresh Button</h4>
+                <ul>
+                    <li>Black circular button with refresh icon (🔄)</li>
+                    <li>Manually refreshes the KDS to pull latest orders</li>
+                    <li>Useful if automatic updates are delayed or connection is slow</li>
+                </ul>
+
+                <h4>Date and Time Display</h4>
+                <ul>
+                    <li>Shows current date (e.g., "Wednesday, Nov 06, 2024")</li>
+                    <li>Helps kitchen staff track service period (breakfast, lunch, dinner)</li>
+                </ul>
+
+                <h4>Notification Bell</h4>
+                <ul>
+                    <li>Shows number of new orders or alerts (e.g., green badge with "2")</li>
+                    <li>Clicking opens notifications panel</li>
+                    <li>Alerts may include rush orders, cancelled items, or special requests</li>
+                </ul>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: KDS control bar showing kitchen selector, refresh button, date display, notification bell, and user profile]</em></p>
+                </div>
+
+                <h3>Marking Items as Prepared</h3>
+                <p>Detailed steps for updating item status:</p>
+
+                <h4>Preparing Individual Items</h4>
+                <ol>
+                    <li>Locate the order card in the "New Orders" column</li>
+                    <li>Review all items in the order</li>
+                    <li>For each item you're starting to prepare:
+                        <ul>
+                            <li>Click the item row to select it (or use "Select All" for entire order)</li>
+                            <li>Click <strong>Prepare</strong> button</li>
+                            <li>Item background turns yellow</li>
+                            <li>Countdown timer appears (e.g., "Preparing in 00:25:00")</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h4>Marking Individual Items Ready</h4>
+                <ol>
+                    <li>When an item is fully cooked and plated:
+                        <ul>
+                            <li>Click the item row to select it</li>
+                            <li>Click <strong>Ready</strong> button</li>
+                            <li>Item background turns green</li>
+                            <li>"Ready" badge appears next to quantity</li>
+                        </ul>
+                    </li>
+                    <li>Repeat for each completed item in the order</li>
+                </ol>
+
+                <h4>Unselecting Items</h4>
+                <ul>
+                    <li>If you accidentally select the wrong item, click <strong>Unselect All</strong></li>
+                    <li>This clears all selections without changing any statuses</li>
+                    <li>You can then re-select the correct items</li>
+                </ul>
+
+                <div class="tip-box">
+                    <h4>💡 Partial Preparation Tip</h4>
+                    <p>For orders with multiple items that cook at different speeds, mark each item as ready individually. For example, in an order with Biryani (30 min) and Raita (5 min), mark Raita as ready first, and Biryani when it's done. The order only moves to "Ready" when both are done.</p>
+                </div>
+
+                <h3>Bumping Orders Off the Screen</h3>
+                <p>To keep the KDS uncluttered and focused on active orders:</p>
+
+                <h4>Automatic Bumping</h4>
+                <ul>
+                    <li>When an order moves to "Orders Served", it stays visible for a short time (e.g., 5-10 minutes)</li>
+                    <li>After the configured time period, served orders automatically disappear from the KDS</li>
+                    <li>This keeps the board focused on orders that need attention</li>
+                </ul>
+
+                <h4>Manual Bumping (if supported)</h4>
+                <ul>
+                    <li>Kitchen managers can manually remove served orders from view</li>
+                    <li>Useful during rush periods to keep the screen clean</li>
+                    <li>Bumped orders are still logged in the system for reporting</li>
+                </ul>
+
+                <h4>Cancelled Order Handling</h4>
+                <ul>
+                    <li>Cancelled orders stay in the "Cancelled Orders" column for reference</li>
+                    <li>Kitchen staff can see why orders were cancelled and when</li>
+                    <li>This helps track waste and identify issues (e.g., frequent cancellations of a specific dish)</li>
+                </ul>
+
+                <h3>Handling Rush Orders and Modifications</h3>
+                <p>Special situations require quick adaptation:</p>
+
+                <h4>Rush Orders</h4>
+                <p><strong>Identification:</strong></p>
+                <ul>
+                    <li>Look for orders with notes containing "RUSH", "URGENT", or "Priority"</li>
+                    <li>Check elapsed time—orders with longer wait times should be prioritized</li>
+                    <li>Delivery platform orders (Zomato, Swiggy) often have strict time limits</li>
+                </ul>
+
+                <p><strong>Action:</strong></p>
+                <ol>
+                    <li>Communicate with team: "We have a rush order for Table T-05"</li>
+                    <li>Bump the order to the front of your preparation queue</li>
+                    <li>Mark items as preparing immediately to show you've started</li>
+                    <li>Update to ready as soon as items are done</li>
+                </ol>
+
+                <h4>Order Modifications</h4>
+                <p><strong>Situation:</strong> Customer changes order after it's been sent to kitchen (e.g., adds extra items, removes an item, changes variant)</p>
+
+                <p><strong>How it appears on KDS:</strong></p>
+                <ul>
+                    <li>A new KOT (Kitchen Order Ticket) is generated with a different KOT number</li>
+                    <li>The new KOT shows only the <strong>added or changed items</strong></li>
+                    <li>Original order card remains unchanged</li>
+                    <li>Both KOTs have the same Order ID but different KOT numbers (e.g., #ORD-0803 with KOT 01 and KOT 01A)</li>
+                </ul>
+
+                <p><strong>Action:</strong></p>
+                <ol>
+                    <li>Check if the modification is an addition or replacement</li>
+                    <li>If addition: Prepare new items and coordinate timing with original order</li>
+                    <li>If removal: Stop preparing the removed item (if not yet started) or notify server if already prepared</li>
+                    <li>If change: Replace the original item with the modified version</li>
+                </ol>
+
+                <h4>Unavailable Items</h4>
+                <p><strong>Situation:</strong> An item is out of stock or can't be prepared</p>
+
+                <p><strong>Action:</strong></p>
+                <ol>
+                    <li>Notify the server or cashier immediately</li>
+                    <li>Server contacts the customer to suggest alternatives</li>
+                    <li>If customer agrees to substitute, a new KOT will appear with the replacement item</li>
+                    <li>Original item is removed from the order (may show in cancelled items)</li>
+                    <li><strong>Important:</strong> Also update the menu to mark the item as unavailable so future orders don't include it</li>
+                </ol>
+
+                <div class="warning-box">
+                    <h4>⚠️ Communication is Key</h4>
+                    <p>For any modifications or issues, always communicate with front-of-house staff immediately. Don't assume—confirm changes before proceeding. This prevents customer dissatisfaction and wasted food.</p>
+                </div>
+
+                <div class="screenshot-placeholder">
+                    <p><em>[Screenshot: Two order cards with same Order ID but different KOT numbers, showing original order and modification]</em></p>
+                </div>
+
+                <h3>KDS Best Practices</h3>
+
+                <div class="best-practices">
+                    <h4>For Kitchen Staff</h4>
+                    <ul>
+                        <li><strong>Check KDS frequently:</strong> Glance at the screen every 2-3 minutes during busy periods</li>
+                        <li><strong>Update statuses in real-time:</strong> Mark items as preparing/ready immediately to keep servers informed</li>
+                        <li><strong>Prioritize by time:</strong> Focus on orders with longer elapsed times first</li>
+                        <li><strong>Read special instructions:</strong> Always check order notes before starting preparation</li>
+                        <li><strong>Communicate issues:</strong> If an item will be delayed or unavailable, notify servers immediately</li>
+                    </ul>
+
+                    <h4>For Kitchen Managers</h4>
+                    <ul>
+                        <li><strong>Monitor all stations:</strong> Use the kitchen selector to switch between stations and ensure balanced workload</li>
+                        <li><strong>Track bottlenecks:</strong> If one column has too many orders, reassign tasks or add staff</li>
+                        <li><strong>Review cancelled orders:</strong> Analyze patterns in cancellations to identify menu or service issues</li>
+                        <li><strong>Train staff on status updates:</strong> Ensure everyone knows how to mark items as preparing/ready</li>
+                        <li><strong>Keep screen clean:</strong> Ensure served orders are bumped off to maintain focus on active orders</li>
+                    </ul>
+                </div>
+
+                <h3>Troubleshooting Common KDS Issues</h3>
+
+                <div class="troubleshooting">
+                    <h4>Orders Not Appearing</h4>
+                    <p><strong>Problem:</strong> POS sent an order but it doesn't show on KDS</p>
+                    <p><strong>Solutions:</strong></p>
+                    <ul>
+                        <li>Click the <strong>Refresh</strong> button (🔄) at the top-right</li>
+                        <li>Check if you're viewing the correct kitchen station (use kitchen selector)</li>
+                        <li>Verify network/internet connection is stable</li>
+                        <li>Check with POS staff to confirm order was successfully saved</li>
+                    </ul>
+
+                    <h4>Order Stuck in New Orders</h4>
+                    <p><strong>Problem:</strong> Order won't move to Ready column even though all items are prepared</p>
+                    <p><strong>Solutions:</strong></p>
+                    <ul>
+                        <li>Verify <strong>all items</strong> in the order have green background and "Ready" badge</li>
+                        <li>Check if any items are still yellow (preparing) or white (not started)</li>
+                        <li>If all items are marked ready but card doesn't move, click refresh</li>
+                    </ul>
+
+                    <h4>Timer Not Updating</h4>
+                    <p><strong>Problem:</strong> "Preparing in 00:25:00" timer is frozen or incorrect</p>
+                    <p><strong>Solutions:</strong></p>
+                    <ul>
+                        <li>Timer is an estimate based on configured preparation times</li>
+                        <li>It doesn't affect actual order processing—just a visual guide</li>
+                        <li>Mark item as ready manually when it's actually done, regardless of timer</li>
+                    </ul>
+
+                    <h4>Duplicate Orders</h4>
+                    <p><strong>Problem:</strong> Same order appears multiple times</p>
+                    <p><strong>Solutions:</strong></p>
+                    <ul>
+                        <li>Check Order ID and KOT number—if different KOT numbers, these are modifications or separate orders</li>
+                        <li>If exact duplicates (same Order ID and KOT), it's likely a system glitch—prepare only once and notify manager</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- COMMON SCENARIOS -->
+            <section id="common-scenarios">
+                <h2>Common Scenarios</h2>
+                <p>Handle these frequent situations efficiently using Bistro Bill's POS features.</p>
+
+                <h3>Scenario 1: Split Bills</h3>
+                <p><strong>Situation:</strong> Multiple customers at the same table want to pay separately.</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>Complete the order as usual (all items in one order)</li>
+                    <li>Click <strong>Checkout</strong></li>
+                    <li>In the payment modal, select <strong>Split Bill</strong></li>
+                    <li>Choose split method:
+                        <ul>
+                            <li><strong>Equal Split:</strong> Divide total equally (e.g., 4 ways)</li>
+                            <li><strong>By Item:</strong> Assign specific items to each person</li>
+                            <li><strong>Custom Amount:</strong> Enter exact amount for each payment</li>
+                        </ul>
+                    </li>
+                    <li>Process each payment separately (cash, card, UPI, etc.)</li>
+                    <li>System tracks multiple payments against one order</li>
+                </ol>
+
+                <h3>Scenario 2: Applying Discounts</h3>
+                <p><strong>Situation:</strong> Customer has a discount coupon or qualifies for a promotion.</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>Add items to cart as normal</li>
+                    <li>Before payment, locate the <strong>Special Discount</strong> section (top left of menu area)</li>
+                    <li>Enter coupon code or select from dropdown of active promotions</li>
+                    <li>Click <strong>Apply</strong></li>
+                    <li>Discount appears in Payment Summary with adjusted total</li>
+                    <li>Proceed to checkout</li>
+                </ol>
+                <p><strong>Automatic Discounts:</strong> Some discounts apply automatically based on order value, customer segment, or time of day. These show in Payment Summary without manual entry.</p>
+
+                <h3>Scenario 3: Order Cancellation</h3>
+                <p><strong>Situation:</strong> Customer changes their mind or order was entered incorrectly.</p>
+                <p><strong>Solution (Before Payment):</strong></p>
+                <ol>
+                    <li>Click <strong>Cancel Order</strong> button (red ban icon)</li>
+                    <li>Select cancellation reason from dropdown:
+                        <ul>
+                            <li>Customer request</li>
+                            <li>Wrong order entered</li>
+                            <li>Item unavailable</li>
+                            <li>Other (specify)</li>
+                        </ul>
+                    </li>
+                    <li>Add optional notes explaining cancellation</li>
+                    <li>Click <strong>Confirm Cancel</strong></li>
+                    <li>"Order Cancelled" confirmation appears</li>
+                </ol>
+
+                <p><strong>Solution (After Payment):</strong></p>
+                <ol>
+                    <li>Navigate to <strong>My Orders</strong> tab</li>
+                    <li>Find the order in the list</li>
+                    <li>Click to open order details</li>
+                    <li>Click <strong>Sales Return</strong> button</li>
+                    <li>Select items to return (full or partial)</li>
+                    <li>Choose refund method (same as original payment)</li>
+                    <li>Requires manager approval for refunds</li>
+                </ol>
+
+                <h3>Scenario 4: Modifying Order After Saving</h3>
+                <p><strong>Situation:</strong> Customer wants to add items after initial order was sent to kitchen.</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>Go to <strong>My Orders</strong> or <strong>Table View</strong></li>
+                    <li>Locate the active order (status: "Processing" or "In Kitchen")</li>
+                    <li>Click on the order to open details</li>
+                    <li>Click <strong>Edit Order</strong> or <strong>Add Items</strong></li>
+                    <li>Add new items or modify quantities</li>
+                    <li>Click <strong>Update Order</strong></li>
+                    <li>New KOT is sent to kitchen for additional items</li>
+                </ol>
+
+                <h3>Scenario 5: Handling Unavailable Items</h3>
+                <p><strong>Situation:</strong> Customer orders an item that's marked available but is actually out of stock.</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>After adding the item, kitchen notifies it's unavailable</li>
+                    <li>Go to the order in <strong>My Orders</strong></li>
+                    <li>Click the item in the cart</li>
+                    <li>Click <strong>Remove Item</strong></li>
+                    <li>Suggest alternative items to the customer</li>
+                    <li>Add replacement item if customer agrees</li>
+                    <li>Update order and inform kitchen of the change</li>
+                </ol>
+                <p><strong>Prevent Future Issues:</strong> Mark the item as unavailable in the menu so it shows a red indicator for future orders.</p>
+
+                <h3>Scenario 6: Rush Orders</h3>
+                <p><strong>Situation:</strong> Customer is in a hurry and needs food prepared quickly.</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>Take the order as usual</li>
+                    <li>Click <strong>Order Note's</strong></li>
+                    <li>Type "RUSH ORDER" or "URGENT - Customer in hurry"</li>
+                    <li>Save and proceed with payment</li>
+                    <li>Kitchen staff see the note on KDS and prioritize accordingly</li>
+                </ol>
+                <p><strong>Alternative:</strong> Some configurations allow tagging orders as "Priority" which visually highlights them in the kitchen display.</p>
+
+                <h3>Scenario 7: Complimentary Items (Comp)</h3>
+                <p><strong>Situation:</strong> Restaurant wants to comp an item due to service issue or promotional reasons.</p>
+                <p><strong>Solution:</strong></p>
+                <ol>
+                    <li>Add the item to cart normally</li>
+                    <li>In Payment Summary, apply a <strong>100% discount</strong></li>
+                    <li>Enter reason: "Complimentary" or "Promotional"</li>
+                    <li>Requires manager approval (PIN entry)</li>
+                    <li>Process payment for remaining items only</li>
+                    <li>Comp appears on receipt as "Item Name - Comp (₹0.00)"</li>
+                </ol>
+
+                <div class="tip-box">
+                    <h4>💡 Best Practice</h4>
+                    <p>Always confirm order details with the customer before processing payment, especially for complex orders with customizations. This prevents errors and ensures customer satisfaction.</p>
+                </div>
+            </section>
+
+            <!-- RELATED TOPICS -->
+            <section id="related-topics">
+                <h2>Related Topics</h2>
+                <div class="related-links">
+                    <a href="#table-management" class="related-card">
+                        <h3>Table Management</h3>
+                        <p>Learn to manage dine-in tables, merge tables, and transfer orders</p>
+                    </a>
+                    <a href="#kds" class="related-card">
+                        <h3>Kitchen Display System</h3>
+                        <p>Understand how kitchen staff view and process orders</p>
+                    </a>
+                    <a href="customers.html" class="related-card">
+                        <h3>Customer Management</h3>
+                        <p>Link orders to customer profiles for loyalty tracking (coming soon)</p>
+                    </a>
+                    <a href="marketing.html#discounts" class="related-card">
+                        <h3>Discounts & Promotions</h3>
+                        <p>Learn about creating and applying discount codes (coming soon)</p>
+                    </a>
+                </div>
+            </section>
+
+            <nav class="page-navigation">
+                <a href="getting-started.html" class="btn-secondary">← Back to Getting Started</a>
+                <a href="index.html" class="btn-primary">Back to Home →</a>
+            </nav>
+        </article>
+    </main>
+
+    <footer>
+        <p>Bistro Bill User Manual | Version 1.0 | Last Updated: February 2026</p>
+    </footer>
+</body>
+</html>

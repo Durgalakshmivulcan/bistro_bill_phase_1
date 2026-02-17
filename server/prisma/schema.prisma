@@ -1,0 +1,2322 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// PHASE 1: Multi-tenant Core Tables (US-004)
+// ============================================
+
+// Super Admin - Platform-level administrator
+model SuperAdmin {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String
+  name             String
+  phone            String?
+  avatar           String?
+  resetToken       String? // Hashed reset token
+  resetTokenExpiry DateTime? // Expiry time for reset token
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// Subscription Plan - Available plans for business owners
+model SubscriptionPlan {
+  id          String   @id @default(uuid())
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  duration    Int // Duration in days
+  trialDays   Int      @default(0)
+  features    Json // JSON array of features
+  maxBranches Int      @default(1)
+  status      String   @default("active") // active, inactive
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  businessOwners          BusinessOwner[]
+  upiAutoPaySubscriptions UPIAutoPaySubscription[]
+}
+
+// Business Owner - Tenant/Restaurant owner
+model BusinessOwner {
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  password              String
+  ownerName             String
+  restaurantName        String
+  phone                 String?
+  businessType          String? // Restaurant, Cafe, Bar, etc.
+  tinGstNumber          String?
+  avatar                String? // S3 URL
+  country               String?
+  state                 String?
+  city                  String?
+  zipCode               String?
+  address               String?
+  planId                String?
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  resetToken            String? // Hashed reset token
+  resetTokenExpiry      DateTime? // Expiry time for reset token
+  status                String    @default("active") // active, inactive, suspended
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  plan               SubscriptionPlan?   @relation(fields: [planId], references: [id])
+  branches           Branch[]
+  roles              Role[]
+  staff              Staff[]
+  categories         Category[]
+  subCategories      SubCategory[]
+  brands             Brand[]
+  menus              Menu[]
+  tags               Tag[]
+  products           Product[]
+  suppliers          Supplier[]
+  inventoryProducts  InventoryProduct[]
+  purchaseOrders     PurchaseOrder[]
+  customerGroups     CustomerGroup[]
+  customers          Customer[]
+  discounts          Discount[]
+  advertisements     Advertisement[]
+  feedbackForms      FeedbackForm[]
+  orders             Order[]
+  taxes              Tax[]
+  taxGroups          TaxGroup[]
+  paymentOptions     PaymentOption[]
+  charges            Charge[]
+  reasons            Reason[]
+  businessPreference BusinessPreference?
+  blogCategories     BlogCategory[]
+  blogs              Blog[]
+  blogTags           BlogTag[]
+  auditLogs          AuditLog[]
+  salesChannels      SalesChannel[]
+  aggregators        Aggregator[]
+  stockAdjustments   StockAdjustment[]
+  salesAnomalies     SalesAnomaly[]
+  reportShares       ReportShare[]
+  reportComments     ReportComment[]
+  customReports      CustomReport[]
+  scheduledReports   ScheduledReport[]
+  paymentGatewayConfigs  PaymentGatewayConfig[]
+  paymentReconciliations PaymentReconciliation[]
+  upiAutoPaySubscriptions UPIAutoPaySubscription[]
+  integrations       Integration[]
+  customerReviews    CustomerReview[]
+  securityCameras    SecurityCamera[]
+  staffAttendances   StaffAttendance[]
+  loyaltyTransactions LoyaltyTransaction[]
+  supplierRatings    SupplierRating[]
+
+  @@index([planId])
+}
+
+// Branch - Physical location of a business
+model Branch {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  parentBranchId  String?  // Hierarchical franchise structure (null = top-level)
+  name            String
+  code            String? // Unique code within the business
+  phone           String?
+  email           String?
+  address         String?
+  city            String?
+  state           String?
+  country         String?
+  zipCode         String?
+  isMainBranch    Boolean  @default(false)
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner     BusinessOwner      @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  parentBranch      Branch?            @relation("BranchHierarchy", fields: [parentBranchId], references: [id])
+  childBranches     Branch[]           @relation("BranchHierarchy")
+  staff             Staff[]
+  inventoryProducts InventoryProduct[]
+  purchaseOrders    PurchaseOrder[]
+  kitchens          Kitchen[]
+  floors            Floor[]
+  rooms             Room[]
+  reservations      Reservation[]
+  businessHours     BusinessHours[]
+  orders            Order[]
+  onlineOrders      OnlineOrder[]
+  securityCameras   SecurityCamera[]
+  staffAttendances  StaffAttendance[]
+  userRoleAssignments UserRoleAssignment[]
+  loyaltyTransactions LoyaltyTransaction[]
+
+  @@unique([businessOwnerId, code])
+  @@index([businessOwnerId])
+  @@index([parentBranchId])
+}
+
+// ============================================
+// PHASE 1: Staff & Roles Tables (US-005)
+// ============================================
+
+// Role - User roles with permissions for a business
+model Role {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  description     String?
+  permissions     Json // JSON object of permissions (legacy)
+  isSystem        Boolean  @default(false) // System-defined roles cannot be deleted
+  parentRoleId    String?  // For role hierarchy / inheritance
+  level           Int      @default(5) // 1=SuperAdmin, 2=BusinessOwner, 3=BranchManager, 4=DeptManager, 5=Staff
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner    BusinessOwner      @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  parentRole       Role?              @relation("RoleHierarchy", fields: [parentRoleId], references: [id])
+  childRoles       Role[]             @relation("RoleHierarchy")
+  staff            Staff[]
+  rolePermissions  RolePermission[]
+  userRoleAssignments UserRoleAssignment[]
+
+  @@index([businessOwnerId])
+  @@index([parentRoleId])
+}
+
+// Staff - Employees of a business
+model Staff {
+  id               String    @id @default(uuid())
+  businessOwnerId  String
+  branchId         String
+  roleId           String
+  firstName        String
+  lastName         String
+  email            String
+  password         String
+  phone            String?
+  avatar           String? // S3 URL
+  resetToken       String? // Hashed reset token
+  resetTokenExpiry DateTime? // Expiry time for reset token
+  status           String    @default("active") // active, inactive
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  businessOwner  BusinessOwner   @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  role           Role            @relation(fields: [roleId], references: [id])
+  orders         Order[]
+  orderTimelines OrderTimeline[] @relation("OrderTimelineStaff")
+  blogs          Blog[]
+  blogRevisions  BlogRevision[]
+  attendanceRecords StaffAttendance[]
+
+  @@unique([businessOwnerId, email])
+  @@index([businessOwnerId])
+  @@index([branchId])
+  @@index([roleId])
+}
+
+// ============================================
+// PHASE 1: Catalog Configuration Tables (US-006)
+// ============================================
+
+// Category - Product categories for a business
+model Category {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  image           String? // S3 URL
+  description     String?
+  status          String   @default("active") // active, inactive
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner      BusinessOwner      @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  subCategories      SubCategory[]
+  products           Product[]
+  discountCategories DiscountCategory[]
+
+  @@index([businessOwnerId])
+}
+
+// SubCategory - Product sub-categories within a category
+model SubCategory {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  categoryId      String
+  name            String
+  image           String? // S3 URL
+  description     String?
+  status          String   @default("active") // active, inactive
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  category      Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products      Product[]
+
+  @@index([businessOwnerId])
+  @@index([categoryId])
+}
+
+// Brand - Product brands for a business
+model Brand {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  image           String? // S3 URL
+  description     String?
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  products      Product[]
+
+  @@index([businessOwnerId])
+}
+
+// Menu - Channel menus for a business (e.g., Dine-In, Delivery, etc.)
+model Menu {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  description     String?
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  products      Product[]
+
+  @@index([businessOwnerId])
+}
+
+// Tag - Product tags for labeling (e.g., Spicy, Vegan, New, etc.)
+model Tag {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  color           String? // Hex color code
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  productTags   ProductTag[]
+  customerTags  CustomerTag[]
+
+  @@index([businessOwnerId])
+}
+
+// ============================================
+// PHASE 1: Product Tables (US-007)
+// ============================================
+
+// Product type enum
+enum ProductType {
+  Regular
+  Combo
+  Retail
+}
+
+// Allergen - Global allergen definitions
+model Allergen {
+  id        String   @id @default(uuid())
+  name      String
+  icon      String? // Icon URL or icon name
+  createdAt DateTime @default(now())
+
+  // Relations
+  productAllergens ProductAllergen[]
+}
+
+// Product - Main product table
+model Product {
+  id              String      @id @default(uuid())
+  businessOwnerId String
+  name            String
+  sku             String?
+  type            ProductType @default(Regular)
+  categoryId      String?
+  subCategoryId   String?
+  brandId         String?
+  menuId          String?
+  description     String?
+  shortCode       String? // Short code for quick POS lookup
+  hsnCode         String? // HSN code for GST
+  preparationTime Int? // Time in minutes
+  servesCount     Int? // Number of people it serves
+  isVeg           Boolean     @default(true)
+  status          String      @default("active") // active, inactive
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  businessOwner    BusinessOwner     @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  category         Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  subCategory      SubCategory?      @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+  brand            Brand?            @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  menu             Menu?             @relation(fields: [menuId], references: [id], onDelete: SetNull)
+  variants         ProductVariant[]
+  addons           ProductAddon[]
+  prices           ProductPrice[]
+  images           ProductImage[]
+  productTags      ProductTag[]
+  nutrition        ProductNutrition?
+  productAllergens ProductAllergen[]
+  discountProducts DiscountProduct[]
+  orderItems       OrderItem[]
+  productKitchens  ProductKitchen[]
+
+  @@index([businessOwnerId])
+  @@index([categoryId])
+  @@index([subCategoryId])
+  @@index([brandId])
+  @@index([menuId])
+}
+
+// ProductVariant - Size/variant options for products
+model ProductVariant {
+  id              String   @id @default(uuid())
+  productId       String
+  name            String // e.g., "Small", "Medium", "Large"
+  sku             String?
+  additionalPrice Decimal  @default(0) @db.Decimal(10, 2) // Additional price on top of base
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  product    Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  prices     ProductPrice[]
+  orderItems OrderItem[]
+
+  @@index([productId])
+}
+
+// ProductAddon - Add-on items for products
+model ProductAddon {
+  id        String   @id @default(uuid())
+  productId String
+  name      String // e.g., "Extra Cheese", "Extra Sauce"
+  price     Decimal  @db.Decimal(10, 2)
+  status    String   @default("active") // active, inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  product         Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItemAddons OrderItemAddon[]
+
+  @@index([productId])
+}
+
+// ProductPrice - Pricing per channel (DineIn, Delivery, etc.)
+model ProductPrice {
+  id            String   @id @default(uuid())
+  productId     String
+  variantId     String? // Nullable - if null, applies to base product
+  channelType   String // e.g., "DineIn", "Delivery", "TakeAway"
+  basePrice     Decimal  @db.Decimal(10, 2)
+  discountPrice Decimal? @db.Decimal(10, 2) // Optional discounted price
+  taxGroupId    String? // FK to TaxGroup
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  product  Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant  ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  taxGroup TaxGroup?       @relation(fields: [taxGroupId], references: [id], onDelete: SetNull)
+
+  @@index([productId])
+  @@index([variantId])
+  @@index([taxGroupId])
+}
+
+// ProductImage - Multiple images per product
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  url       String // S3 URL
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// ProductTag - Junction table for Product <-> Tag many-to-many
+model ProductTag {
+  productId String
+  tagId     String
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+  @@index([productId])
+  @@index([tagId])
+}
+
+// CustomerTag - Junction table for Customer <-> Tag many-to-many
+model CustomerTag {
+  customerId String
+  tagId      String
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, tagId])
+  @@index([customerId])
+  @@index([tagId])
+}
+
+// ProductNutrition - Nutritional information for a product
+model ProductNutrition {
+  id        String   @id @default(uuid())
+  productId String   @unique // One-to-one with Product
+  calories  Int?
+  protein   Decimal? @db.Decimal(10, 2) // in grams
+  carbs     Decimal? @db.Decimal(10, 2) // in grams
+  fat       Decimal? @db.Decimal(10, 2) // in grams
+  fiber     Decimal? @db.Decimal(10, 2) // in grams
+  sugar     Decimal? @db.Decimal(10, 2) // in grams
+  sodium    Decimal? @db.Decimal(10, 2) // in milligrams
+  vitamins  Json? // JSON object of vitamin information
+  minerals  Json? // JSON object of mineral information
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// ProductAllergen - Junction table for Product <-> Allergen many-to-many
+model ProductAllergen {
+  productId  String
+  allergenId String
+
+  // Relations
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  allergen Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+
+  @@id([productId, allergenId])
+  @@index([productId])
+  @@index([allergenId])
+}
+
+// ProductKitchen - Junction table for Product <-> Kitchen many-to-many (US-182)
+model ProductKitchen {
+  productId String
+  kitchenId String
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  kitchen Kitchen @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
+
+  @@id([productId, kitchenId])
+  @@index([productId])
+  @@index([kitchenId])
+}
+
+// ============================================
+// PHASE 1: Inventory Tables (US-008)
+// ============================================
+
+// Purchase Order status enum
+enum PurchaseOrderStatus {
+  Pending
+  Approved
+  Declined
+  Received
+}
+
+// Supplier - Vendors/suppliers for inventory products
+model Supplier {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  code            String? // Unique code within the business
+  name            String
+  phone           String?
+  email           String?
+  address         String?
+  gstNumber       String? // GST Number (15 characters)
+  tinNumber       String? // TIN Number
+  taxStateCode    String? // Tax State Code
+  bankAccount     String? // Bank Account Number
+  bankName        String? // Bank Name
+  bankBranch      String? // Bank Branch
+  ifscCode        String? // IFSC Code (11 characters)
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner     BusinessOwner      @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  inventoryProducts InventoryProduct[]
+  purchaseOrders    PurchaseOrder[]
+  contacts          SupplierContact[]
+  ratings           SupplierRating[]
+
+  @@index([businessOwnerId])
+}
+
+// SupplierContact - Contact persons for a supplier
+model SupplierContact {
+  id         String   @id @default(uuid())
+  supplierId String
+  name       String
+  email      String?
+  phone      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId])
+}
+
+// InventoryProduct - Stock items for a branch
+model InventoryProduct {
+  id              String    @id @default(uuid())
+  businessOwnerId String
+  branchId        String
+  name            String
+  image           String? // S3 URL
+  supplierId      String?
+  inStock         Decimal   @default(0) @db.Decimal(10, 2) // Current stock quantity
+  quantitySold    Decimal   @default(0) @db.Decimal(10, 2) // Total sold quantity
+  restockAlert    Decimal?  @db.Decimal(10, 2) // Alert threshold
+  costPrice       Decimal   @db.Decimal(10, 2) // Purchase/cost price
+  sellingPrice    Decimal   @db.Decimal(10, 2) // Selling price
+  expiryDate      DateTime?
+  unit            String? // e.g., "kg", "liters", "pieces"
+  status          String    @default("active") // active, inactive
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  businessOwner      BusinessOwner       @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  branch             Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  supplier           Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  purchaseOrderItems PurchaseOrderItem[]
+  stockAdjustments   StockAdjustment[]
+
+  @@index([businessOwnerId])
+  @@index([branchId])
+  @@index([supplierId])
+}
+
+// StockAdjustment - History of manual stock adjustments for undo support
+model StockAdjustment {
+  id                 String        @id @default(uuid())
+  inventoryProductId String
+  businessOwnerId    String
+  userId             String // Who performed the adjustment
+  userType           AuditUserType // Staff or BusinessOwner
+  oldStock           Decimal       @db.Decimal(10, 2)
+  newStock           Decimal       @db.Decimal(10, 2)
+  adjustment         Decimal       @db.Decimal(10, 2)
+  reason             String?
+  undone             Boolean       @default(false) // Whether this adjustment has been undone
+  undoneAt           DateTime? // When it was undone
+  undoneBy           String? // Who undid it
+  createdAt          DateTime      @default(now())
+
+  // Relations
+  inventoryProduct InventoryProduct @relation(fields: [inventoryProductId], references: [id], onDelete: Cascade)
+  businessOwner    BusinessOwner    @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryProductId])
+  @@index([businessOwnerId])
+  @@index([createdAt])
+}
+
+// PurchaseOrder - Orders placed to suppliers
+model PurchaseOrder {
+  id              String              @id @default(uuid())
+  businessOwnerId String
+  branchId        String
+  supplierId      String
+  invoiceNumber   String?
+  amountPaid      Decimal             @default(0) @db.Decimal(10, 2)
+  grandTotal      Decimal             @db.Decimal(10, 2)
+  status          PurchaseOrderStatus @default(Pending)
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner       @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  branch        Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  supplier      Supplier            @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  items         PurchaseOrderItem[]
+
+  @@index([businessOwnerId])
+  @@index([branchId])
+  @@index([supplierId])
+}
+
+// PurchaseOrderItem - Line items in a purchase order
+model PurchaseOrderItem {
+  id                 String  @id @default(uuid())
+  purchaseOrderId    String
+  inventoryProductId String
+  quantity           Decimal @db.Decimal(10, 2)
+  unitPrice          Decimal @db.Decimal(10, 2)
+  totalPrice         Decimal @db.Decimal(10, 2)
+
+  // Relations
+  purchaseOrder    PurchaseOrder    @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  inventoryProduct InventoryProduct @relation(fields: [inventoryProductId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@index([inventoryProductId])
+}
+
+// ============================================
+// PHASE 1: Customer Tables (US-009)
+// ============================================
+
+// Customer type enum
+enum CustomerType {
+  Regular
+  Corporate
+  VIP
+}
+
+// CustomerGroup - Grouping customers for a business
+model CustomerGroup {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  status          String   @default("active") // active, inactive
+  color           String   @default("#3B82F6") // Hex color code for badge background
+  rules           Json? // Auto-assignment rules: { logic: "AND"|"OR", conditions: [{ field, operator, value }] }
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  customers     Customer[]
+
+  @@index([businessOwnerId])
+}
+
+// Customer - Customer records for a business
+model Customer {
+  id              String       @id @default(uuid())
+  businessOwnerId String
+  name            String
+  phone           String
+  email           String?
+  gender          String? // Male, Female, Other
+  dob             DateTime? // Date of birth
+  type            CustomerType @default(Regular)
+  gstin           String? // GSTIN for B2B customers (GST registration number)
+  totalSpent      Decimal      @default(0) @db.Decimal(10, 2)
+  customerGroupId String?
+  notes           String?
+  loyaltyPoints   Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  businessOwner        BusinessOwner        @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  customerGroup        CustomerGroup?       @relation(fields: [customerGroupId], references: [id], onDelete: SetNull)
+  feedbackResponses    FeedbackResponse[]
+  reservations         Reservation[]
+  orders               Order[]
+  customerTags         CustomerTag[]
+  loyaltyTransactions  LoyaltyTransaction[]
+
+  @@unique([businessOwnerId, phone])
+  @@index([businessOwnerId])
+  @@index([customerGroupId])
+}
+
+// ============================================
+// PHASE 1: Marketing Tables (US-010)
+// ============================================
+
+// Discount type enum
+enum DiscountType {
+  ProductCategory
+  OrderType
+  Custom
+}
+
+// Discount value type enum
+enum DiscountValueType {
+  Percentage
+  Fixed
+  BOGO
+}
+
+// Discount - Discount/coupon definitions for a business
+model Discount {
+  id              String            @id @default(uuid())
+  businessOwnerId String
+  code            String? // Coupon code (e.g., "SAVE10")
+  name            String
+  type            DiscountType      @default(Custom)
+  valueType       DiscountValueType @default(Percentage)
+  value           Decimal           @db.Decimal(10, 2) // Percentage or fixed amount
+  minOrderAmount  Decimal?          @db.Decimal(10, 2) // Minimum order amount to apply
+  maxDiscount     Decimal?          @db.Decimal(10, 2) // Maximum discount cap (for percentage)
+  startDate       DateTime?
+  endDate         DateTime?
+  usageLimit      Int? // Max number of times discount can be used
+  usedCount       Int               @default(0)
+  status          String            @default("active") // active, inactive
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  businessOwner          BusinessOwner           @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  discountProducts       DiscountProduct[]
+  discountCategories     DiscountCategory[]
+  advertisementDiscounts AdvertisementDiscount[]
+  orders                 Order[]
+
+  @@index([businessOwnerId])
+}
+
+// DiscountProduct - Junction table for Discount <-> Product many-to-many
+model DiscountProduct {
+  discountId String
+  productId  String
+
+  // Relations
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([discountId, productId])
+  @@index([discountId])
+  @@index([productId])
+}
+
+// DiscountCategory - Junction table for Discount <-> Category many-to-many
+model DiscountCategory {
+  discountId String
+  categoryId String
+
+  // Relations
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([discountId, categoryId])
+  @@index([discountId])
+  @@index([categoryId])
+}
+
+// Advertisement - Promotional advertisements for a business
+model Advertisement {
+  id              String    @id @default(uuid())
+  businessOwnerId String
+  title           String
+  description     String?
+  image           String? // S3 URL
+  startDate       DateTime?
+  endDate         DateTime?
+  status          String    @default("active") // active, inactive
+  impressions     Int       @default(0)
+  clicks          Int       @default(0)
+  conversions     Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  businessOwner          BusinessOwner           @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  advertisementDiscounts AdvertisementDiscount[]
+
+  @@index([businessOwnerId])
+}
+
+// AdvertisementDiscount - Junction table for Advertisement <-> Discount many-to-many
+model AdvertisementDiscount {
+  advertisementId String
+  discountId      String
+
+  // Relations
+  advertisement Advertisement @relation(fields: [advertisementId], references: [id], onDelete: Cascade)
+  discount      Discount      @relation(fields: [discountId], references: [id], onDelete: Cascade)
+
+  @@id([advertisementId, discountId])
+  @@index([advertisementId])
+  @@index([discountId])
+}
+
+// FeedbackForm - Customer feedback forms for a business
+model FeedbackForm {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  title           String
+  description     String?
+  questions       Json // JSON array of questions with type, options, etc.
+  qrCode          String? // S3 URL for QR code image
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner     BusinessOwner      @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  feedbackResponses FeedbackResponse[]
+
+  @@index([businessOwnerId])
+}
+
+// FeedbackResponse - Customer responses to feedback forms
+model FeedbackResponse {
+  id             String   @id @default(uuid())
+  feedbackFormId String
+  customerId     String?
+  responses      Json // JSON object of question -> answer
+  rating         Int? // Overall rating (e.g., 1-5 stars)
+  createdAt      DateTime @default(now())
+
+  // Relations
+  feedbackForm FeedbackForm @relation(fields: [feedbackFormId], references: [id], onDelete: Cascade)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([feedbackFormId])
+  @@index([customerId])
+}
+
+// ============================================
+// PHASE 1: Branch Resource Tables (US-011)
+// ============================================
+
+// Floor type enum
+enum FloorType {
+  AC
+  NonAC
+  Outdoor
+  Family
+}
+
+// Table shape enum
+enum TableShape {
+  square
+  long
+  round
+}
+
+// Table status enum
+enum TableStatus {
+  available
+  running
+  reserved
+  maintenance
+}
+
+// Reservation status enum
+enum ReservationStatus {
+  Pending
+  Confirmed
+  Cancelled
+  Completed
+}
+
+// Kitchen - Kitchen areas within a branch
+model Kitchen {
+  id          String   @id @default(uuid())
+  branchId    String
+  name        String
+  description String?
+  status      String   @default("active") // active, inactive
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  branch          Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orderKOTs       OrderKOT[]
+  productKitchens ProductKitchen[]
+  userRoleAssignments UserRoleAssignment[]
+
+  @@index([branchId])
+}
+
+// Floor - Floor/Area sections within a branch
+model Floor {
+  id        String    @id @default(uuid())
+  branchId  String
+  name      String
+  type      FloorType @default(NonAC)
+  status    String    @default("active") // active, inactive
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  branch Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tables Table[]
+
+  @@index([branchId])
+}
+
+// Table - Dining tables within a floor
+model Table {
+  id        String      @id @default(uuid())
+  floorId   String
+  label     String // Table number/name (e.g., "T1", "A5")
+  shape     TableShape  @default(square)
+  chairs    Int         @default(4) // Number of chairs/seats
+  status    TableStatus @default(available)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations
+  floor        Floor         @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+  orders       Order[]
+
+  @@index([floorId])
+}
+
+// Room - Private dining rooms within a branch
+model Room {
+  id         String   @id @default(uuid())
+  branchId   String
+  name       String
+  capacity   Int      @default(10) // Max number of guests
+  hourlyRate Decimal? @db.Decimal(10, 2) // Hourly rate for room rental
+  status     String   @default("active") // active, inactive
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  branch       Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+
+  @@index([branchId])
+}
+
+// Reservation - Table or room reservations
+model Reservation {
+  id            String            @id @default(uuid())
+  branchId      String
+  tableId       String? // Nullable - either table or room
+  roomId        String? // Nullable - either table or room
+  customerId    String? // Nullable - may be a walk-in
+  customerName  String
+  customerPhone String
+  date          DateTime          @db.Date
+  startTime     String // Time in HH:MM format
+  endTime       String // Time in HH:MM format
+  guestCount    Int               @default(1)
+  status        ReservationStatus @default(Pending)
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  // Relations
+  branch   Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  table    Table?    @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  room     Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([branchId])
+  @@index([tableId])
+  @@index([roomId])
+  @@index([customerId])
+  @@index([date])
+}
+
+// BusinessHours - Operating hours for a branch
+model BusinessHours {
+  id        String  @id @default(uuid())
+  branchId  String
+  dayOfWeek Int // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  openTime  String // Time in HH:MM format (e.g., "09:00")
+  closeTime String // Time in HH:MM format (e.g., "22:00")
+  isClosed  Boolean @default(false)
+
+  // Relations
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, dayOfWeek])
+  @@index([branchId])
+}
+
+// ============================================
+// PHASE 1: Order Tables (US-012)
+// ============================================
+
+// Order type enum
+enum OrderType {
+  DineIn
+  TakeAway
+  Delivery
+  Catering
+  Subscription
+}
+
+// Order source enum
+enum OrderSource {
+  BistroBill
+  Zomato
+  Swiggy
+  UberEats
+  VoiceAssistant
+}
+
+// Payment status enum
+enum PaymentStatus {
+  Unpaid
+  PartiallyPaid
+  Paid
+}
+
+// Order status enum
+enum OrderStatus {
+  Pending
+  Confirmed
+  Preparing
+  Ready
+  Served
+  Completed
+  Cancelled
+}
+
+// Order item status enum
+enum OrderItemStatus {
+  Pending
+  Preparing
+  Ready
+  Served
+  Cancelled
+}
+
+// KOT (Kitchen Order Ticket) status enum
+enum KOTStatus {
+  New
+  Preparing
+  Ready
+  Served
+}
+
+// Order - Main order table
+model Order {
+  id              String        @id @default(uuid())
+  businessOwnerId String
+  branchId        String
+  orderNumber     String // Human-readable order number (e.g., "ORD-001")
+  type            OrderType     @default(DineIn)
+  source          OrderSource   @default(BistroBill)
+  tableId         String? // Nullable - only for DineIn
+  customerId      String? // Nullable - may be a walk-in
+  staffId         String // Staff member who created the order
+  subtotal        Decimal       @db.Decimal(10, 2)
+  discountAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  discountId      String? // Applied discount
+  chargesAmount   Decimal       @default(0) @db.Decimal(10, 2) // Service charges, delivery fees, etc.
+  taxAmount       Decimal       @default(0) @db.Decimal(10, 2)
+  total           Decimal       @db.Decimal(10, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(10, 2)
+  dueAmount       Decimal       @default(0) @db.Decimal(10, 2)
+  paymentStatus   PaymentStatus @default(Unpaid)
+  orderStatus     OrderStatus   @default(Pending)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner   @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  branch        Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  table         Table?          @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  customer      Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  staff         Staff           @relation(fields: [staffId], references: [id])
+  discount      Discount?       @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  items          OrderItem[]
+  payments       OrderPayment[]
+  onlinePayments OnlinePayment[]
+  kots           OrderKOT[]
+  timeline       OrderTimeline[]
+  loyaltyTransactions LoyaltyTransaction[]
+
+  @@unique([businessOwnerId, orderNumber])
+  @@index([businessOwnerId])
+  @@index([branchId])
+  @@index([tableId])
+  @@index([customerId])
+  @@index([staffId])
+  @@index([discountId])
+  @@index([createdAt])
+}
+
+// OrderItem - Line items in an order
+model OrderItem {
+  id         String          @id @default(uuid())
+  orderId    String
+  productId  String
+  variantId  String? // Nullable - if a variant is selected
+  name       String // Snapshot of product name at time of order
+  quantity   Int
+  unitPrice  Decimal         @db.Decimal(10, 2)
+  totalPrice Decimal         @db.Decimal(10, 2)
+  status     OrderItemStatus @default(Pending)
+  notes      String? // Special instructions
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  // Relations
+  order   Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product          @relation(fields: [productId], references: [id])
+  variant ProductVariant?  @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  addons  OrderItemAddon[]
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([variantId])
+}
+
+// OrderItemAddon - Addons applied to an order item
+model OrderItemAddon {
+  id          String  @id @default(uuid())
+  orderItemId String
+  addonId     String
+  name        String // Snapshot of addon name at time of order
+  price       Decimal @db.Decimal(10, 2) // Snapshot of price
+
+  // Relations
+  orderItem OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  addon     ProductAddon @relation(fields: [addonId], references: [id])
+
+  @@index([orderItemId])
+  @@index([addonId])
+}
+
+// OrderPayment - Payment transactions for an order
+model OrderPayment {
+  id              String   @id @default(uuid())
+  orderId         String
+  paymentOptionId String // FK to PaymentOption
+  amount          Decimal  @db.Decimal(10, 2)
+  reference       String? // Transaction reference number
+  createdAt       DateTime @default(now())
+
+  // Relations
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentOption PaymentOption @relation(fields: [paymentOptionId], references: [id])
+
+  @@index([orderId])
+  @@index([paymentOptionId])
+}
+
+// OrderKOT - Kitchen Order Tickets for an order
+model OrderKOT {
+  id        String    @id @default(uuid())
+  orderId   String
+  kitchenId String
+  kotNumber String // Human-readable KOT number (e.g., "KOT-001")
+  status    KOTStatus @default(New)
+  printedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  kitchen Kitchen @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([kitchenId])
+}
+
+// OrderTimeline - Audit trail for order status changes
+model OrderTimeline {
+  id          String   @id @default(uuid())
+  orderId     String
+  action      String // e.g., "created", "confirmed", "item_added", "payment_received"
+  description String? // Human-readable description
+  staffId     String? // Staff who performed the action (nullable for system actions)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  order Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  staff Staff? @relation("OrderTimelineStaff", fields: [staffId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([staffId])
+  @@index([createdAt])
+}
+
+// ============================================
+// PHASE 1: Business Settings Tables (US-013)
+// ============================================
+
+// Payment type enum
+enum PaymentType {
+  Cash
+  Card
+  UPI
+  Wallet
+  Other
+}
+
+// Charge type enum
+enum ChargeType {
+  Percentage
+  Fixed
+}
+
+// Charge apply to enum
+enum ChargeApplyTo {
+  All
+  DineIn
+  TakeAway
+  Delivery
+}
+
+// Reason type enum
+enum ReasonType {
+  Discount
+  BranchClose
+  OrderCancel
+  Refund
+  NonChargeable
+  InventoryAdjustment
+  Reservation
+  SalesReturn
+}
+
+// Tax - Individual tax definitions for a business
+model Tax {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  symbol          String? // e.g., "CGST", "SGST", "VAT"
+  percentage      Decimal  @db.Decimal(5, 2) // Tax percentage
+  country         String?
+  state           String?
+  city            String?
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner  @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  taxGroupItems TaxGroupItem[]
+
+  @@index([businessOwnerId])
+}
+
+// TaxGroup - Group of taxes applied together (e.g., GST = CGST + SGST)
+model TaxGroup {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner  @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  taxGroupItems TaxGroupItem[]
+  productPrices ProductPrice[]
+
+  @@index([businessOwnerId])
+}
+
+// TaxGroupItem - Junction table for TaxGroup <-> Tax many-to-many
+model TaxGroupItem {
+  taxGroupId String
+  taxId      String
+
+  // Relations
+  taxGroup TaxGroup @relation(fields: [taxGroupId], references: [id], onDelete: Cascade)
+  tax      Tax      @relation(fields: [taxId], references: [id], onDelete: Cascade)
+
+  @@id([taxGroupId, taxId])
+  @@index([taxGroupId])
+  @@index([taxId])
+}
+
+// PaymentOption - Payment methods available for a business
+model PaymentOption {
+  id              String      @id @default(uuid())
+  businessOwnerId String
+  name            String
+  type            PaymentType @default(Cash)
+  isDefault       Boolean     @default(false)
+  status          String      @default("active") // active, inactive
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner  @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  orderPayments OrderPayment[]
+
+  @@index([businessOwnerId])
+}
+
+// Charge - Service charges, delivery fees, etc. for a business
+model Charge {
+  id              String        @id @default(uuid())
+  businessOwnerId String
+  name            String
+  type            ChargeType    @default(Fixed)
+  value           Decimal       @db.Decimal(10, 2) // Percentage or fixed amount
+  applyTo         ChargeApplyTo @default(All)
+  status          String        @default("active") // active, inactive
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([businessOwnerId])
+}
+
+// Reason - Predefined reasons for various actions (discounts, cancellations, etc.)
+model Reason {
+  id              String     @id @default(uuid())
+  businessOwnerId String
+  type            ReasonType
+  text            String
+  status          String     @default("active") // active, inactive
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([businessOwnerId])
+  @@index([type])
+}
+
+// BusinessPreference - Business-wide settings and preferences
+model BusinessPreference {
+  id                 String   @id @default(uuid())
+  businessOwnerId    String   @unique // One-to-one with BusinessOwner
+  currency           String   @default("INR")
+  timezone           String   @default("Asia/Kolkata")
+  dateFormat         String   @default("DD/MM/YYYY")
+  invoicePrefix      String   @default("INV")
+  kotPrefix          String   @default("KOT")
+  autoAcceptOrders   Boolean  @default(false)
+  enableReservations Boolean  @default(true)
+  settings           Json? // Additional flexible settings as JSON
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// PHASE 1: Super Admin Tables (US-015)
+// ============================================
+
+// Lead stage enum
+enum LeadStage {
+  NewRequest
+  InitialContacted
+  ScheduledDemo
+  Completed
+  ClosedWin
+  ClosedLoss
+}
+
+// User type enum for audit logs
+enum AuditUserType {
+  SuperAdmin
+  BusinessOwner
+  Staff
+}
+
+// Lead - Sales leads for potential business owners
+model Lead {
+  id             String    @id @default(uuid())
+  restaurantName String
+  ownerName      String
+  email          String
+  phone          String?
+  businessType   String? // Restaurant, Cafe, Bar, etc.
+  inquiryType    String? // Demo Request, Pricing Inquiry, etc.
+  country        String?
+  state          String?
+  city           String?
+  zipCode        String?
+  address        String?
+  description    String?   @db.Text // Lead notes/description
+  stage          LeadStage @default(NewRequest)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([stage])
+  @@index([createdAt])
+}
+
+// AuditLog - System-wide audit trail for tracking changes
+model AuditLog {
+  id              String        @id @default(uuid())
+  businessOwnerId String? // Nullable - may be a super admin action
+  userId          String // ID of the user who performed the action
+  userType        AuditUserType // Type of user
+  action          String // e.g., "create", "update", "delete", "login"
+  entityType      String // e.g., "Product", "Order", "Customer"
+  entityId        String? // ID of the affected entity
+  oldValue        Json? // Previous state (for updates)
+  newValue        Json? // New state (for creates/updates)
+  ipAddress       String? // Client IP address
+  createdAt       DateTime      @default(now())
+
+  // Relations
+  businessOwner BusinessOwner? @relation(fields: [businessOwnerId], references: [id], onDelete: SetNull)
+
+  @@index([businessOwnerId])
+  @@index([userId])
+  @@index([userType])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+// ============================================
+// PHASE 1: Online Order Tables (US-097)
+// ============================================
+
+// Order aggregator enum
+enum OrderAggregator {
+  BistroBill
+  Swiggy
+  Zomato
+  UberEats
+}
+
+// Online order status enum
+enum OnlineOrderStatus {
+  Pending
+  Accepted
+  Rejected
+  Preparing
+  Ready
+  Completed
+}
+
+// OnlineOrder - Orders from aggregator platforms (Swiggy, Zomato, etc.)
+model OnlineOrder {
+  id              String            @id @default(uuid())
+  branchId        String
+  aggregator      OrderAggregator   @default(BistroBill)
+  externalOrderId String? // Order ID from aggregator platform
+  status          OnlineOrderStatus @default(Pending)
+  customerName    String
+  customerPhone   String
+  items           Json // JSON array of order items
+  amount          Decimal           @db.Decimal(10, 2)
+  deliveryTime    DateTime? // Requested delivery time
+  prepTime        Int? // Preparation time in minutes
+  receivedAt      DateTime          @default(now())
+  acceptedAt      DateTime?
+  rejectedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([branchId])
+  @@index([status])
+  @@index([aggregator])
+  @@index([receivedAt])
+}
+
+// ============================================
+// PHASE 1: Blog Tables (US-014)
+// ============================================
+
+// Blog status enum
+enum BlogStatus {
+  Draft
+  Published
+}
+
+// BlogCategory - Blog categories for a business
+model BlogCategory {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  slug            String
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  blogs         Blog[]
+
+  @@unique([businessOwnerId, slug])
+  @@index([businessOwnerId])
+}
+
+// BlogTag - Tags for blog posts
+model BlogTag {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  slug            String
+  status          String   @default("active") // active, inactive
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  blogs         Blog[]
+
+  @@unique([businessOwnerId, slug])
+  @@index([businessOwnerId])
+}
+
+// Blog - Blog posts for a business
+model Blog {
+  id               String     @id @default(uuid())
+  businessOwnerId  String
+  categoryId       String
+  authorId         String?
+  title            String
+  slug             String
+  content          String     @db.Text // Long-form content
+  excerpt          String? // Short summary
+  featuredImage    String? // S3 URL
+  featuredImageAlt String? // Alt text for accessibility
+  author           String? // Legacy string field, kept for backward compatibility
+  status           BlogStatus @default(Draft)
+  publishedAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner  @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  category      BlogCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  authorStaff   Staff?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  tags          BlogTag[]
+  revisions     BlogRevision[]
+
+  @@unique([businessOwnerId, slug])
+  @@index([businessOwnerId])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([status])
+  @@index([publishedAt])
+}
+
+// BlogRevision - Content version history for blog posts (US-163)
+model BlogRevision {
+  id         String   @id @default(uuid())
+  blogId     String
+  content    String   @db.Text
+  title      String
+  excerpt    String?
+  authorId   String?
+  authorName String?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  blog        Blog   @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  authorStaff Staff? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([blogId])
+  @@index([createdAt])
+}
+
+// ============================================
+// Sales Settings Tables (US-133)
+// ============================================
+
+// SalesChannel - Sales channels like Dine In, Take Away, Delivery, etc.
+model SalesChannel {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@unique([businessOwnerId, name])
+  @@index([businessOwnerId])
+}
+
+// Aggregator - Online aggregator platforms like Uber Eats, Swiggy, Zomato
+model Aggregator {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  name            String
+  logo            String?
+  merchantId      String?
+  apiKey          String?
+  apiEndpoint     String?
+  callbackUrl     String?
+  isConnected     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@unique([businessOwnerId, name])
+  @@index([businessOwnerId])
+}
+
+// MeasuringUnit - Global measuring units (managed by SuperAdmin)
+model MeasuringUnit {
+  id        String   @id @default(uuid())
+  quantity  String // e.g., "Length", "Weight", "Volume"
+  unit      String // e.g., "Meter", "Kilogram", "Liter"
+  symbol    String // e.g., "m", "kg", "L"
+  createdAt DateTime @default(now())
+}
+
+// ============================================
+// PHASE 10: Analytics - Sales Anomaly Detection (US-216)
+// ============================================
+
+model SalesAnomaly {
+  id                 String    @id @default(uuid())
+  businessOwnerId    String
+  branchId           String    @default("")
+  date               DateTime  @db.Date
+  type               String // 'high' or 'low'
+  actualValue        Decimal   @db.Decimal(12, 2)
+  expectedValue      Decimal   @db.Decimal(12, 2)
+  deviation          Decimal   @db.Decimal(10, 2) // percentage deviation
+  standardDeviations Decimal   @db.Decimal(6, 2) // number of standard deviations
+  resolved           Boolean   @default(false)
+  resolvedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@unique([businessOwnerId, branchId, date])
+  @@index([businessOwnerId])
+  @@index([date])
+  @@index([resolved])
+}
+
+// ============================================
+// PHASE 10: Analytics - Report Sharing (US-219)
+// ============================================
+
+model ReportShare {
+  id              String    @id @default(uuid())
+  businessOwnerId String
+  reportType      String // 'sales' | 'products' | 'customers' | 'staff'
+  reportConfig    Json // date ranges, filters, comparison settings
+  reportData      Json // snapshot of report data at time of sharing
+  shareToken      String    @unique @default(uuid())
+  password        String? // optional password protection (hashed)
+  expiresAt       DateTime?
+  viewCount       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([businessOwnerId])
+  @@index([shareToken])
+  @@index([expiresAt])
+}
+
+// ============================================
+// PHASE 10: Analytics - Report Comments (US-220)
+// ============================================
+
+model ReportComment {
+  id              String    @id @default(uuid())
+  businessOwnerId String
+  reportType      String // 'sales' | 'products' | 'customers' | 'staff'
+  reportConfig    Json // date ranges, filters used to identify the report
+  userId          String // ID of user who posted (staff or business owner)
+  userName        String // Display name at time of comment
+  comment         String // Markdown-formatted comment text
+  mentions        Json? // Array of { userId, userName } for @mentions
+  editedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([businessOwnerId])
+  @@index([reportType])
+  @@index([createdAt])
+}
+
+// ============================================
+// PHASE 10: Custom Report Builder (US-203)
+// ============================================
+
+model CustomReport {
+  id              String    @id @default(uuid())
+  businessOwnerId String
+  name            String
+  description     String?
+  reportType      String    // 'Sales' | 'Products' | 'Customers' | 'Inventory' | 'StaffPerformance'
+  filters         Json      // { dateRange, branchId, categoryId, paymentMode, customerGroup }
+  columns         Json      // Array of column definitions
+  schedule        Json?     // { frequency, time, dayOfWeek, dayOfMonth, emails, format }
+  createdBy       String    // userId who created it
+  lastRunAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([businessOwnerId])
+  @@index([reportType])
+}
+
+model ReportTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  reportType  String   // 'Sales' | 'Products' | 'Customers' | 'Inventory' | 'StaffPerformance'
+  filters     Json     // Default filter configuration
+  columns     Json     // Default column definitions
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([reportType])
+}
+
+model ScheduledReport {
+  id              String    @id @default(uuid())
+  businessOwnerId String
+  customReportId  String
+  frequency       String    // 'Daily' | 'Weekly' | 'Monthly'
+  time            String    // HH:MM format
+  dayOfWeek       Int?      // 0-6 for weekly
+  dayOfMonth      Int?      // 1-31 for monthly
+  emails          Json      // Array of email addresses
+  format          String    @default("CSV") // 'CSV' | 'PDF' | 'Both'
+  isActive        Boolean   @default(true)
+  lastSentAt      DateTime?
+  nextRunAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([businessOwnerId])
+  @@index([nextRunAt])
+}
+
+// ============================================
+// PHASE 11: Payment Gateway Integration (US-222)
+// ============================================
+
+// Payment gateway provider enum
+enum GatewayProvider {
+  Razorpay
+  Stripe
+  PayU
+}
+
+// Online payment status enum
+enum OnlinePaymentStatus {
+  Created
+  Processing
+  Completed
+  Failed
+  Refunded
+  PartiallyRefunded
+}
+
+// Refund status enum
+enum RefundStatus {
+  Initiated
+  Processing
+  Completed
+  Failed
+}
+
+// Reconciliation status enum
+enum ReconciliationStatus {
+  Pending
+  Reconciled
+  Disputed
+  Settled
+}
+
+// PaymentGatewayConfig - Gateway credentials per business
+model PaymentGatewayConfig {
+  id              String          @id @default(uuid())
+  businessOwnerId String
+  provider        GatewayProvider
+  apiKey          String          // Encrypted API key
+  apiSecret       String          // Encrypted API secret
+  webhookSecret   String?         // Encrypted webhook verification secret
+  isActive        Boolean         @default(false)
+  isTestMode      Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@unique([businessOwnerId, provider])
+  @@index([businessOwnerId])
+}
+
+// OnlinePayment - Individual payment transactions via gateway
+model OnlinePayment {
+  id                   String              @id @default(uuid())
+  orderId              String
+  amount               Decimal             @db.Decimal(10, 2)
+  currency             String              @default("INR")
+  gatewayProvider      GatewayProvider
+  gatewayTransactionId String?             // Payment ID from gateway (e.g., pay_xxxxx)
+  gatewayOrderId       String?             // Order ID from gateway (e.g., order_xxxxx)
+  status               OnlinePaymentStatus @default(Created)
+  paymentMethod        String?             // card, upi, netbanking, wallet
+  failureReason        String?
+  metadata             Json?               // Additional gateway-specific data
+  paidAt               DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  // Relations
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds Refund[]
+
+  @@index([orderId])
+  @@index([gatewayTransactionId])
+  @@index([gatewayOrderId])
+  @@index([status])
+}
+
+// Refund - Refund transactions
+model Refund {
+  id              String       @id @default(uuid())
+  onlinePaymentId String
+  amount          Decimal      @db.Decimal(10, 2)
+  reason          String?
+  status          RefundStatus @default(Initiated)
+  gatewayRefundId String?      // Refund ID from gateway
+  processedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  onlinePayment OnlinePayment @relation(fields: [onlinePaymentId], references: [id], onDelete: Cascade)
+
+  @@index([onlinePaymentId])
+  @@index([status])
+}
+
+// PaymentReconciliation - Settlement reconciliation records
+model PaymentReconciliation {
+  id              String               @id @default(uuid())
+  businessOwnerId String
+  settlementDate  DateTime             @db.Date
+  gatewayProvider GatewayProvider
+  totalAmount     Decimal              @db.Decimal(12, 2)
+  settledAmount   Decimal              @db.Decimal(12, 2)
+  fees            Decimal              @default(0) @db.Decimal(10, 2)
+  transactionCount Int                 @default(0)
+  status          ReconciliationStatus @default(Pending)
+  reconciledAt    DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([businessOwnerId])
+  @@index([settlementDate])
+  @@index([gatewayProvider])
+  @@index([status])
+}
+
+// ============================================
+// PHASE 11: UPI AutoPay Subscriptions (US-237)
+// ============================================
+
+// UPI AutoPay subscription status enum
+enum AutoPayStatus {
+  Created
+  Authenticated
+  Active
+  Paused
+  Cancelled
+  Completed
+  Expired
+}
+
+// UPIAutoPaySubscription - Recurring subscription payments via UPI AutoPay
+model UPIAutoPaySubscription {
+  id                   String        @id @default(uuid())
+  businessOwnerId      String
+  planId               String
+  customerId           String?
+  gatewaySubscriptionId String?      // Razorpay subscription_xxxxx
+  gatewayProvider      GatewayProvider @default(Razorpay)
+  upiId                String?       // Customer's UPI ID (e.g., user@upi)
+  amount               Decimal       @db.Decimal(10, 2)
+  currency             String        @default("INR")
+  interval             String        @default("monthly") // monthly, yearly
+  status               AutoPayStatus @default(Created)
+  currentStart         DateTime?     // Current billing cycle start
+  currentEnd           DateTime?     // Current billing cycle end
+  nextBillingDate      DateTime?
+  totalCount           Int?          // Total number of billing cycles (null = infinite)
+  paidCount            Int           @default(0) // Number of successful payments
+  failedCount          Int           @default(0) // Number of failed payment attempts
+  lastPaymentAt        DateTime?
+  lastPaymentId        String?       // Gateway payment ID of last charge
+  failureReason        String?
+  metadata             Json?
+  cancelledAt          DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner    @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  plan          SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@index([businessOwnerId])
+  @@index([planId])
+  @@index([gatewaySubscriptionId])
+  @@index([status])
+  @@index([nextBillingDate])
+}
+
+// ============================================
+// PHASE 12: Third-party Integration Tables (US-240)
+// ============================================
+
+// Integration type enum
+enum IntegrationType {
+  accounting
+  delivery
+  marketing
+  payment
+  review_management
+  loyalty
+  crm
+  notifications
+  inventory
+  security
+  hardware
+  attendance
+  voice_assistant
+}
+
+// Integration provider enum
+enum IntegrationProvider {
+  tally
+  quickbooks
+  zoho_books
+  dunzo
+  porter
+  whatsapp_business
+  sms_gateway
+  google_my_business
+  email_marketing
+  loyalty_points
+  hubspot
+  salesforce
+  slack
+  supplier_portal
+  cctv
+  pos_hardware
+  biometric
+  voice_ordering
+}
+
+// Integration status enum
+enum IntegrationStatus {
+  active
+  inactive
+  error
+}
+
+// Integration - Third-party integration configurations for a business
+model Integration {
+  id              String              @id @default(uuid())
+  businessOwnerId String
+  provider        IntegrationProvider
+  type            IntegrationType
+  config          Json // API credentials, endpoints, settings
+  status          IntegrationStatus   @default(inactive)
+  lastSyncAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner    @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  logs          IntegrationLog[]
+
+  @@unique([businessOwnerId, provider])
+  @@index([businessOwnerId])
+  @@index([provider])
+}
+
+// IntegrationLog - Audit trail for integration sync operations
+model IntegrationLog {
+  id              String   @id @default(uuid())
+  integrationId   String
+  action          String // e.g., "sync_invoice", "sync_order", "send_message"
+  status          String // "success", "failure", "pending"
+  requestPayload  Json? // Request data sent to third-party
+  responsePayload Json? // Response data from third-party
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  // Relations
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId])
+  @@index([createdAt])
+}
+
+// CustomerReview - Google reviews and other platform reviews
+model CustomerReview {
+  id               String    @id @default(uuid())
+  businessOwnerId  String
+  externalReviewId String    @unique
+  source           String    @default("google") // google, zomato, swiggy
+  reviewerName     String
+  rating           Int // 1-5
+  comment          String?   @db.Text
+  replyText        String?   @db.Text
+  repliedAt        DateTime?
+  publishedAt      DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([businessOwnerId])
+  @@index([publishedAt])
+  @@index([rating])
+}
+
+// SecurityCamera - CCTV camera locations and configuration (US-260)
+model SecurityCamera {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  branchId        String
+  name            String // e.g., "Dining Area Cam 1", "Kitchen Cam"
+  location        String // e.g., "Main Hall", "Kitchen", "Entrance"
+  cameraId        String // External camera/NVR identifier
+  streamUrl       String? // RTSP or HTTP stream URL
+  nvrHost         String? // NVR/DVR host address
+  nvrPort         Int?    // NVR/DVR port
+  protocol        String  @default("http") // http, rtsp, onvif
+  status          String  @default("active") // active, inactive, maintenance
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([businessOwnerId, cameraId])
+  @@index([businessOwnerId])
+  @@index([branchId])
+}
+
+// StaffAttendance - Biometric attendance records for staff (US-262)
+model StaffAttendance {
+  id              String   @id @default(uuid())
+  businessOwnerId String
+  branchId        String
+  staffId         String
+  punchType       String // IN, OUT
+  punchTime       DateTime
+  deviceId        String? // Biometric device identifier
+  verifyMode      String? // fingerprint, face, card, pin
+  workHours       Float?  // Calculated total work hours for the shift
+  shiftDate       DateTime // The calendar date of the shift (normalized to midnight)
+  createdAt       DateTime @default(now())
+
+  // Relations
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  staff         Staff         @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([businessOwnerId])
+  @@index([branchId])
+  @@index([staffId])
+  @@index([shiftDate])
+  @@index([punchTime])
+}
+
+// ============================================
+// PHASE 13: Advanced RBAC (US-265)
+// ============================================
+
+// Permission - Fine-grained permission definitions
+model Permission {
+  id          String   @id @default(uuid())
+  module      String // e.g., catalog, inventory, orders, settings
+  action      String // e.g., create, read, update, delete, approve, export
+  resource    String? // e.g., product, category, order (optional sub-resource)
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@unique([module, action, resource])
+  @@index([module])
+}
+
+// RolePermission - Links roles to permissions
+model RolePermission {
+  id           String  @id @default(uuid())
+  roleId       String
+  permissionId String
+  granted      Boolean @default(true) // Explicit grant or deny
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+// UserRoleAssignment - Assigns roles to users with optional scope (branch/kitchen)
+model UserRoleAssignment {
+  id        String    @id @default(uuid())
+  userId    String // Staff ID (or BusinessOwner ID)
+  roleId    String
+  branchId  String? // Optional branch scope
+  kitchenId String? // Optional kitchen scope
+  expiresAt DateTime? // For temporary access grants
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  role    Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  branch  Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  kitchen Kitchen? @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, branchId, kitchenId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([branchId])
+  @@index([kitchenId])
+}
+
+// PermissionAuditLog - Tracks permission checks for auditing
+model PermissionAuditLog {
+  id           String   @id @default(uuid())
+  userId       String
+  action       String // The action attempted (e.g., create, update, delete)
+  resource     String // The resource type (e.g., product, order)
+  resourceId   String? // The specific resource instance ID
+  granted      Boolean // Whether permission was granted
+  deniedReason String? // Reason for denial
+  ipAddress    String? // IP address of the request
+  timestamp    DateTime @default(now())
+
+  @@index([userId])
+  @@index([timestamp])
+  @@index([granted])
+  @@index([resource])
+}
+
+// ============================================
+// Menu Visibility Configuration (Dynamic Sidebar)
+// ============================================
+
+// MenuVisibility - Controls which sidebar menu items are visible per user type
+model MenuVisibility {
+  id        String   @id @default(uuid())
+  userType  String   // 'SuperAdmin' | 'BusinessOwner' | 'Staff'
+  menuKey   String   // e.g. 'pos', 'catalog', 'sa_dashboard'
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userType, menuKey])
+  @@index([userType])
+}
+
+// ============================================
+// Loyalty Program
+// ============================================
+
+// LoyaltyTransaction - Tracks points awarded/redeemed per customer
+model LoyaltyTransaction {
+  id              String   @id @default(uuid())
+  customerId      String
+  branchId        String
+  businessOwnerId String
+  type            String   // 'award' | 'redeem'
+  points          Int
+  description     String?
+  orderId         String?
+  createdAt       DateTime @default(now())
+
+  // Relations
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+  order         Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([branchId])
+  @@index([businessOwnerId])
+  @@index([orderId])
+}
+
+// ============================================
+// Supplier Rating
+// ============================================
+
+// SupplierRating - Business owner's rating for a supplier
+model SupplierRating {
+  id              String   @id @default(uuid())
+  supplierId      String
+  businessOwnerId String
+  rating          Int      // 1-5
+  comment         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  supplier      Supplier      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  businessOwner BusinessOwner @relation(fields: [businessOwnerId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, businessOwnerId])
+  @@index([supplierId])
+  @@index([businessOwnerId])
+}

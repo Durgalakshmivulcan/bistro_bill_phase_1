@@ -1,0 +1,21 @@
+FROM node:20-slim
+
+WORKDIR /app
+RUN apt-get update -y \
+  && apt-get install -y openssl \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY server/package.json server/package-lock.json ./
+RUN npm ci
+
+COPY server/tsconfig.json ./
+COPY server/src/ ./src/
+COPY server/prisma/ ./prisma/
+
+RUN npx prisma generate
+RUN npm run build
+
+EXPOSE 5001
+
+CMD ["sh", "-c", "node dist/index.js"]
+
