@@ -10,17 +10,32 @@ const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [userType, setUserType] = useState<UserType>("BusinessOwner");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [timer, setTimer] = useState(30);
 
   const navigate = useNavigate();
 
+  /* ===================== TIMER ===================== */
+  const startTimer = () => {
+    setTimer(30);
+
+    const interval = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  /* ===================== SUBMIT ===================== */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess(false);
+    setError(null);
 
-    // Validate email
     if (!email.trim()) {
       setError("Email is required");
       return;
@@ -28,7 +43,7 @@ const ForgotPassword = () => {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setError("Please enter a valid email address");
+      setError("Invalid email, Please check & Try Again");
       return;
     }
 
@@ -39,15 +54,26 @@ const ForgotPassword = () => {
 
       if (response.success) {
         setSuccess(true);
-        // Note: Backend sends the same success message whether email exists or not (for security)
+        startTimer();
       } else {
-        setError(response.error?.message || "Failed to process request. Please try again.");
+        setError(
+          response.error?.message ||
+            "Failed to process request. Please try again."
+        );
       }
     } catch (err: any) {
-      setError(err.message || "Failed to process request. Please try again.");
+      setError(err.message || "Failed to process request.");
     } finally {
       setLoading(false);
     }
+  };
+
+  /* ===================== RESEND ===================== */
+  const handleResend = async () => {
+    if (!email) return;
+
+    await forgotPassword({ email, userType });
+    startTimer();
   };
 
   return (
@@ -74,127 +100,119 @@ const ForgotPassword = () => {
         Forgot your Password?
       </h1>
 
-      {/* Description */}
       <p className="text-sm text-gray-600 text-center mb-6">
         Enter your email and we'll send you a password reset link.
       </p>
 
-      {/* Success Message */}
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-          <p className="text-sm">
-            If an account with that email exists, a password reset link has been sent.
-            Please check your email.
+      {/* ================= SUCCESS SCREEN ================= */}
+      {success ? (
+        <div className="text-center space-y-4 mt-6">
+          <div className="flex justify-center">
+            <Lock size={60} className="text-gray-700" />
+          </div>
+
+          <h2 className="text-xl font-semibold">
+            Check your Email!
+          </h2>
+
+          <p className="text-sm text-gray-600 px-4">
+            Thank you! We've sent an email with a link to verify your
+            account ownership and reset your password. If you don’t
+            see the email, please check your spam folder.
           </p>
-        </div>
-      )}
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-          <p className="text-sm">{error}</p>
-        </div>
-      )}
+          <div className="text-sm text-gray-600">
+            Didn't receive the Email?{" "}
+            {timer > 0 ? (
+              <span className="text-yellow-600">
+                Resend in 00:{timer < 10 ? `0${timer}` : timer}
+              </span>
+            ) : (
+              <button
+                className="text-yellow-600 hover:underline"
+                onClick={handleResend}
+              >
+                Resend
+              </button>
+            )}
+          </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* User Type Selection */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-800">
-            Account Type
-          </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex items-center gap-3 justify-center text-gray-400 text-sm">
+            <div className="h-px bg-gray-300 w-20"></div>
+            Or
+            <div className="h-px bg-gray-300 w-20"></div>
+          </div>
+
+          <div>
+            <span className="text-gray-600 text-sm">
+              Remember your Password?{" "}
+            </span>
             <button
-              type="button"
-              onClick={() => setUserType("BusinessOwner")}
-              disabled={loading}
-              className={`
-                py-2 px-3 rounded-lg text-sm font-medium transition
-                ${userType === "BusinessOwner"
-                  ? "bg-yellow-400 text-black"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }
-                disabled:opacity-50 disabled:cursor-not-allowed
-              `}
+              className="text-yellow-600 hover:underline"
+              onClick={() => navigate("/login")}
             >
-              Business Owner
-            </button>
-            <button
-              type="button"
-              onClick={() => setUserType("Staff")}
-              disabled={loading}
-              className={`
-                py-2 px-3 rounded-lg text-sm font-medium transition
-                ${userType === "Staff"
-                  ? "bg-yellow-400 text-black"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }
-                disabled:opacity-50 disabled:cursor-not-allowed
-              `}
-            >
-              Staff
-            </button>
-            <button
-              type="button"
-              onClick={() => setUserType("SuperAdmin")}
-              disabled={loading}
-              className={`
-                py-2 px-3 rounded-lg text-sm font-medium transition
-                ${userType === "SuperAdmin"
-                  ? "bg-yellow-400 text-black"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }
-                disabled:opacity-50 disabled:cursor-not-allowed
-              `}
-            >
-              Super Admin
+              Login
             </button>
           </div>
         </div>
+      ) : (
+        /* ================= FORM ================= */
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Account Type */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-800">
+              Account Type
+            </label>
 
-        {/* Email Input */}
-        <InputField
-          label="Email ID"
-          type="email"
-          placeholder="your-email@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={loading}
-        />
+            <div className="grid grid-cols-3 gap-2">
+              {["BusinessOwner", "Staff", "SuperAdmin"].map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setUserType(type as UserType)}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition
+                    ${
+                      userType === type
+                        ? "bg-yellow-400 text-black"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }
+                  `}
+                >
+                  {type === "BusinessOwner"
+                    ? "Business Owner"
+                    : type === "SuperAdmin"
+                    ? "Super Admin"
+                    : "Staff"}
+                </button>
+              ))}
+            </div>
+          </div>
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading || success}
-          className="
-            w-full
-            h-11
-            rounded-lg
-            bg-yellow-400
-            text-black
-            font-medium
-            hover:bg-yellow-500
-            transition
-            disabled:opacity-50
-            disabled:cursor-not-allowed
-            flex
-            items-center
-            justify-center
-            gap-2
-          "
-        >
-          {loading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-              <span>Sending...</span>
-            </>
-          ) : success ? (
-            "Email Sent"
-          ) : (
-            "Send Reset Link"
-          )}
-        </button>
-      </form>
+          {/* Email */}
+          <InputField
+            label="Email ID"
+            type="email"
+            placeholder="your-email@example.com"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError(null);
+            }}
+            disabled={loading}
+            error={error || undefined}
+          />
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 rounded-lg bg-yellow-400 text-black font-medium hover:bg-yellow-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Sending..." : "Send Reset Link"}
+          </button>
+        </form>
+      )}
     </AuthLayout>
   );
 };

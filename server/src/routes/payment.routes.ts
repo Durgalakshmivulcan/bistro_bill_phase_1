@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware';
-import { requireTenantContext } from '../middleware/tenant.middleware';
+import { tenantMiddleware, requireTenantContext } from '../middleware/tenant.middleware';
 import { requirePermission } from '../middleware/rbac.middleware';
 import {
   createPaymentOrder,
   verifyPayment,
   initiateRefund,
   processSplitPayment,
+  listPayments,
   getPaymentDetails,
   getPaymentByOrderId,
   handleWebhook,
@@ -35,6 +36,7 @@ router.post('/webhook/:provider', handleWebhook);
 
 // All other routes require authentication and tenant context
 router.use(authenticate);
+router.use(tenantMiddleware);
 router.use(requireTenantContext);
 
 /**
@@ -64,6 +66,13 @@ router.post('/refund', requirePermission('payments', 'create'), initiateRefund);
  * Body: { orderId, splits: [{ provider, amount, paymentMethod }] }
  */
 router.post('/split', requirePermission('payments', 'create'), processSplitPayment);
+
+/**
+ * GET /api/v1/payments
+ * List payments with optional filters and pagination
+ * Query: { status?, startDate?, endDate?, search?, page?, limit? }
+ */
+router.get('/', requirePermission('payments', 'read'), listPayments);
 
 /**
  * POST /api/v1/payments/reconciliation/run

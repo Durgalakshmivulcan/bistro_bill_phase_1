@@ -299,6 +299,7 @@ model Menu {
   id              String   @id @default(uuid())
   businessOwnerId String
   name            String
+  image           String? // S3 URL
   description     String?
   status          String   @default("active") // active, inactive
   createdAt       DateTime @default(now())
@@ -367,6 +368,11 @@ model Product {
   hsnCode         String? // HSN code for GST
   preparationTime Int? // Time in minutes
   servesCount     Int? // Number of people it serves
+  measuringUnit   String?
+  includesTax     Boolean     @default(true)
+  taxId           String?
+  eligibleForDiscount Boolean @default(true)
+  discountType    String?
   isVeg           Boolean     @default(true)
   status          String      @default("active") // active, inactive
   createdAt       DateTime    @default(now())
@@ -784,6 +790,7 @@ model Discount {
   businessOwnerId String
   code            String? // Coupon code (e.g., "SAVE10")
   name            String
+  description     String?
   type            DiscountType      @default(Custom)
   valueType       DiscountValueType @default(Percentage)
   value           Decimal           @db.Decimal(10, 2) // Percentage or fixed amount

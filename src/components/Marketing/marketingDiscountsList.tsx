@@ -11,47 +11,43 @@ import Modal from "../ui/Modal";
 import { getDiscounts, deleteDiscount, Discount } from "../../services/marketingService";
 import { useFilters } from "../../hooks/useFilters";
 import { CRUDToasts } from "../../utils/toast";
-import { usePermissions } from "../../hooks/usePermissions";
 
 export default function DiscountsList() {
   const navigate = useNavigate();
-  const { canCreate, canUpdate, canDelete } = usePermissions('marketing');
   const [discounts, setDiscounts] = useState<Discount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-
-  // Search state
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Setup filters using useFilters hook
-  const { filterValues, setFilterValue, filteredItems: filteredByFilters, clearAllFilters, hasActiveFilters } = useFilters({
+  const { filterValues, setFilterValue, filteredItems: filteredByFilters, clearAllFilters } = useFilters({
     items: discounts,
     filters: [
       {
-        key: 'discountType',
+        key: "discountType",
         predicate: (discount, value) => {
-          if (!value || value === 'Discount Type') return true;
+          if (!value || value === "Discount Type") return true;
           return discount.type === value;
         },
-        defaultValue: 'Discount Type'
+        defaultValue: "Discount Type",
       },
       {
-        key: 'endDate',
+        key: "endDate",
         predicate: (discount, value) => {
-          if (!value || value === 'Filter by End Date' || !discount.endDate) return true;
+          if (!value || value === "Filter by End Date" || !discount.endDate) return true;
 
           const endDate = new Date(discount.endDate);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
-          if (value === 'Today') {
+          if (value === "Today") {
             const discountEndDate = new Date(endDate);
             discountEndDate.setHours(0, 0, 0, 0);
             return discountEndDate.getTime() === today.getTime();
-          } else if (value === 'Last 7 days') {
+          }
+          if (value === "Last 7 days") {
             const sevenDaysAgo = new Date(today);
             sevenDaysAgo.setDate(today.getDate() - 7);
             return endDate >= sevenDaysAgo && endDate <= today;
@@ -59,20 +55,19 @@ export default function DiscountsList() {
 
           return true;
         },
-        defaultValue: 'Filter by End Date'
+        defaultValue: "Filter by End Date",
       },
       {
-        key: 'status',
+        key: "status",
         predicate: (discount, value) => {
-          if (!value || value === 'Filter by Status') return true;
+          if (!value || value === "Filter by Status") return true;
           return discount.status.toLowerCase() === (value as string).toLowerCase();
         },
-        defaultValue: 'Filter by Status'
-      }
-    ]
+        defaultValue: "Filter by Status",
+      },
+    ],
   });
 
-  // Fetch discounts on mount
   useEffect(() => {
     fetchDiscounts();
   }, []);
@@ -109,8 +104,6 @@ export default function DiscountsList() {
         CRUDToasts.deleted("Discount");
         setShowConfirm(false);
         setShowSuccess(true);
-
-        // Auto-close success modal and refresh list after 2 seconds
         setTimeout(() => {
           setShowSuccess(false);
           fetchDiscounts();
@@ -129,18 +122,13 @@ export default function DiscountsList() {
   };
 
   const getStatusClass = (status: string) =>
-    status.toLowerCase() === "active"
-      ? "bg-green-100 text-green-700"
-      : "bg-red-100 text-red-700";
+    status.toLowerCase() === "active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700";
 
-  // Apply search on top of filtered results
   const filteredDiscounts = useMemo(() => {
     if (!searchQuery) return filteredByFilters;
-
     const query = searchQuery.toLowerCase();
-    return filteredByFilters.filter((discount) =>
-      discount.code.toLowerCase().includes(query) ||
-      discount.name.toLowerCase().includes(query)
+    return filteredByFilters.filter(
+      (discount) => discount.code.toLowerCase().includes(query) || discount.name.toLowerCase().includes(query)
     );
   }, [filteredByFilters, searchQuery]);
 
@@ -151,23 +139,14 @@ export default function DiscountsList() {
 
   return (
     <div className="bg-bb-bg min-h-screen p-6 space-y-4">
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>}
 
-      {/* HEADER */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Discounts</h1>
 
         <div className="flex gap-3">
           <div className="relative w-64">
-            <Search
-              size={16}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
-            />
+            <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2" />
             <input
               placeholder="Search here..."
               className="w-full border rounded-md px-3 pr-10 py-2 text-sm"
@@ -176,24 +155,20 @@ export default function DiscountsList() {
             />
           </div>
 
-          {canCreate && (
-            <button
-              onClick={() => navigate("add")}
-              className="bg-black text-white px-4 py-2 rounded"
-            >
-              Add New
-            </button>
-          )}
+          <button onClick={() => navigate("/marketing/discounts/add")} className="bg-black text-white px-4 py-2 rounded">
+            Add New
+          </button>
         </div>
       </div>
+
       <div className="flex justify-end items-center gap-2">
         <div className="w-[15%]">
           <Select
             value={filterValues.discountType as string}
-            onChange={(value) => setFilterValue('discountType', value)}
+            onChange={(value) => setFilterValue("discountType", value)}
             options={[
               { label: "Discount Type", value: "Discount Type" },
-              { label: "Order Level", value: "OrderLevel" },
+              { label: "Order Type", value: "OrderType" },
               { label: "Product Category", value: "ProductCategory" },
             ]}
           />
@@ -201,7 +176,7 @@ export default function DiscountsList() {
         <div className="w-[15%]">
           <Select
             value={filterValues.endDate as string}
-            onChange={(value) => setFilterValue('endDate', value)}
+            onChange={(value) => setFilterValue("endDate", value)}
             options={[
               { label: "Filter by End Date", value: "Filter by End Date" },
               { label: "Today", value: "Today" },
@@ -212,7 +187,7 @@ export default function DiscountsList() {
         <div className="w-[15%]">
           <Select
             value={filterValues.status as string}
-            onChange={(value) => setFilterValue('status', value)}
+            onChange={(value) => setFilterValue("status", value)}
             options={[
               { label: "Filter by Status", value: "Filter by Status" },
               { label: "Active", value: "Active" },
@@ -220,46 +195,18 @@ export default function DiscountsList() {
             ]}
           />
         </div>
-        <button
-          onClick={handleClearFilters}
-          className="bg-yellow-400 px-4 py-2 rounded border border-black"
-        >
+        <button onClick={handleClearFilters} className="bg-yellow-400 px-4 py-2 rounded border border-black">
           Clear
         </button>
       </div>
-      {/* Loading State */}
+
       {loading && (
         <div className="flex justify-center py-12">
           <LoadingSpinner size="lg" message="Loading discounts..." />
         </div>
       )}
 
-      {/* Empty State */}
-      {!loading && filteredDiscounts.length === 0 && !error && (
-        <div className="text-center py-8">
-          <p className="text-gray-600 mb-4">
-            {discounts.length === 0 ? "No discounts found" : "No discounts match your filters"}
-          </p>
-          {discounts.length === 0 ? (
-            <button
-              onClick={() => navigate("add")}
-              className="bg-black text-white px-4 py-2 rounded"
-            >
-              Add Your First Discount
-            </button>
-          ) : (
-            <button
-              onClick={handleClearFilters}
-              className="bg-bb-primary text-black px-4 py-2 rounded"
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* TABLE */}
-      {!loading && filteredDiscounts.length > 0 && (
+      {!loading && (
         <div className="bg-white border rounded-xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-[#FFE08A]">
@@ -274,41 +221,37 @@ export default function DiscountsList() {
                 <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
-
             <tbody>
-              {filteredDiscounts.map((d, i) => (
-                <tr key={d.id} className={i % 2 ? "bg-[#FFF9ED]" : "bg-white"}>
-                  <td className="px-4 py-3">{d.code}</td>
-                  <td className="px-4 py-3">{d.name}</td>
-                  <td className="px-4 py-3">{d.type}</td>
-                  <td className="px-4 py-3">
-                    {d.valueType === "Percentage" ? `${d.value}%` : `₹${d.value}`}
+              {filteredDiscounts.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                    {discounts.length === 0 ? "No data available" : "No discounts match your filters"}
                   </td>
-                  <td className="px-4 py-3">
-                    {d.startDate ? new Date(d.startDate).toLocaleDateString() : "N/A"}
-                  </td>
-                  <td className="px-4 py-3">
-                    {d.endDate ? new Date(d.endDate).toLocaleDateString() : "N/A"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusClass(
-                        d.status,
-                      )}`}
-                    >
-                      {d.status}
-                    </span>
-                  </td>
-                  <Actions
-                    actions={[
-                      ...(canUpdate ? ["edit" as const] : []),
-                      ...(canDelete ? ["delete" as const] : []),
-                    ]}
-                    onEdit={() => navigate(`edit/${d.id}`)}
-                    onDelete={() => handleDeleteClick(d.id)}
-                  />
                 </tr>
-              ))}
+              ) : (
+                filteredDiscounts.map((d, i) => (
+                  <tr key={d.id} className={i % 2 ? "bg-[#FFF9ED]" : "bg-white"}>
+                    <td className="px-4 py-3">{d.code}</td>
+                    <td className="px-4 py-3">{d.name}</td>
+                    <td className="px-4 py-3">{d.type}</td>
+                    <td className="px-4 py-3">{d.valueType === "Percentage" ? `${d.value}%` : `Rs ${d.value}`}</td>
+                    <td className="px-4 py-3">{d.startDate ? new Date(d.startDate).toLocaleDateString() : "N/A"}</td>
+                    <td className="px-4 py-3">{d.endDate ? new Date(d.endDate).toLocaleDateString() : "N/A"}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusClass(d.status)}`}>
+                        {d.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <Actions
+                        actions={["edit", "delete"]}
+                        onEdit={() => navigate(`/marketing/discounts/edit/${d.id}`)}
+                        onDelete={() => handleDeleteClick(d.id)}
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -316,12 +259,7 @@ export default function DiscountsList() {
 
       <Pagination />
 
-      {/* DELETE CONFIRM MODAL */}
-      <Modal
-        open={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        className="w-[90%] max-w-md p-6 text-center"
-      >
+      <Modal open={showConfirm} onClose={() => setShowConfirm(false)} className="w-[90%] max-w-md p-6 text-center">
         <h2 className="text-2xl font-bold mb-4">Delete</h2>
 
         <div className="flex justify-center mb-4">
@@ -334,37 +272,24 @@ export default function DiscountsList() {
         </p>
 
         <div className="flex justify-center gap-3">
-          <button
-            onClick={() => setShowConfirm(false)}
-            className="border px-6 py-2 rounded"
-          >
+          <button onClick={() => setShowConfirm(false)} className="border px-6 py-2 rounded">
             Cancel
           </button>
 
-          <button
-            onClick={confirmDelete}
-            className="bg-yellow-400 px-6 py-2 rounded font-medium"
-          >
+          <button onClick={confirmDelete} className="bg-yellow-400 px-6 py-2 rounded font-medium">
             Yes
           </button>
         </div>
       </Modal>
 
-      {/* DELETE SUCCESS MODAL */}
-      <Modal
-        open={showSuccess}
-        onClose={() => setShowSuccess(false)}
-        className="w-[90%] max-w-md p-6 text-center"
-      >
+      <Modal open={showSuccess} onClose={() => setShowSuccess(false)} className="w-[90%] max-w-md p-6 text-center">
         <h2 className="text-2xl font-bold mb-4">Deleted!</h2>
 
         <div className="flex justify-center mb-4">
           <img src={deleteSuccessImg} alt="success" className="w-16 h-16" />
         </div>
 
-        <p className="text-sm text-gray-600">
-          Discount Offer has been successfully deleted.
-        </p>
+        <p className="text-sm text-gray-600">Discount Offer has been successfully deleted.</p>
       </Modal>
     </div>
   );

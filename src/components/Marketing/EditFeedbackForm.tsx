@@ -24,7 +24,7 @@ export default function EditFeedbackForm() {
     status: "Active",
     description: "",
     completionMessage: "",
-    branch: "All",
+    branch: "",
     channel: "Dine In",
   });
 
@@ -42,7 +42,7 @@ export default function EditFeedbackForm() {
               status: found.status === "active" ? "Active" : "Inactive",
               description: found.description || "",
               completionMessage: "",
-              branch: "All",
+              branch: "",
               channel: "Dine In",
             });
           }
@@ -59,10 +59,10 @@ export default function EditFeedbackForm() {
   useEffect(() => {
     const loadBranches = async () => {
       try {
-        const res = await getBranches({ status: "Active" });
+        const res = await getBranches({ status: "active" });
         if (res.success && res.data) {
           setBranchOptions([
-            { label: "All", value: "All" },
+            { label: "Select Branches", value: "" },
             ...res.data.branches.map((b) => ({ label: b.name, value: b.id })),
           ]);
         }
@@ -143,7 +143,7 @@ export default function EditFeedbackForm() {
             required
             value={form.branch}
             onChange={(value) => setForm({ ...form, branch: value })}
-            options={branchOptions.length > 0 ? branchOptions : [{ label: "All", value: "All" }]}
+            options={branchOptions.length > 0 ? branchOptions : [{ label: "Select Branches", value: "" }]}
           />
 
           <Select

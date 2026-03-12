@@ -286,7 +286,10 @@ export default function FeedbackFormsPage() {
 
                   <td className="px-4 py-3 text-center">
                     <Actions
-                      actions={["edit", "delete"]}
+                      actions={["view", "edit", "delete"]}
+                      onView={() =>
+                        navigate(`/marketing/feedback_responses/${form.id}`)
+                      }
                       onEdit={() =>
                         navigate(`/marketing/feedbackCampaign/edit/${form.id}`)
                       }

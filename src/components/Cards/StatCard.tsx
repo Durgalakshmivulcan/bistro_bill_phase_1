@@ -1,8 +1,10 @@
+import { ReactNode } from "react";
+
 interface StatCardProps {
   title: string;
   value: string;
-  icon: string;
-  iconBg: string;
+  icon: ReactNode;
+  iconBg?: string;
 }
 
 const StatCard = ({ title, value, icon, iconBg }: StatCardProps) => {
@@ -11,7 +13,7 @@ const StatCard = ({ title, value, icon, iconBg }: StatCardProps) => {
       
       {/* Icon */}
       <div
-        className={`min-h-[50%] aspect-square rounded-xl flex items-center justify-center text-2xl ${iconBg}`}
+        className={`min-h-[50%] aspect-square rounded-xl flex items-center justify-center text-2xl ${iconBg || ""}`}
       >
         {icon}
       </div>

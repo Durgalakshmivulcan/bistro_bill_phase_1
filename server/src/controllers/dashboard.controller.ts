@@ -58,13 +58,47 @@ interface DashboardStatsResponse {
  * Requires SuperAdmin authentication
  */
 export async function getDashboardStats(
-  _req: AuthenticatedRequest,
+  req: AuthenticatedRequest,
   res: Response
 ): Promise<void> {
   try {
-    // Calculate date 7 days ago for recent signups
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const { startDate, endDate } = req.query;
+    let createdAtFilter: Prisma.DateTimeFilter | undefined;
+
+    if (startDate || endDate) {
+      if (!startDate || !endDate) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'startDate and endDate are required together',
+          },
+        });
+        return;
+      }
+
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      end.setHours(23, 59, 59, 999);
+
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid date range',
+          },
+        });
+        return;
+      }
+
+      createdAtFilter = { gte: start, lte: end };
+    } else {
+      // Default recent-signups window when date filter is not explicitly provided
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      createdAtFilter = { gte: sevenDaysAgo };
+    }
 
     // Run all queries in parallel for better performance
     const [
@@ -76,11 +110,16 @@ export async function getDashboardStats(
       planDistributionRaw,
     ] = await Promise.all([
       // Total business owners count
-      prisma.businessOwner.count(),
+      prisma.businessOwner.count({
+        where: createdAtFilter ? { createdAt: createdAtFilter } : undefined,
+      }),
 
       // Active business owners count
       prisma.businessOwner.count({
-        where: { status: 'active' },
+        where: {
+          status: 'active',
+          ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
+        },
       }),
 
       // Total revenue from subscriptions (sum of all paid subscription plans)
@@ -89,6 +128,7 @@ export async function getDashboardStats(
         where: {
           status: 'active',
           planId: { not: null },
+          ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
         },
         select: {
           plan: {
@@ -102,6 +142,7 @@ export async function getDashboardStats(
       // Lead counts by stage - group by stage
       prisma.lead.groupBy({
         by: ['stage'],
+        where: createdAtFilter ? { createdAt: createdAtFilter } : undefined,
         _count: {
           id: true,
         },
@@ -109,11 +150,7 @@ export async function getDashboardStats(
 
       // Recent signups (last 7 days)
       prisma.businessOwner.findMany({
-        where: {
-          createdAt: {
-            gte: sevenDaysAgo,
-          },
-        },
+        where: createdAtFilter ? { createdAt: createdAtFilter } : undefined,
         select: {
           id: true,
           email: true,
@@ -128,7 +165,7 @@ export async function getDashboardStats(
           },
         },
         orderBy: { createdAt: 'desc' },
-        take: 10, // Limit to 10 most recent
+        take: 10,
       }),
 
       // Plan distribution - count business owners per plan
@@ -139,6 +176,7 @@ export async function getDashboardStats(
         },
         where: {
           planId: { not: null },
+          ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
         },
       }),
     ]);

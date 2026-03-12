@@ -4,6 +4,7 @@ import CreateLeadModal from "../components/contactRequests/addContactLead";
 import { useState, useMemo, useEffect } from "react";
 import { getLeadsByStage, Lead } from "../services/contactService";
 import { LoadingSpinner } from "../components/Common";
+import { Search } from "lucide-react";
 
 const ContactRequestsPage = () => {
   const [openModal, setOpenModal] = useState(false);
@@ -78,13 +79,19 @@ const ContactRequestsPage = () => {
           </h1>
 
           <div className="flex gap-3">
+            <div className="relative w-full lg:w-64">
+            <Search
+              size={16}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+            />
             <input
-              type="text"
               placeholder="Search here..."
-              className="border rounded-md px-4 py-2 text-sm w-full sm:w-64"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+
+              className="w-full border rounded-md bg-bb-bg px-3 pr-10 py-2 text-sm"
             />
+          </div>
             <button
               onClick={() => setOpenModal(true)}
               className="bg-black text-white px-4 py-2 rounded-md text-sm"

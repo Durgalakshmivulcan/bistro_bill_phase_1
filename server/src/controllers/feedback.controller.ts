@@ -418,6 +418,67 @@ export const deleteFeedbackForm = async (
 };
 
 /**
+ * @route GET /api/v1/public/feedback/:formId
+ * @desc Get feedback form details (public endpoint, no authentication required)
+ * @access Public
+ */
+export const getPublicFeedbackForm = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { formId } = req.params;
+
+    const feedbackForm = await prisma.feedbackForm.findUnique({
+      where: { id: formId },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        questions: true,
+        status: true,
+      },
+    });
+
+    if (!feedbackForm) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'FEEDBACK_FORM_NOT_FOUND',
+          message: 'Feedback form not found',
+        },
+      });
+      return;
+    }
+
+    if (feedbackForm.status !== 'active') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'FEEDBACK_FORM_INACTIVE',
+          message: 'This feedback form is no longer accepting responses',
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: feedbackForm,
+    });
+  } catch (error) {
+    console.error('Error fetching public feedback form:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to fetch feedback form',
+      },
+    });
+  }
+};
+
+/**
  * @route POST /api/v1/public/feedback/:formId
  * @desc Submit a feedback response (public endpoint, no authentication required)
  * @access Public
@@ -428,7 +489,7 @@ export const submitFeedbackResponse = async (
 ): Promise<void> => {
   try {
     const { formId } = req.params;
-    const { responses, rating, customerId } = req.body;
+    const { responses, rating, customerId, customer } = req.body;
 
     // Validate required fields
     if (!responses) {
@@ -513,11 +574,69 @@ export const submitFeedbackResponse = async (
       }
     }
 
+    // Resolve customer (direct customerId OR create/find by provided public customer details)
+    let resolvedCustomerId: string | null = customerId || null;
+    if (!resolvedCustomerId && customer && (customer.phone || customer.email)) {
+      const customerName = typeof customer.name === 'string' ? customer.name.trim() : '';
+      const customerPhone = typeof customer.phone === 'string' ? customer.phone.trim() : '';
+      const customerEmail = typeof customer.email === 'string' ? customer.email.trim() : '';
+
+      if (customerPhone) {
+        const existingByPhone = await prisma.customer.findFirst({
+          where: {
+            businessOwnerId: feedbackForm.businessOwnerId,
+            phone: customerPhone,
+          },
+          select: { id: true },
+        });
+
+        if (existingByPhone) {
+          resolvedCustomerId = existingByPhone.id;
+        } else {
+          const createdCustomer = await prisma.customer.create({
+            data: {
+              businessOwnerId: feedbackForm.businessOwnerId,
+              name: customerName || 'Guest Customer',
+              phone: customerPhone,
+              email: customerEmail || null,
+            },
+            select: { id: true },
+          });
+          resolvedCustomerId = createdCustomer.id;
+        }
+      } else if (customerEmail) {
+        const existingByEmail = await prisma.customer.findFirst({
+          where: {
+            businessOwnerId: feedbackForm.businessOwnerId,
+            email: customerEmail,
+          },
+          select: { id: true },
+        });
+
+        if (existingByEmail) {
+          resolvedCustomerId = existingByEmail.id;
+        } else {
+          // Customer.phone is required in schema, so generate fallback when only email is provided.
+          const generatedPhone = `public-${Date.now()}`;
+          const createdCustomer = await prisma.customer.create({
+            data: {
+              businessOwnerId: feedbackForm.businessOwnerId,
+              name: customerName || 'Guest Customer',
+              phone: generatedPhone,
+              email: customerEmail,
+            },
+            select: { id: true },
+          });
+          resolvedCustomerId = createdCustomer.id;
+        }
+      }
+    }
+
     // Create the feedback response
     const feedbackResponse = await prisma.feedbackResponse.create({
       data: {
         feedbackFormId: formId,
-        customerId: customerId || null,
+        customerId: resolvedCustomerId,
         responses: responses as Prisma.JsonObject,
         rating: rating || null,
       },

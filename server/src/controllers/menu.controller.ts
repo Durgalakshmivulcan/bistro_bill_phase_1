@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { prisma } from '../services/db.service';
+import { RequestWithUpload } from '../middleware/upload.middleware';
 
 /**
  * Menu Response Interface
@@ -8,6 +9,7 @@ import { prisma } from '../services/db.service';
 interface MenuResponse {
   id: string;
   name: string;
+  image: string | null;
   description: string | null;
   status: string;
   createdAt: Date;
@@ -21,6 +23,27 @@ interface MenuResponse {
 interface MenuListResponse {
   menus: MenuResponse[];
   total: number;
+}
+
+function isMissingMenuImageColumnError(error: unknown): boolean {
+  const err = error as { code?: string; meta?: { column?: string }; message?: string };
+  if (err?.code !== 'P2022') return false;
+
+  const column = String(err?.meta?.column || '').toLowerCase();
+  const message = String(err?.message || '').toLowerCase();
+
+  // Prisma may report missing column as `Menu.image`, `image`, or only in message text.
+  return (
+    column === 'image' ||
+    column.endsWith('.image') ||
+    column.includes('menu.image') ||
+    message.includes('column `image` does not exist')
+  );
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 /**
@@ -77,31 +100,66 @@ export async function listMenus(
       whereClause.status = status;
     }
 
-    // Fetch menus with product count
-    const menus = await prisma.menu.findMany({
-      where: whereClause,
-      include: {
-        _count: {
-          select: {
-            products: true,
+    let menuResponses: MenuResponse[] = [];
+    try {
+      // Primary path: image column exists
+      const menus = await prisma.menu.findMany({
+        where: whereClause,
+        include: {
+          _count: {
+            select: {
+              products: true,
+            },
           },
         },
-      },
-      orderBy: [
-        { name: 'asc' },
-      ],
-    });
+        orderBy: [{ name: 'asc' }],
+      });
 
-    // Transform to response format
-    const menuResponses: MenuResponse[] = menus.map((menu) => ({
-      id: menu.id,
-      name: menu.name,
-      description: menu.description,
-      status: menu.status,
-      createdAt: menu.createdAt,
-      updatedAt: menu.updatedAt,
-      productCount: menu._count.products,
-    }));
+      menuResponses = menus.map((menu) => ({
+        id: menu.id,
+        name: menu.name,
+        image: menu.image,
+        description: menu.description,
+        status: menu.status,
+        createdAt: menu.createdAt,
+        updatedAt: menu.updatedAt,
+        productCount: menu._count.products,
+      }));
+    } catch (innerError) {
+      if (!isMissingMenuImageColumnError(innerError)) {
+        throw innerError;
+      }
+
+      // Fallback path: image column missing in DB, continue without image
+      const menus = await prisma.menu.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              products: true,
+            },
+          },
+        },
+        orderBy: [{ name: 'asc' }],
+      });
+
+      menuResponses = menus.map((menu) => ({
+        id: menu.id,
+        name: menu.name,
+        image: null,
+        description: menu.description,
+        status: menu.status,
+        createdAt: menu.createdAt,
+        updatedAt: menu.updatedAt,
+        productCount: menu._count.products,
+      }));
+    }
 
     const response: ApiResponse<MenuListResponse> = {
       success: true,
@@ -132,7 +190,7 @@ export async function listMenus(
  * Requires tenant middleware
  */
 export async function createMenu(
-  req: AuthenticatedRequest,
+  req: AuthenticatedRequest & RequestWithUpload,
   res: Response
 ): Promise<void> {
   try {
@@ -183,27 +241,87 @@ export async function createMenu(
       }
     }
 
-    // Create menu
-    const menu = await prisma.menu.create({
-      data: {
-        businessOwnerId: tenantId,
-        name: name.trim(),
-        description: description?.trim() || null,
-        status: status || 'active',
-      },
-      include: {
-        _count: {
-          select: {
-            products: true,
+    if (!req.uploadedFile?.url) {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Image is required',
+        },
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Save uploaded image URL
+    const imageUrl = req.uploadedFile?.url || null;
+
+    let menu: {
+      id: string;
+      name: string;
+      image: string | null;
+      description: string | null;
+      status: string;
+      createdAt: Date;
+      updatedAt: Date;
+      _count: { products: number };
+    };
+    try {
+      menu = await prisma.menu.create({
+        data: {
+          businessOwnerId: tenantId,
+          name: name.trim(),
+          image: imageUrl,
+          description: description?.trim() || null,
+          status: status || 'active',
+        },
+        include: {
+          _count: {
+            select: {
+              products: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (innerError) {
+      if (!isMissingMenuImageColumnError(innerError)) {
+        throw innerError;
+      }
+
+      // Fallback: create without image when DB column doesn't exist
+      const fallbackMenu = await prisma.menu.create({
+        data: {
+          businessOwnerId: tenantId,
+          name: name.trim(),
+          description: description?.trim() || null,
+          status: status || 'active',
+        },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              products: true,
+            },
+          },
+        },
+      });
+
+      menu = {
+        ...fallbackMenu,
+        image: null,
+      };
+    }
 
     // Transform to response format
     const menuResponse: MenuResponse = {
       id: menu.id,
       name: menu.name,
+      image: menu.image,
       description: menu.description,
       status: menu.status,
       createdAt: menu.createdAt,
@@ -222,11 +340,25 @@ export async function createMenu(
     res.status(201).json(response);
   } catch (error) {
     console.error('Error creating menu:', error);
+
+    const prismaLike = error as { code?: string; meta?: Record<string, unknown> };
+    if (prismaLike?.code === 'P2003') {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid tenant or relation reference while creating menu',
+        },
+      };
+      res.status(400).json(response);
+      return;
+    }
+
     const response: ApiResponse = {
       success: false,
       error: {
         code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to create menu',
+        message: `MENU_CREATE_DEBUG_V2 | ${getErrorMessage(error)}`,
       },
     };
     res.status(500).json(response);
@@ -239,7 +371,7 @@ export async function createMenu(
  * Requires tenant middleware
  */
 export async function updateMenu(
-  req: AuthenticatedRequest,
+  req: AuthenticatedRequest & RequestWithUpload,
   res: Response
 ): Promise<void> {
   try {
@@ -278,6 +410,9 @@ export async function updateMenu(
       where: {
         id,
         businessOwnerId: tenantId,
+      },
+      select: {
+        id: true,
       },
     });
 
@@ -328,6 +463,7 @@ export async function updateMenu(
     // Build update data
     interface UpdateData {
       name?: string;
+      image?: string | null;
       description?: string | null;
       status?: string;
     }
@@ -345,23 +481,67 @@ export async function updateMenu(
       updateData.status = status;
     }
 
-    // Update menu
-    const updatedMenu = await prisma.menu.update({
-      where: { id },
-      data: updateData,
-      include: {
-        _count: {
-          select: {
-            products: true,
+    if (req.uploadedFile?.url) {
+      updateData.image = req.uploadedFile.url;
+    }
+
+    let updatedMenu: {
+      id: string;
+      name: string;
+      image: string | null;
+      description: string | null;
+      status: string;
+      createdAt: Date;
+      updatedAt: Date;
+      _count: { products: number };
+    };
+    try {
+      updatedMenu = await prisma.menu.update({
+        where: { id },
+        data: updateData,
+        include: {
+          _count: {
+            select: {
+              products: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (innerError) {
+      if (!isMissingMenuImageColumnError(innerError)) {
+        throw innerError;
+      }
+
+      const { image: _ignoredImage, ...fallbackData } = updateData;
+      const fallbackUpdated = await prisma.menu.update({
+        where: { id },
+        data: fallbackData,
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              products: true,
+            },
+          },
+        },
+      });
+
+      updatedMenu = {
+        ...fallbackUpdated,
+        image: null,
+      };
+    }
 
     // Transform to response format
     const menuResponse: MenuResponse = {
       id: updatedMenu.id,
       name: updatedMenu.name,
+      image: updatedMenu.image,
       description: updatedMenu.description,
       status: updatedMenu.status,
       createdAt: updatedMenu.createdAt,
@@ -438,7 +618,8 @@ export async function deleteMenu(
         id,
         businessOwnerId: tenantId,
       },
-      include: {
+      select: {
+        id: true,
         _count: {
           select: {
             products: true,

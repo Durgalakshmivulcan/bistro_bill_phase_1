@@ -1,35 +1,68 @@
 import { Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AddNewVariantModal from "./models/addNewVariantModal";
 import Modal from "../../../components/ui/Modal";
 import deleteImg from "../../../assets/deleteConformImg.png";
 import conformDeleteImg from "../../../assets/deleteSuccessImg.png";
 
 interface Variant {
-  id: number;
+  id: string | number;
   name: string;
   quantity: string;
   status: boolean;
 }
 
-const VariantsStep = ({ onNext, onPrev, readOnly }: any) => {
+const VariantsStep = ({ onNext, onPrev, readOnly, productData, setProductData }: any) => {
   const [openVariantModal, setOpenVariantModal] = useState(false);
 
-  const [variants, setVariants] = useState<Variant[]>([
-    { id: 1, name: "Small", quantity: "500g", status: true },
-    { id: 2, name: "Medium", quantity: "750g", status: true },
-  ]);
+  const [variants, setVariants] = useState<Variant[]>([]);
+
+  useEffect(() => {
+    const incoming = Array.isArray(productData?.variants) ? productData.variants : [];
+    if (incoming.length === 0) {
+      setVariants([]);
+      return;
+    }
+
+    setVariants(
+      incoming.map((v: any, idx: number) => ({
+        id: v.id || `local-${idx}`,
+        name: v.name || "",
+        quantity: v.quantity || "",
+        status:
+          typeof v.status === "boolean"
+            ? v.status
+            : String(v.status || "").toLowerCase() !== "inactive",
+      }))
+    );
+  }, [productData?.variants]);
+
+  const syncVariantsToProductData = (updated: Variant[]) => {
+    setProductData?.((prev: any) => ({
+      ...prev,
+      variants: updated.map((v) => ({
+        id: String(v.id),
+        name: v.name,
+        quantity: v.quantity,
+        status: v.status ? "active" : "inactive",
+      })),
+    }));
+  };
 
   // 🔴 DELETE FLOW STATE
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletedOpen, setDeletedOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | number | null>(null);
 
   /* CONFIRM DELETE */
   const handleDeleteConfirm = () => {
     if (!selectedId) return;
 
-    setVariants((prev) => prev.filter((v) => v.id !== selectedId));
+    setVariants((prev) => {
+      const updated = prev.filter((v) => v.id !== selectedId);
+      syncVariantsToProductData(updated);
+      return updated;
+    });
 
     setDeleteOpen(false);
     setDeletedOpen(true);
@@ -88,16 +121,18 @@ const VariantsStep = ({ onNext, onPrev, readOnly }: any) => {
                 <button
                   disabled={readOnly}
                   onClick={() =>
-                    setVariants((prev) =>
-                      prev.map((item) =>
+                    setVariants((prev) => {
+                      const updated = prev.map((item) =>
                         item.id === v.id
                           ? {
                               ...item,
                               status: !item.status,
                             }
                           : item,
-                      ),
-                    )
+                      );
+                      syncVariantsToProductData(updated);
+                      return updated;
+                    })
                   }
                   className={`relative inline-flex items-center
                     w-10 h-5 rounded-full transition-colors
@@ -137,15 +172,19 @@ const VariantsStep = ({ onNext, onPrev, readOnly }: any) => {
         open={openVariantModal}
         onClose={() => setOpenVariantModal(false)}
         onCreate={({ name, quantity }) => {
-          setVariants((prev) => [
-            ...prev,
-            {
-              id: Date.now(),
-              name,
-              quantity,
-              status: true,
-            },
-          ]);
+          setVariants((prev) => {
+            const updated = [
+              ...prev,
+              {
+                id: Date.now(),
+                name,
+                quantity,
+                status: true,
+              },
+            ];
+            syncVariantsToProductData(updated);
+            return updated;
+          });
 
           handleCreateSuccess();
         }}

@@ -4,7 +4,7 @@ import { ApiResponse, SearchParams } from '../types/api';
 /**
  * Customer Type Enum
  */
-export type CustomerType = 'Regular' | 'VIP' | 'Wholesale';
+export type CustomerType = 'Regular' | 'VIP' | 'Corporate' | 'Wholesale';
 
 /**
  * Customer Tag Info
@@ -40,6 +40,8 @@ export interface Customer {
   gender: string | null;
   dob: Date | null;
   type: CustomerType;
+  gstin?: string | null;
+  amountDue?: number;
   totalSpent: number;
   customerGroupId: string | null;
   customerGroupName: string | null;
@@ -142,6 +144,7 @@ export interface CreateCustomerData {
   gender?: string;
   dob?: string; // ISO date string
   type?: CustomerType;
+  gstin?: string;
   customerGroupId?: string;
   notes?: string;
   tagIds?: string[];
@@ -157,6 +160,7 @@ export interface UpdateCustomerData {
   gender?: string;
   dob?: string; // ISO date string
   type?: CustomerType;
+  gstin?: string;
   customerGroupId?: string;
   notes?: string;
   tagIds?: string[];

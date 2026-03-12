@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Modal from "../../../ui/Modal";
 import { Menu, createMenu, updateMenu } from "../../../../services/catalogService";
+import { getErrorMessage } from "../../../../utils/errorHandler";
 
 interface Props {
   open: boolean;
@@ -18,23 +19,25 @@ export default function AddEditMenuModal({
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const [image, setImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [name, setName] = useState("");
-  const [status, setStatus] = useState<"Active" | "Inactive">("Active");
+  const [status, setStatus] = useState<"" | "active" | "inactive">("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* ---------------- PREFILL ON EDIT ---------------- */
   useEffect(() => {
     if (data) {
-      setImage(null); // API Menu type doesn't have image
+      setImage(data.image || null);
+      setImageFile(null);
       setName(data.name);
-      setStatus(data.status === "active" ? "Active" : "Inactive");
+      setStatus(data.status);
       setDescription(data.description || "");
     } else {
       setImage(null);
+      setImageFile(null);
       setName("");
-      setStatus("Active");
+      setStatus("");
       setDescription("");
     }
     setError(null);
@@ -43,24 +46,24 @@ export default function AddEditMenuModal({
 
   if (!open) return null;
 
-  /* ---------------- IMAGE UPLOAD ---------------- */
-  const handleImageChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () =>
-      setImage(reader.result as string);
-    reader.readAsDataURL(file);
+    setImageFile(file);
+    setImage(URL.createObjectURL(file));
   };
 
-  /* ---------------- SAVE ---------------- */
   const handleSave = async () => {
-    // Validation
     if (!name.trim()) {
       setError("Menu name is required");
+      return;
+    }
+    if (!status) {
+      setError("Please select status");
+      return;
+    }
+    if (!data && !imageFile) {
+      setError("Menu image is required");
       return;
     }
 
@@ -68,66 +71,53 @@ export default function AddEditMenuModal({
       setSaving(true);
       setError(null);
 
-      const menuData = {
+      const payload = {
         name: name.trim(),
         description: description.trim() || undefined,
-        status: status.toLowerCase() as 'active' | 'inactive',
+        status,
       };
 
-      if (data) {
-        // Update existing menu
-        const response = await updateMenu(data.id, menuData);
-        if (response.success) {
-          onSuccess("updated");
-        } else {
-          setError(response.message || "Failed to update menu");
-        }
-      } else {
-        // Create new menu
-        const response = await createMenu(menuData);
-        if (response.success) {
-          onSuccess("created");
-        } else {
-          setError(response.message || "Failed to create menu");
-        }
+      const response = data
+        ? await updateMenu(data.id, payload, imageFile || undefined)
+        : await createMenu(payload, imageFile || undefined);
+
+      if (response.success) {
+        onSuccess(data ? "updated" : "created");
+        return;
       }
+
+      setError(response.message || response.error?.message || "Failed to save menu");
     } catch (err) {
-      console.error("Failed to save menu:", err);
-      setError("An error occurred while saving the menu");
+      setError(getErrorMessage(err, "An unexpected error occurred"));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} className="w-[900px] p-8">
-      <h2 className="text-2xl font-bold mb-6">
-        {data ? "Edit Menu" : "Add New Menu"}
-      </h2>
+    <Modal open={open} onClose={onClose} className="w-[900px] p-8 max-w-[95vw]">
+      <h2 className="text-2xl font-bold mb-6">{data ? "Edit Menu" : "Add New Menu"}</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ================= IMAGE UPLOAD ================= */}
         <div>
           <label className="block text-sm font-medium mb-2">
             Menu Image<span className="text-red-500">*</span>
           </label>
-
-          <div className="border-2 border-dashed rounded-lg p-4 text-center">
+          <div
+            className="border-2 border-dashed border-yellow-400 rounded-lg p-4 text-center cursor-pointer"
+            onClick={() => fileRef.current?.click()}
+          >
             {image ? (
-              <img
-                src={image}
-                alt="Menu Preview"
-                className="w-full h-48 object-cover rounded"
-              />
+              <img src={image} alt="Menu" className="w-full h-48 object-cover rounded" />
             ) : (
-              <button
-                onClick={() =>
-                  fileRef.current?.click()
-                }
-                className="bg-yellow-400 px-4 py-2 rounded"
-              >
-                Upload Image
-              </button>
+              <>
+                <button type="button" className="bg-yellow-400 px-4 py-2 rounded">
+                  Upload Image
+                </button>
+                <p className="text-xs text-gray-500 mt-3">
+                  Recommended size: 400x260 to 600x300 (JPG/PNG)
+                </p>
+              </>
             )}
 
             <input
@@ -137,66 +127,38 @@ export default function AddEditMenuModal({
               hidden
               onChange={handleImageChange}
             />
-
-            <p className="text-xs text-gray-500 mt-3">
-              (Recommended size: 400×260 to
-              600×300, JPG or PNG)
-            </p>
           </div>
         </div>
 
-        {/* ================= FORM ================= */}
         <div className="lg:col-span-2 space-y-4">
-          {/* NAME */}
           <div>
-            <label className="text-sm font-medium">
-              Menu Name
-            </label>
+            <label className="text-sm font-medium">Menu Name</label>
             <input
               value={name}
-              onChange={(e) =>
-                setName(e.target.value)
-              }
+              onChange={(e) => setName(e.target.value)}
               placeholder="Enter Menu Name"
               className="w-full border rounded px-3 py-2 mt-1"
             />
           </div>
 
-          {/* STATUS */}
           <div>
-            <label className="text-sm font-medium">
-              Status
-            </label>
+            <label className="text-sm font-medium">Status</label>
             <select
               value={status}
-              onChange={(e) =>
-                setStatus(
-                  e.target.value as
-                    | "Active"
-                    | "Inactive"
-                )
-              }
-              className="w-full border rounded px-3 py-2 mt-1"
+              onChange={(e) => setStatus(e.target.value as "" | "active" | "inactive")}
+              className="w-full border rounded px-3 py-2 mt-1 bg-white"
             >
-              <option value="Active">
-                Active
-              </option>
-              <option value="Inactive">
-                Inactive
-              </option>
+              <option value="">Select Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
             </select>
           </div>
 
-          {/* DESCRIPTION */}
           <div>
-            <label className="text-sm font-medium">
-              Description
-            </label>
+            <label className="text-sm font-medium">Description</label>
             <textarea
               value={description}
-              onChange={(e) =>
-                setDescription(e.target.value)
-              }
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="Add Description"
               className="w-full border rounded px-3 py-2 mt-1 h-28 resize-none"
             />
@@ -204,28 +166,17 @@ export default function AddEditMenuModal({
         </div>
       </div>
 
-      {/* ================= ERROR MESSAGE ================= */}
       {error && (
         <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
           {error}
         </div>
       )}
 
-      {/* ================= ACTIONS ================= */}
       <div className="flex justify-end gap-3 mt-8">
-        <button
-          onClick={onClose}
-          disabled={saving}
-          className="border px-6 py-2 rounded disabled:opacity-50"
-        >
+        <button onClick={onClose} disabled={saving} className="border px-6 py-2 rounded disabled:opacity-50">
           Cancel
         </button>
-
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="bg-yellow-400 px-6 py-2 rounded disabled:opacity-50"
-        >
+        <button onClick={handleSave} disabled={saving} className="bg-yellow-400 px-6 py-2 rounded disabled:opacity-50">
           {saving ? "Saving..." : "Save"}
         </button>
       </div>

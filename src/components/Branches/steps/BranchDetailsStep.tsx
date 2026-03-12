@@ -71,7 +71,12 @@ export default function BranchDetailsStep({ data, onChange }: Props) {
               value={data.name}
               onChange={(value) => onChange({ name: value })}
             />
-            <Input label="Branch Code" disabled placeholder="Auto-generated" />
+            <Input
+              label="Branch Code"
+              disabled
+              value={data.code || ""}
+              placeholder="Auto-generated"
+            />
 
             <Input
               label="Email Address"

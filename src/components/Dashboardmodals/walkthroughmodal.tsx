@@ -5,9 +5,18 @@ import { Datawalkthroughmodal } from "./datawalkthroughmodal";
 interface Props {
   open: boolean;
   onClose: () => void;
+  onBackToWelcome: () => void;
+  onFinished?: () => void; // ⭐ NEW
 }
 
-const WalkthroughModal = ({ open, onClose }: Props) => {
+
+const WalkthroughModal = ({
+  open,
+  onClose,
+  onBackToWelcome,
+  onFinished,
+}: Props) => {
+
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -18,14 +27,15 @@ const WalkthroughModal = ({ open, onClose }: Props) => {
 
   const current = Datawalkthroughmodal[step];
 
+  
   return (
-    <Modal open={open} onClose={onClose} className="w-[220px] p-4">
+    <Modal open={open} onClose={onClose} className="w-[250px] p-4">
       {/* Image */}
       <div className="rounded-lg overflow-hidden mb-3">
         <img
           src={current.image}
           alt={current.title || ""}
-          className="w-full h-38 object-cover"
+          className="w-full h-[100px] object-cover"
         />
       </div>
 
@@ -42,24 +52,30 @@ const WalkthroughModal = ({ open, onClose }: Props) => {
       {/* Footer */}
       <div className="flex items-center justify-between gap-2">
         <button
-          disabled={step === 0}
-          onClick={() => setStep(step - 1)}
-          className="px-4 py-2 border rounded-md text-sm disabled:opacity-40"
-        >
-          Back
-        </button>
+  onClick={() => {
+    if (step === 0) {
+      onBackToWelcome(); // 👈 go to welcome
+    } else {
+      setStep((prev) => prev - 1);
+    }
+  }}
+  className="px-4 py-2 border rounded-md text-sm disabled:opacity-40"
+>
+  Back
+</button>
+
 
         {step === Datawalkthroughmodal.length - 1 ? (
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-bb-primary text-white rounded-md text-sm"
+           <button
+    onClick={() => onFinished?.()}
+            className="px-4 py-2 bg-bb-primary text-black rounded-md text-sm"
           >
             Finish
           </button>
         ) : (
           <button
             onClick={() => setStep(step + 1)}
-            className="px-4 py-2 bg-bb-primary text-white rounded-md text-sm"
+            className="px-4 py-2 bg-bb-primary text-black rounded-md text-sm"
           >
             Next
           </button>

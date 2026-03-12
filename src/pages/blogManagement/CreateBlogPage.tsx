@@ -25,6 +25,13 @@ import {
   BlogTag,
 } from "../../services/blogService";
 import { getStaff, Staff } from "../../services/staffService";
+import {
+  getBusinessOwners,
+  BusinessOwnerListItem,
+} from "../../services/superAdminService";
+import { getSelectedBoId, setSelectedBoId } from "../../services/saReportContext";
+import { useAuth } from "../../contexts/AuthContext";
+import { getBlogImage, setBlogImage } from "../../utils/blogImageStore";
 
 type SuccessType = "create" | "edit" | "publish" | "draft" | "unpublish" | "schedule" | null;
 
@@ -36,9 +43,15 @@ function stripHtml(html: string): string {
   return doc.body.textContent?.trim() || "";
 }
 
+function isRemoteImageUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
 export default function BlogFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.userType === "SuperAdmin";
 
   // MODES
   const isEditMode = Boolean(id);
@@ -52,7 +65,6 @@ export default function BlogFormPage() {
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("Draft");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageAlt, setImageAlt] = useState("");
   const [publishDate, setPublishDate] = useState("");
 
@@ -62,6 +74,9 @@ export default function BlogFormPage() {
   const [tagsList, setTagsList] = useState<BlogTag[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedBo, setSelectedBo] = useState<string>(getSelectedBoId() || "");
+  const [boList, setBoList] = useState<BusinessOwnerListItem[]>([]);
+  const [boLoading, setBoLoading] = useState(false);
 
   // UI STATE
   const [showConfirm, setShowConfirm] = useState(false);
@@ -70,6 +85,22 @@ export default function BlogFormPage() {
   const [error, setError] = useState("");
 
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const loadBusinessOwners = async () => {
+      if (!isSuperAdmin) return;
+      setBoLoading(true);
+      try {
+        const res = await getBusinessOwners({ limit: 100 });
+        if (res.success && res.data) {
+          setBoList(res.data.businessOwners);
+        }
+      } finally {
+        setBoLoading(false);
+      }
+    };
+    loadBusinessOwners();
+  }, [isSuperAdmin]);
 
   // Rich text editor configuration
   const quillModules = useMemo(
@@ -99,6 +130,12 @@ export default function BlogFormPage() {
   // Fetch categories, staff, tags and blog data on mount
   useEffect(() => {
     const fetchData = async () => {
+      if (isSuperAdmin && !selectedBo) {
+        setError("Select a restaurant to load blog form data.");
+        setLoadingData(false);
+        return;
+      }
+
       setLoadingData(true);
 
       try {
@@ -130,7 +167,8 @@ export default function BlogFormPage() {
             setSelectedTagIds(blog.tags.map((t) => t.id));
             setDescription(blog.content);
             setStatus(blog.status);
-            setImagePreview(blog.featuredImage || null);
+            const storedImage = getBlogImage(blog.id);
+            setImagePreview(storedImage || blog.featuredImage || null);
             setImageAlt(blog.featuredImageAlt || "");
             if (blog.publishDate) {
               // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
@@ -152,7 +190,12 @@ export default function BlogFormPage() {
     };
 
     fetchData();
-  }, [id]);
+  }, [id, isSuperAdmin, selectedBo]);
+
+  const handleBusinessOwnerChange = (boId: string) => {
+    setSelectedBo(boId);
+    setSelectedBoId(boId || null);
+  };
 
   // ---------------- HANDLERS ----------------
 
@@ -200,9 +243,7 @@ export default function BlogFormPage() {
         : status === "Scheduled" ? undefined : null,
     };
 
-    if (imageFile) {
-      data.featuredImageFile = imageFile;
-    } else if (imagePreview) {
+    if (imagePreview && isRemoteImageUrl(imagePreview)) {
       data.featuredImage = imagePreview;
     }
 
@@ -217,6 +258,10 @@ export default function BlogFormPage() {
       setSubmitting(false);
 
       if (response.success) {
+        const savedBlogId = response.data?.blog?.id || id;
+        if (savedBlogId && imagePreview) {
+          setBlogImage(savedBlogId, imagePreview);
+        }
         setSuccessType(
           status === "Scheduled" ? "schedule" : isEditMode ? "edit" : "create"
         );
@@ -248,9 +293,7 @@ export default function BlogFormPage() {
       featuredImageAlt: imageAlt || undefined,
     };
 
-    if (imageFile) {
-      data.featuredImageFile = imageFile;
-    } else if (imagePreview) {
+    if (imagePreview && isRemoteImageUrl(imagePreview)) {
       data.featuredImage = imagePreview;
     }
 
@@ -265,6 +308,10 @@ export default function BlogFormPage() {
       setSubmitting(false);
 
       if (response.success) {
+        const savedBlogId = response.data?.blog?.id || id;
+        if (savedBlogId && imagePreview) {
+          setBlogImage(savedBlogId, imagePreview);
+        }
         setStatus("Draft");
         setSuccessType("draft");
         setShowSuccess(true);
@@ -366,6 +413,27 @@ export default function BlogFormPage() {
     <DashboardLayout>
       <div className="p-6 bg-[#FFFDF5] min-h-screen">
         <div className="w-full max-w-6xl mx-auto space-y-6">
+          {isSuperAdmin && (
+            <div className="bg-white border rounded-lg p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Restaurant Context
+              </label>
+              <select
+                value={selectedBo}
+                onChange={(e) => handleBusinessOwnerChange(e.target.value)}
+                className="w-full lg:w-80 border rounded-md px-3 py-2 text-sm bg-white"
+                disabled={boLoading}
+              >
+                <option value="">-- Select a Restaurant --</option>
+                {boList.map((bo) => (
+                  <option key={bo.id} value={bo.id}>
+                    {bo.restaurantName} ({bo.ownerName})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* HEADER */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <h1 className="text-3xl font-bold">
@@ -398,7 +466,6 @@ export default function BlogFormPage() {
                         type="button"
                         onClick={() => {
                           setImagePreview(null);
-                          setImageFile(null);
                           if (fileRef.current) fileRef.current.value = "";
                         }}
                         className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
@@ -439,8 +506,12 @@ export default function BlogFormPage() {
                       setError("Image must be less than 5MB");
                       return;
                     }
-                    setImageFile(file);
-                    setImagePreview(URL.createObjectURL(file));
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      const result = typeof reader.result === "string" ? reader.result : null;
+                      setImagePreview(result);
+                    };
+                    reader.readAsDataURL(file);
                   }
                 }}
               />
@@ -664,7 +735,7 @@ export default function BlogFormPage() {
               <button
                 onClick={handleSaveDraft}
                 className="bg-black text-white px-6 py-2 rounded"
-                disabled={submitting}
+                disabled={submitting || (isSuperAdmin && !selectedBo)}
               >
                 {submitting ? "Saving..." : "Save as Draft"}
               </button>
@@ -674,7 +745,7 @@ export default function BlogFormPage() {
               <button
                 onClick={handleCreateOrUpdate}
                 className="bg-yellow-400 px-6 py-2 rounded font-medium"
-                disabled={submitting}
+                disabled={submitting || (isSuperAdmin && !selectedBo)}
               >
                 {submitting ? "Saving..." : isEditMode ? "Save Changes" : "Publish"}
               </button>
@@ -687,7 +758,7 @@ export default function BlogFormPage() {
                     ? "bg-black text-white"
                     : "bg-black text-white"
                 }`}
-                disabled={submitting}
+                disabled={submitting || (isSuperAdmin && !selectedBo)}
               >
                 {status === "Published" ? "Unpublish" : "Publish"}
               </button>

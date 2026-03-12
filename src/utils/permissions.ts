@@ -29,7 +29,7 @@ export type PermissionModule =
   | 'purchase_orders'
   | 'reservations';
 
-export type PermissionAction = 'view' | 'create' | 'update' | 'delete';
+export type PermissionAction = 'read' | 'create' | 'update' | 'delete';
 
 /**
  * User role with permissions
@@ -37,7 +37,10 @@ export type PermissionAction = 'view' | 'create' | 'update' | 'delete';
 export interface UserRole {
   id: string;
   name: string;
-  permissions: Record<string, Record<string, boolean>>;
+  permissions: Record<
+  string,
+  Record<string, boolean | Record<string, boolean>>
+>;
 }
 
 /**
@@ -54,7 +57,7 @@ export interface CurrentUser {
 }
 
 /**
- * Get current user from localStorage
+ * Get current user from localStorag
  * Returns null if no user is logged in
  *
  * @returns CurrentUser | null
@@ -106,22 +109,35 @@ export function clearCurrentUser(): void {
  */
 export function hasPermission(
   module: PermissionModule,
-  action: PermissionAction
+  action: PermissionAction,
+  resource?: string
 ): boolean {
   const user = getCurrentUser();
 
-  // If no user is logged in, deny all permissions
   if (!user) return false;
 
-  // If user has no permissions object, deny
+  // ✅ admin bypass
+  if (isAdmin()) return true;
+
   if (!user.permissions) return false;
 
-  // Check if module exists in permissions
   const modulePermissions = user.permissions[module];
   if (!modulePermissions) return false;
 
-  // Check if action is allowed
-  return modulePermissions[action] === true;
+  const actionPermissions = modulePermissions[action];
+if (!actionPermissions) return false;
+
+// ✅ If action permission is boolean (module-level)
+if (typeof actionPermissions === "boolean") {
+  return actionPermissions;
+}
+
+// ✅ If action permission is object (resource-level)
+if (resource && typeof actionPermissions === "object") {
+  return actionPermissions[resource] === true;
+}
+
+return false;
 }
 
 /**
@@ -173,7 +189,7 @@ export function getPermissionDeniedMessage(
   action: PermissionAction
 ): string {
   const actionText = {
-    view: 'view',
+    read: 'view',
     create: 'create',
     update: 'update',
     delete: 'delete',

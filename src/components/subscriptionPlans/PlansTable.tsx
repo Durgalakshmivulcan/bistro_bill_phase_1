@@ -44,8 +44,12 @@ const PlansTable = ({ plans, onDeleted }: Props) => {
     try {
       const response = await deleteSubscriptionPlanApi(activePlan.id);
       if (response.success) {
-        setMode("deleted");
-        onDeleted?.();
+  setMode("deleted");
+
+  setTimeout(() => {
+    closeAll();
+    onDeleted?.();
+  }, 2000);
       } else {
         setDeleteError(response.message || "Failed to delete plan");
       }

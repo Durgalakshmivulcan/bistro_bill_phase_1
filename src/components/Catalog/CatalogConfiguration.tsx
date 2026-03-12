@@ -8,20 +8,21 @@ import TagsContent from "./TagsContent";
 type MenuType = "Category" | "Sub-Category" | "Menu" | "Brand" | "Tags";
 
 export default function CatalogConfiguration() {
-  const [activeMenu, setActiveMenu] = useState<MenuType>("Category");
+  const [activeMenu, setActiveMenu] = useState<MenuType>("Menu");
+  const menuItems: MenuType[] = ["Category", "Sub-Category", "Menu", "Brand", "Tags"];
 
   return (
-    <div className="flex min-h-screen bg-bb-bg font-inter">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-bb-bg font-inter">
       {/* CONFIGURATION SIDE MENU */}
-      <aside className="w-56 border-r p-4 space-y-1 bg-bb-bg">
-        {["Category", "Sub-Category", "Menu", "Brand", "Tags"].map((item) => (
+      <aside className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-gray-200 p-4 space-y-1 bg-bb-bg">
+        {menuItems.map((item) => (
           <div
             key={item}
             onClick={() => setActiveMenu(item as MenuType)}
             className={`px-3 py-2 rounded text-sm cursor-pointer transition ${
               activeMenu === item
-                ? "bg-yellow-400 font-bold"
-                : "text-gray-600 hover:bg-yellow-100"
+                ? "bg-yellow-400 font-semibold text-black"
+                : "text-gray-600 hover:bg-yellow-50"
             }`}
           >
             {item}

@@ -25,6 +25,7 @@ export default function OrdersListingPage() {
     const [orders, setOrders] = useState<SubscriptionOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+const [selectedOrderId, setSelectedOrderId] = useState<string | number | null>(null);
 
     // Filter state
     const [searchQuery, setSearchQuery] = useState("");
@@ -144,7 +145,7 @@ export default function OrdersListingPage() {
                             placeholder="Search here..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full border rounded-md px-3 pr-10 py-2 text-sm"
+                            className="w-full border rounded-md px-3 pr-10 py-2 text-sm bg-bb-bg"
                         />
                     </div>
                 </div>
@@ -261,7 +262,10 @@ export default function OrdersListingPage() {
                                         <td className="px-4 py-3 text-center">
                                           <button
                                             className="text-gray-600 hover:text-red-500"
-                                            onClick={() => setShowDelete(true)}
+                                            onClick={() => {setSelectedOrderId(o.id);
+                                                                setShowDelete(true);
+                                                                }}
+
                                             >
                                             <Trash2 size={16} />
                                             </button>
@@ -279,10 +283,21 @@ export default function OrdersListingPage() {
                 <Pagination />
 
             </div>
-             <DeleteModal
-                    open={showDelete}
-                    onClose={() => setShowDelete(false)}
-                    />
+      <DeleteModal
+  open={showDelete}
+  orderId={selectedOrderId}
+  onClose={() => setShowDelete(false)}
+  onDeleted={() => {
+    // 🥇 instant UI update (best UX)
+    setOrders(prev =>
+      prev.filter(o => o.id !== selectedOrderId)
+    );
+    setShowDelete(false);
+
+    // 🥈 OR refetch instead:
+    // fetchOrders();
+  }}
+/>
         </DashboardLayout>
     );
 }

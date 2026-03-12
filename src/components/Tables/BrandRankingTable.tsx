@@ -28,7 +28,7 @@ const BrandRankingTable = ({ startDate, endDate, branchId }: BrandRankingTablePr
       } else {
         setError(response.error?.message || "Failed to load brands");
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while loading brands");
     } finally {
       setLoading(false);
@@ -39,48 +39,12 @@ const BrandRankingTable = ({ startDate, endDate, branchId }: BrandRankingTablePr
     fetchBrands();
   }, [startDate, endDate, branchId]);
 
-  // Calculate total revenue for percentage calculation
   const totalRevenue = brands.reduce((sum, brand) => sum + brand.revenue, 0);
 
-  // Sort brands based on active tab
   const sortedBrands = [...brands].sort((a, b) => {
-    if (tab === "Top Performing Brand") {
-      return b.revenue - a.revenue; // DESC
-    } else {
-      return a.revenue - b.revenue; // ASC
-    }
+    if (tab === "Top Performing Brand") return b.revenue - a.revenue;
+    return a.revenue - b.revenue;
   });
-
-  if (loading) {
-    return (
-      <TableCard title="Brand Ranking" subtitle="By Revenue">
-        <TableSkeleton rows={5} />
-      </TableCard>
-    );
-  }
-
-  if (error) {
-    return (
-      <TableCard title="Brand Ranking" subtitle="By Revenue">
-        <ErrorDisplay
-          variant="card"
-          size="small"
-          message={error}
-          onRetry={fetchBrands}
-        />
-      </TableCard>
-    );
-  }
-
-  if (brands.length === 0) {
-    return (
-      <TableCard title="Brand Ranking" subtitle="By Revenue">
-        <div className="text-center py-8 text-bb-textSoft">
-          No brand data available for the selected period
-        </div>
-      </TableCard>
-    );
-  }
 
   return (
     <TableCard title="Brand Ranking" subtitle="By Revenue">
@@ -90,35 +54,56 @@ const BrandRankingTable = ({ startDate, endDate, branchId }: BrandRankingTablePr
         onChange={setTab}
       />
 
-      <table className="w-full text-sm border border-bb-border rounded-lg overflow-hidden">
-        <thead className="bg-bb-primary text-black">
-          <tr>
-            <th className="px-3 py-2 text-left font-medium">Brand Name</th>
-            <th className="px-3 py-2 text-center font-medium">Sales Qty</th>
-            <th className="px-3 py-2 text-center font-medium">% Revenue</th>
-            <th className="px-3 py-2 text-right font-medium">Total Revenue</th>
-          </tr>
-        </thead>
+      {loading && <TableSkeleton rows={6} />}
 
-        <tbody>
-          {sortedBrands.map((brand) => {
-            const percentage = totalRevenue > 0
-              ? ((brand.revenue / totalRevenue) * 100).toFixed(1)
-              : "0.0";
+      {!loading && error && (
+        <div className="py-3">
+          <ErrorDisplay
+            variant="card"
+            size="small"
+            message={error}
+            onRetry={fetchBrands}
+          />
+        </div>
+      )}
 
-            return (
-              <tr key={brand.brandId}>
-                <td className="px-3 py-2">{brand.brandName}</td>
-                <td className="px-3 py-2 text-center">{brand.productCount}</td>
-                <td className="px-3 py-2 text-center">{percentage}%</td>
-                <td className="px-3 py-2 text-right">
-                  ₹ {brand.revenue.toLocaleString("en-IN")}
+      {!loading && !error && (
+        <table className="w-full text-sm border border-[#E5E7EB] rounded-md overflow-hidden">
+          <thead className="bg-[#F5C628] text-black">
+            <tr>
+              <th className="px-3 py-2 text-left text-[12px] font-medium">Brand Name</th>
+              <th className="px-3 py-2 text-center text-[12px] font-medium">Sales Qty</th>
+              <th className="px-3 py-2 text-center text-[12px] font-medium">% Revenue</th>
+              <th className="px-3 py-2 text-right text-[12px] font-medium">Total Revenue</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {sortedBrands.length > 0 ? (
+              sortedBrands.map((brand, index) => {
+                const percentage = totalRevenue > 0
+                  ? ((brand.revenue / totalRevenue) * 100).toFixed(1)
+                  : "0.0";
+
+                return (
+                  <tr key={brand.brandId} className={`${index % 2 === 0 ? "bg-[#F7F7F7]" : "bg-[#F6F0E1]"} border-t border-[#E5E7EB]`}>
+                    <td className="px-3 py-2 text-[12px] text-[#374151]">{brand.brandName}</td>
+                    <td className="px-3 py-2 text-center text-[12px] text-[#374151]">{brand.productCount}</td>
+                    <td className="px-3 py-2 text-center text-[12px] text-[#374151]">{percentage}%</td>
+                    <td className="px-3 py-2 text-right text-[12px] text-[#374151]">{"\u20B9"} {brand.revenue.toLocaleString("en-IN")}</td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr className="bg-[#F7F7F7] border-t border-[#E5E7EB]">
+                <td colSpan={4} className="px-3 py-6 text-center text-[12px] text-bb-textSoft">
+                  No brand data available for the selected period
                 </td>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            )}
+          </tbody>
+        </table>
+      )}
     </TableCard>
   );
 };

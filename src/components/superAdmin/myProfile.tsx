@@ -4,11 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { Trash2, Loader2 } from "lucide-react";
 import ProfileModule from "./settings/profilemodule";
 import { useAuth } from "../../contexts/AuthContext";
-import { SuperAdminUser } from "../../services/authService";
+import { SuperAdminUser, BusinessOwnerUser } from "../../services/authService";
 import {
   updateSuperAdminProfile,
   deleteSuperAdminAvatar,
 } from "../../services/superAdminService";
+import { updateProfile } from "../../services/settingsService";
+import { updateBusinessOwnerProfile } from "../../services/businessOwnerService";
+import { ApiResponse } from "../../types/api";
+import Swal from "sweetalert2";
 
 export default function MyAccount() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -25,20 +29,36 @@ export default function MyAccount() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
+  const isSuperAdmin = user?.userType === "SuperAdmin";
+  const isBusinessOwner = user?.userType === "BusinessOwner";
+  const canEditProfile = isSuperAdmin || isBusinessOwner;
+
   // Populate form from user context
   useEffect(() => {
-    if (user && user.userType === "SuperAdmin") {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    if (user.userType === "SuperAdmin") {
       const sa = user as SuperAdminUser;
       setName(sa.name || "");
       setPhone(sa.phone || "");
       setAvatarPreview(sa.avatar || null);
       setLoading(false);
-    } else if (user) {
+    } else if (user.userType === "BusinessOwner") {
+      const bo = user as BusinessOwnerUser;
+      setName(bo.ownerName || "");
+      setPhone(bo.phone || "");
+      setAvatarPreview(bo.avatar || null);
+      setLoading(false);
+    } else {
       setLoading(false);
     }
   }, [user]);
 
-  const superAdmin = user?.userType === "SuperAdmin" ? (user as SuperAdminUser) : null;
+  const roleLabel = isSuperAdmin ? "Super Admin" : isBusinessOwner ? "Business Owner" : "Staff";
+  const emailValue = user?.email || "";
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -56,30 +76,76 @@ export default function MyAccount() {
   };
 
   const handleSave = async () => {
-    if (!validateForm()) return;
-    setSaving(true);
-    setError(null);
+  if (!canEditProfile || !validateForm()) return;
 
-    try {
-      const response = await updateSuperAdminProfile(
-        { name: name.trim(), phone: phone || "" },
-        avatarFile || undefined
+  const confirm = await Swal.fire({
+    title: "Are you sure?",
+    text: "Do you want to update your profile?",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonColor: "#000",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "Yes, update it!",
+  });
+
+  if (!confirm.isConfirmed) return;
+
+  setSaving(true);
+  setError(null);
+
+  try {
+    const serviceCall = isSuperAdmin
+      ? updateSuperAdminProfile(
+          { name: name.trim(), phone: phone || "" },
+          avatarFile || undefined
+        )
+      : updateBusinessOwnerProfile(
+          { ownerName: name.trim(), phone: phone || "" },
+          avatarFile || undefined
+        );
+
+    const response = await serviceCall;
+
+    if (!response.success) {
+      throw new Error(
+        response.error?.message ||
+        response.message ||
+        "Failed to update profile"
       );
-      if (response.success) {
-        setAvatarFile(null);
-        await refreshUser();
-        setShowSuccess(true);
-      } else {
-        setError(response.error?.message || "Failed to update profile");
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to update profile");
-    } finally {
-      setSaving(false);
     }
-  };
+
+    setAvatarFile(null);
+    await refreshUser();
+
+    // ✅ Sweet Success Alert
+    await Swal.fire({
+      icon: "success",
+      title: "Updated!",
+      text: "Your profile has been updated successfully.",
+      confirmButtonColor: "#000",
+    });
+
+  } catch (err: unknown) {
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text:
+        err instanceof Error
+          ? err.message
+          : "Something went wrong",
+      confirmButtonColor: "#d33",
+    });
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isSuperAdmin) {
+      setError("Avatar update is only available for Super Admin currently.");
+      return;
+    }
+
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -101,6 +167,8 @@ export default function MyAccount() {
   };
 
   const handleDeleteAvatar = async () => {
+    if (!isSuperAdmin) return;
+
     setSaving(true);
     setError(null);
     try {
@@ -159,7 +227,7 @@ export default function MyAccount() {
                 <button
                   type="button"
                   onClick={handleDeleteAvatar}
-                  disabled={saving}
+                  disabled={saving || !isSuperAdmin}
                   className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#BD2E2E] rounded-full flex items-center justify-center shadow-md disabled:opacity-50"
                 >
                   <Trash2 size={14} className="text-white" />
@@ -187,7 +255,7 @@ export default function MyAccount() {
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  disabled={saving}
+                  disabled={saving || !isSuperAdmin}
                   className="bg-white border border-black px-4 py-1.5 rounded text-sm font-medium disabled:opacity-50"
                 >
                   Upload
@@ -195,7 +263,7 @@ export default function MyAccount() {
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  disabled={saving}
+                  disabled={saving || !isSuperAdmin}
                   className="bg-yellow-400 px-4 py-1.5 rounded text-sm font-medium disabled:opacity-50"
                 >
                   Edit
@@ -239,20 +307,22 @@ export default function MyAccount() {
               )}
             </div>
 
-            <Input label="Role" value="Super Admin" disabled />
-            <Input label="Email ID" value={superAdmin?.email || ""} disabled />
+            <Input label="Role" value={roleLabel} disabled />
+            <Input label="Email ID" value={emailValue} disabled />
           </div>
 
           {/* ACTION */}
-          <div className="mt-6 flex justify-end sm:justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-black text-white px-6 py-2 rounded disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
+          {canEditProfile && (
+            <div className="mt-6 flex justify-end sm:justify-end">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-black text-white px-6 py-2 rounded disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
       {/* SUCCESS MODAL */}
@@ -263,3 +333,4 @@ export default function MyAccount() {
     </DashboardLayout>
   );
 }
+

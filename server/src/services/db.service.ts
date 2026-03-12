@@ -33,6 +33,35 @@ export async function connectDatabase(): Promise<void> {
 }
 
 /**
+ * Ensure required Product columns exist for catalog dropdown persistence.
+ * This keeps the app boot-safe even when DB schema is behind code.
+ */
+export async function ensureProductCatalogColumns(): Promise<void> {
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE public."Product"
+      ADD COLUMN IF NOT EXISTS "measuringUnit" text,
+      ADD COLUMN IF NOT EXISTS "includesTax" boolean DEFAULT true,
+      ADD COLUMN IF NOT EXISTS "taxId" text,
+      ADD COLUMN IF NOT EXISTS "eligibleForDiscount" boolean DEFAULT true,
+      ADD COLUMN IF NOT EXISTS "discountType" text;
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      UPDATE public."Product"
+      SET
+        "includesTax" = COALESCE("includesTax", true),
+        "eligibleForDiscount" = COALESCE("eligibleForDiscount", true);
+    `);
+
+    console.log('Product catalog columns verified');
+  } catch (error) {
+    console.error('Failed to ensure Product catalog columns:', error);
+    throw error;
+  }
+}
+
+/**
  * Disconnect from the database
  * @returns Promise that resolves when disconnected
  */

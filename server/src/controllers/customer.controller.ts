@@ -20,6 +20,8 @@ interface CustomerInfo {
   gender: string | null;
   dob: Date | null;
   type: string;
+  gstin: string | null;
+  amountDue: number;
   totalSpent: number;
   customerGroupId: string | null;
   customerGroupName: string | null;
@@ -119,6 +121,7 @@ export async function listCustomers(
           select: {
             id: true,
             total: true,
+            dueAmount: true,
           },
         },
         customerTags: {
@@ -141,27 +144,36 @@ export async function listCustomers(
     });
 
     // Transform customers to response format
-    const customerResponses: CustomerInfo[] = customerList.map((customer: any) => ({
-      id: customer.id,
-      name: customer.name,
-      phone: customer.phone,
-      email: customer.email,
-      gender: customer.gender,
-      dob: customer.dob,
-      type: customer.type,
-      totalSpent: customer.totalSpent.toNumber(),
-      customerGroupId: customer.customerGroupId,
-      customerGroupName: customer.customerGroup?.name || null,
-      notes: customer.notes,
-      orderCount: customer.orders.length,
-      tags: customer.customerTags.map((ct: any) => ({
-        id: ct.tag.id,
-        name: ct.tag.name,
-        color: ct.tag.color,
-      })),
-      createdAt: customer.createdAt,
-      updatedAt: customer.updatedAt,
-    }));
+    const customerResponses: CustomerInfo[] = customerList.map((customer: any) => {
+      const amountDue = customer.orders.reduce(
+        (sum: number, order: any) => sum + order.dueAmount.toNumber(),
+        0
+      );
+
+      return {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email,
+        gender: customer.gender,
+        dob: customer.dob,
+        type: customer.type,
+        gstin: customer.gstin,
+        amountDue,
+        totalSpent: customer.totalSpent.toNumber(),
+        customerGroupId: customer.customerGroupId,
+        customerGroupName: customer.customerGroup?.name || null,
+        notes: customer.notes,
+        orderCount: customer.orders.length,
+        tags: customer.customerTags.map((ct: any) => ({
+          id: ct.tag.id,
+          name: ct.tag.name,
+          color: ct.tag.color,
+        })),
+        createdAt: customer.createdAt,
+        updatedAt: customer.updatedAt,
+      };
+    });
 
     // Calculate total pages
     const totalPages = Math.ceil(total / pageSize);
@@ -227,6 +239,7 @@ export async function createCustomer(
       gender,
       dob,
       type,
+      gstin,
       customerGroupId,
       notes,
       tagIds,
@@ -297,6 +310,7 @@ export async function createCustomer(
         gender: gender || null,
         dob: dob ? new Date(dob) : null,
         type: type || CustomerType.Regular,
+        gstin: gstin || null,
         customerGroupId: customerGroupId || null,
         notes: notes || null,
         totalSpent: 0,
@@ -332,6 +346,8 @@ export async function createCustomer(
         gender: customer.gender,
         dob: customer.dob,
         type: customer.type,
+        gstin: customer.gstin,
+        amountDue: 0,
         totalSpent: customer.totalSpent.toNumber(),
         customerGroupId: customer.customerGroupId,
         customerGroupName: customer.customerGroup?.name || null,
@@ -417,6 +433,7 @@ export async function updateCustomer(
       gender,
       dob,
       type,
+      gstin,
       customerGroupId,
       notes,
       tagIds,
@@ -475,6 +492,7 @@ export async function updateCustomer(
     if (gender !== undefined) updateData.gender = gender;
     if (dob !== undefined) updateData.dob = dob ? new Date(dob) : null;
     if (type !== undefined) updateData.type = type;
+    if (gstin !== undefined) updateData.gstin = gstin;
     if (customerGroupId !== undefined) updateData.customerGroupId = customerGroupId;
     if (notes !== undefined) updateData.notes = notes;
 
@@ -515,6 +533,8 @@ export async function updateCustomer(
         gender: customer.gender,
         dob: customer.dob,
         type: customer.type,
+        gstin: customer.gstin,
+        amountDue: 0,
         totalSpent: customer.totalSpent.toNumber(),
         customerGroupId: customer.customerGroupId,
         customerGroupName: customer.customerGroup?.name || null,
@@ -590,6 +610,7 @@ export async function getCustomerDetail(
             orderNumber: true,
             type: true,
             total: true,
+            dueAmount: true,
             paymentStatus: true,
             orderStatus: true,
             createdAt: true,
@@ -633,6 +654,11 @@ export async function getCustomerDetail(
       createdAt: order.createdAt,
     }));
 
+    const amountDue = customer.orders.reduce(
+      (sum, order) => sum + order.dueAmount.toNumber(),
+      0
+    );
+
     const response: ApiResponse<any> = {
       success: true,
       data: {
@@ -643,6 +669,8 @@ export async function getCustomerDetail(
         gender: customer.gender,
         dob: customer.dob,
         type: customer.type,
+        gstin: customer.gstin,
+        amountDue,
         totalSpent: customer.totalSpent.toNumber(),
         customerGroupId: customer.customerGroupId,
         customerGroupName: customer.customerGroup?.name || null,
@@ -885,7 +913,7 @@ export async function importCustomers(
         const name = `${firstName} ${lastName}`.trim() || phone;
 
         // Validate customer type
-        const validTypes = ['Regular', 'VIP', 'Wholesale'];
+        const validTypes = ['Regular', 'VIP', 'Corporate'];
         const customerType = validTypes.includes(type) ? type as CustomerType : CustomerType.Regular;
 
         // Check if customer already exists

@@ -1,14 +1,17 @@
 import { X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Input from "../form/Input";
 import Select from "../form/Select";
 import Textarea from "../form/Textarea";
 import SuccessAlert from "./successAlert";
-import { createLead } from "../../services/contactService";
+import { createLead, updateLead, Lead } from "../../services/contactService";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  mode?: "create" | "edit" | "view";
+  initialData?: Partial<Lead>;
+  onSaved?: () => void;
 };
 
 /* ================= LOCATION DATA ================= */
@@ -27,7 +30,13 @@ const LOCATION_DATA = {
 type Country = keyof typeof LOCATION_DATA;
 type CityList = readonly string[];
 
-export default function CreateLeadModal({ open, onClose }: Props) {
+export default function CreateLeadModal({
+  open,
+  onClose,
+  mode = "create",
+  initialData,
+  onSaved,
+}: Props) {
   const [country, setCountry] = useState<Country | "">("");
   const [state, setState] = useState<string>("");
   const [city, setCity] = useState<string>("");
@@ -46,6 +55,9 @@ export default function CreateLeadModal({ open, onClose }: Props) {
 
   const [isSaving, setIsSaving] = useState(false);
 
+  const isView = mode === "view";
+  const isEdit = mode === "edit";
+
   const cities: CityList =
     country && state && state in LOCATION_DATA[country]
       ? LOCATION_DATA[country][
@@ -53,7 +65,46 @@ export default function CreateLeadModal({ open, onClose }: Props) {
         ]
       : [];
 
+  useEffect(() => {
+    if (!open) return;
+
+    if (mode === "create") {
+      setRestaurantName("");
+      setOwnerName("");
+      setEmail("");
+      setPhone("");
+      setBusinessType("");
+      setInquiryType("");
+      setCountry("");
+      setState("");
+      setCity("");
+      setZipCode("");
+      setAddress("");
+      setDescription("");
+      return;
+    }
+
+    setRestaurantName(initialData?.restaurantName || "");
+    setOwnerName(initialData?.ownerName || "");
+    setEmail(initialData?.email || "");
+    setPhone(initialData?.phone || "");
+    setBusinessType(initialData?.businessType || "");
+    setInquiryType(initialData?.inquiryType || "");
+    setCountry((initialData?.country as Country) || "");
+    setState(initialData?.state || "");
+    setCity(initialData?.city || "");
+    setZipCode(initialData?.zipCode || "");
+    setAddress(initialData?.address || "");
+    setDescription(initialData?.description || "");
+  }, [open, mode, initialData]);
+
   const handleSubmit = async () => {
+    if (isView) return;
+    if (isEdit && !initialData?.id) {
+      alert('Missing lead id');
+      return;
+    }
+
     // Basic validation
     if (!restaurantName || !ownerName || !email || !phone || !inquiryType) {
       alert('Please fill in all required fields');
@@ -63,7 +114,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
     try {
       setIsSaving(true);
 
-      const response = await createLead({
+      const payload = {
         restaurantName,
         ownerName,
         email,
@@ -76,29 +127,35 @@ export default function CreateLeadModal({ open, onClose }: Props) {
         zipCode: zipCode || undefined,
         address: address || undefined,
         description: description || undefined,
-      });
+      };
+
+      const response = isEdit
+        ? await updateLead(initialData?.id || "", payload)
+        : await createLead(payload);
 
       if (response.success) {
         setShowSuccess(true);
-        // Reset form
-        setRestaurantName("");
-        setOwnerName("");
-        setEmail("");
-        setPhone("");
-        setBusinessType("");
-        setInquiryType("");
-        setCountry("");
-        setState("");
-        setCity("");
-        setZipCode("");
-        setAddress("");
-        setDescription("");
+        if (!isEdit) {
+          // Reset form on create only
+          setRestaurantName("");
+          setOwnerName("");
+          setEmail("");
+          setPhone("");
+          setBusinessType("");
+          setInquiryType("");
+          setCountry("");
+          setState("");
+          setCity("");
+          setZipCode("");
+          setAddress("");
+          setDescription("");
+        }
       } else {
-        alert(response.message || 'Failed to create contact');
+        alert(response.message || (isEdit ? 'Failed to update contact' : 'Failed to create contact'));
       }
     } catch (error) {
       console.error('Error creating contact:', error);
-      alert('Failed to create contact');
+      alert(isEdit ? 'Failed to update contact' : 'Failed to create contact');
     } finally {
       setIsSaving(false);
     }
@@ -115,7 +172,9 @@ export default function CreateLeadModal({ open, onClose }: Props) {
 
             {/* HEADER */}
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Create Lead</h2>
+              <h2 className="text-lg font-semibold">
+                {isView ? "View Lead" : isEdit ? "Edit Lead" : "Create Lead"}
+              </h2>
               <button onClick={onClose}>
                 <X size={18} />
               </button>
@@ -129,6 +188,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 required
                 value={restaurantName}
                 onChange={setRestaurantName}
+                disabled={isView}
               />
               <Input
                 label="Owner's Full Name"
@@ -136,6 +196,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 required
                 value={ownerName}
                 onChange={setOwnerName}
+                disabled={isView}
               />
               <Input
                 label="Email Address"
@@ -143,6 +204,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 required
                 value={email}
                 onChange={setEmail}
+                disabled={isView}
               />
               <Input
                 label="Phone Number"
@@ -150,6 +212,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 required
                 value={phone}
                 onChange={setPhone}
+                disabled={isView}
               />
 
               <Select
@@ -157,6 +220,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 required
                 value={businessType}
                 onChange={(val) => setBusinessType(val)}
+                disabled={isView}
                 options={[
                   { label: "Quick Service Restaurant (QSR)", value: "qsr" },
                   { label: "Full-Service Restaurant", value: "full_service" },
@@ -173,13 +237,14 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 required
                 value={inquiryType}
                 onChange={(val) => setInquiryType(val)}
+                disabled={isView}
                 options={[
-                  { label: "Product Demo Request", value: "demo" },
-                  { label: "Pricing Inquiry", value: "pricing" },
-                  { label: "Technical Support", value: "support" },
-                  { label: "Feedback", value: "feedback" },
-                  { label: "Partnership Inquiry", value: "partnership" },
-                  { label: "Others", value: "others" },
+                  { label: "Product Demo Request", value: "Product Demo Request" },
+                  { label: "Pricing Inquiry", value: "Pricing Inquiry" },
+                  { label: "Technical Support", value: "Technical Support" },
+                  { label: "Feedback", value: "Feedback" },
+                  { label: "Partnership Inquiry", value: "Partnership Inquiry" },
+                  { label: "Others", value: "Others" },
                 ]}
               />
 
@@ -192,6 +257,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                   setState("");
                   setCity("");
                 }}
+                disabled={isView}
                 options={Object.keys(LOCATION_DATA).map((c) => ({
                   label: c,
                   value: c,
@@ -206,6 +272,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                   setState(val as string);
                   setCity("");
                 }}
+                disabled={isView}
                 options={
                   country
                     ? Object.keys(LOCATION_DATA[country]).map((s) => ({
@@ -221,6 +288,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 required
                 value={city}
                 onChange={(val) => setCity(val as string)}
+                disabled={isView}
                 options={cities.map((c) => ({
                   label: c,
                   value: c,
@@ -233,6 +301,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 required
                 value={zipCode}
                 onChange={setZipCode}
+                disabled={isView}
               />
 
               <div className="md:col-span-2">
@@ -241,6 +310,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                   placeholder="Business Address"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
+                  disabled={isView}
                 />
               </div>
 
@@ -250,6 +320,7 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                   placeholder="Enter notes"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  disabled={isView}
                 />
               </div>
             </div>
@@ -264,13 +335,15 @@ export default function CreateLeadModal({ open, onClose }: Props) {
                 Cancel
               </button>
 
-              <button
-                onClick={handleSubmit}
-                className="px-5 py-2 bg-[#FDC836] rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save'}
-              </button>
+              {!isView && (
+                <button
+                  onClick={handleSubmit}
+                  className="px-5 py-2 bg-[#FDC836] rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -279,10 +352,15 @@ export default function CreateLeadModal({ open, onClose }: Props) {
       {/* ================= SUCCESS ALERT ================= */}
       <SuccessAlert
         open={showSuccess}
-        title="Lead Created"
-        message="Contact lead has been created successfully!"
+        title={isEdit ? "Lead Updated" : "Lead Created"}
+        message={
+          isEdit
+            ? "Contact lead has been updated successfully!"
+            : "Contact lead has been created successfully!"
+        }
         onClose={() => {
           setShowSuccess(false);
+          onSaved?.();
           onClose();
         }}
       />

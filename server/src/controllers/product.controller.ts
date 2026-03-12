@@ -15,6 +15,12 @@ interface ProductListItem {
   sku: string | null;
   type: ProductType;
   shortCode: string | null;
+  measuringUnit: string | null;
+  includesTax: boolean;
+  taxId: string | null;
+  eligibleForDiscount: boolean;
+  discountType: string | null;
+  tagId: string | null;
   status: string;
   isVeg: boolean;
   primaryImage: string | null;
@@ -35,6 +41,11 @@ interface ProductListItem {
     name: string;
   } | null;
   variantCount: number;
+  prices: Array<{
+    channelType: string;
+    basePrice: number;
+    variantId: string | null;
+  }>;
   basePrice: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -171,6 +182,78 @@ export async function listProducts(
       };
     }
 
+    // Filter by price range (base product price only, excludes variant prices)
+    const minPriceRaw = req.query.minPrice;
+    const maxPriceRaw = req.query.maxPrice;
+
+    let minPrice: number | undefined;
+    let maxPrice: number | undefined;
+
+    if (minPriceRaw !== undefined) {
+      const parsed = parseFloat(String(minPriceRaw));
+      if (Number.isNaN(parsed) || parsed < 0) {
+        const response: ApiResponse = {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'minPrice must be a non-negative number',
+          },
+        };
+        res.status(400).json(response);
+        return;
+      }
+      minPrice = parsed;
+    }
+
+    if (maxPriceRaw !== undefined) {
+      const parsed = parseFloat(String(maxPriceRaw));
+      if (Number.isNaN(parsed) || parsed < 0) {
+        const response: ApiResponse = {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'maxPrice must be a non-negative number',
+          },
+        };
+        res.status(400).json(response);
+        return;
+      }
+      maxPrice = parsed;
+    }
+
+    if (
+      minPrice !== undefined &&
+      maxPrice !== undefined &&
+      minPrice > maxPrice
+    ) {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'minPrice cannot be greater than maxPrice',
+        },
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      const basePriceFilter: Prisma.DecimalFilter = {};
+      if (minPrice !== undefined) {
+        basePriceFilter.gte = new Decimal(minPrice);
+      }
+      if (maxPrice !== undefined) {
+        basePriceFilter.lte = new Decimal(maxPrice);
+      }
+
+      whereClause.prices = {
+        some: {
+          variantId: null,
+          basePrice: basePriceFilter,
+        },
+      };
+    }
+
     // Search across name, sku, shortCode, description
     if (search && typeof search === 'string' && search.trim() !== '') {
       const searchTerm = search.trim();
@@ -258,17 +341,20 @@ export async function listProducts(
               variants: true,
             },
           },
-          prices: {
-            where: {
-              variantId: null, // Base price (not variant-specific)
-            },
+          productTags: {
             select: {
-              basePrice: true,
-              channelType: true,
+              tagId: true,
             },
             take: 1,
+          },
+          prices: {
+            select: {
+              channelType: true,
+              basePrice: true,
+              variantId: true,
+            },
             orderBy: {
-              createdAt: 'asc', // Get the first/oldest price entry as default
+              basePrice: 'asc',
             },
           },
           productKitchens: {
@@ -291,10 +377,11 @@ export async function listProducts(
       // Get primary image URL
       const primaryImage = product.images.length > 0 ? product.images[0].url : null;
 
-      // Get base price (first price entry or null)
-      const basePrice = product.prices.length > 0
-        ? product.prices[0].basePrice.toNumber()
-        : null;
+      // Prefer base-product price; fallback to cheapest available variant price.
+      const baseProductPrice = product.prices.find((price) => price.variantId === null);
+      const fallbackPrice = product.prices.length > 0 ? product.prices[0] : null;
+      const effectivePrice = baseProductPrice || fallbackPrice;
+      const basePrice = effectivePrice ? effectivePrice.basePrice.toNumber() : null;
 
       return {
         id: product.id,
@@ -302,6 +389,12 @@ export async function listProducts(
         sku: product.sku,
         type: product.type,
         shortCode: product.shortCode,
+        measuringUnit: (product as any).measuringUnit ?? null,
+        includesTax: (product as any).includesTax ?? true,
+        taxId: (product as any).taxId ?? null,
+        eligibleForDiscount: (product as any).eligibleForDiscount ?? true,
+        discountType: (product as any).discountType ?? null,
+        tagId: (product as any).productTags?.[0]?.tagId ?? null,
         status: product.status,
         isVeg: product.isVeg,
         primaryImage,
@@ -310,6 +403,11 @@ export async function listProducts(
         brand: product.brand,
         menu: product.menu,
         variantCount: product._count.variants,
+        prices: product.prices.map((price) => ({
+          channelType: price.channelType,
+          basePrice: price.basePrice.toNumber(),
+          variantId: price.variantId,
+        })),
         basePrice,
         kitchens: (product as any).productKitchens?.map((pk: any) => ({
           id: pk.kitchen.id,
@@ -455,6 +553,12 @@ interface ProductDetailResponse {
   hsnCode: string | null;
   preparationTime: number | null;
   servesCount: number | null;
+  measuringUnit: string | null;
+  includesTax: boolean;
+  taxId: string | null;
+  eligibleForDiscount: boolean;
+  discountType: string | null;
+  tagId: string | null;
   isVeg: boolean;
   status: string;
   createdAt: Date;
@@ -659,6 +763,12 @@ export async function getProductDetail(
       hsnCode: product.hsnCode,
       preparationTime: product.preparationTime,
       servesCount: product.servesCount,
+      measuringUnit: (product as any).measuringUnit ?? null,
+      includesTax: (product as any).includesTax ?? true,
+      taxId: (product as any).taxId ?? null,
+      eligibleForDiscount: (product as any).eligibleForDiscount ?? true,
+      discountType: (product as any).discountType ?? null,
+      tagId: product.productTags?.[0]?.tagId ?? null,
       isVeg: product.isVeg,
       status: product.status,
       createdAt: product.createdAt,
@@ -775,6 +885,12 @@ interface CreateProductResponse {
   hsnCode: string | null;
   preparationTime: number | null;
   servesCount: number | null;
+  measuringUnit: string | null;
+  includesTax: boolean;
+  taxId: string | null;
+  eligibleForDiscount: boolean;
+  discountType: string | null;
+  tagId: string | null;
   isVeg: boolean;
   status: string;
   createdAt: Date;
@@ -862,10 +978,26 @@ export async function createProduct(
       hsnCode,
       preparationTime,
       servesCount,
+      measuringUnit,
+      includesTax,
+      taxId,
+      eligibleForDiscount,
+      discountType,
+      tagId,
       isVeg,
       status,
       kitchenIds,
     } = req.body;
+
+    const normalizedKitchenIds = Array.isArray(kitchenIds)
+      ? Array.from(
+          new Set(
+            kitchenIds
+              .map((kid: unknown) => (typeof kid === 'string' ? kid.trim() : ''))
+              .filter((kid: string) => kid.length > 0)
+          )
+        )
+      : undefined;
 
     // Validate required fields
     const missingFields: string[] = [];
@@ -1014,6 +1146,74 @@ export async function createProduct(
       }
     }
 
+    if (Array.isArray(normalizedKitchenIds) && normalizedKitchenIds.length > 0) {
+      const matchingKitchens = await prisma.kitchen.findMany({
+        where: {
+          id: { in: normalizedKitchenIds },
+          branch: {
+            businessOwnerId: tenantId,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (matchingKitchens.length !== normalizedKitchenIds.length) {
+        const response: ApiResponse = {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'One or more kitchen IDs are invalid for this business',
+          },
+        };
+        res.status(400).json(response);
+        return;
+      }
+    }
+
+    // Validate taxId if provided
+    if (taxId) {
+      const tax = await prisma.tax.findFirst({
+        where: {
+          id: taxId,
+          businessOwnerId: tenantId,
+        },
+      });
+
+      if (!tax) {
+        const response: ApiResponse = {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Tax not found or does not belong to your business',
+          },
+        };
+        res.status(400).json(response);
+        return;
+      }
+    }
+
+    // Validate tagId if provided
+    if (tagId) {
+      const tag = await prisma.tag.findFirst({
+        where: {
+          id: tagId,
+          businessOwnerId: tenantId,
+        },
+      });
+
+      if (!tag) {
+        const response: ApiResponse = {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Tag not found or does not belong to your business',
+          },
+        };
+        res.status(400).json(response);
+        return;
+      }
+    }
+
     // Generate SKU if not provided
     let sku: string;
     if (providedSku && typeof providedSku === 'string' && providedSku.trim() !== '') {
@@ -1068,10 +1268,20 @@ export async function createProduct(
         hsnCode: hsnCode?.trim() || null,
         preparationTime: !isNaN(parsedPreparationTime as number) ? parsedPreparationTime : null,
         servesCount: !isNaN(parsedServesCount as number) ? parsedServesCount : null,
+        measuringUnit: measuringUnit?.trim() || null,
+        includesTax: typeof includesTax === 'boolean' ? includesTax : true,
+        taxId: taxId || null,
+        eligibleForDiscount: typeof eligibleForDiscount === 'boolean' ? eligibleForDiscount : true,
+        discountType: discountType?.trim() || null,
         isVeg: typeof isVeg === 'boolean' ? isVeg : true,
         status: status || 'active',
-        productKitchens: kitchenIds && Array.isArray(kitchenIds) && kitchenIds.length > 0
-          ? { create: kitchenIds.map((kid: string) => ({ kitchenId: kid })) }
+        productTags: tagId
+          ? {
+              create: [{ tagId }],
+            }
+          : undefined,
+        productKitchens: Array.isArray(normalizedKitchenIds) && normalizedKitchenIds.length > 0
+          ? { create: normalizedKitchenIds.map((kid: string) => ({ kitchenId: kid })) }
           : undefined,
       },
     });
@@ -1091,6 +1301,12 @@ export async function createProduct(
       hsnCode: product.hsnCode,
       preparationTime: product.preparationTime,
       servesCount: product.servesCount,
+      measuringUnit: (product as any).measuringUnit ?? null,
+      includesTax: (product as any).includesTax ?? true,
+      taxId: (product as any).taxId ?? null,
+      eligibleForDiscount: (product as any).eligibleForDiscount ?? true,
+      discountType: (product as any).discountType ?? null,
+      tagId: tagId || null,
       isVeg: product.isVeg,
       status: product.status,
       createdAt: product.createdAt,
@@ -1136,6 +1352,12 @@ interface UpdateProductResponse {
   hsnCode: string | null;
   preparationTime: number | null;
   servesCount: number | null;
+  measuringUnit: string | null;
+  includesTax: boolean;
+  taxId: string | null;
+  eligibleForDiscount: boolean;
+  discountType: string | null;
+  tagId: string | null;
   isVeg: boolean;
   status: string;
   createdAt: Date;
@@ -1187,6 +1409,14 @@ export async function updateProduct(
         id,
         businessOwnerId: tenantId,
       },
+      include: {
+        productTags: {
+          select: {
+            tagId: true,
+          },
+          take: 1,
+        },
+      },
     });
 
     if (!existingProduct) {
@@ -1215,10 +1445,26 @@ export async function updateProduct(
       hsnCode,
       preparationTime,
       servesCount,
+      measuringUnit,
+      includesTax,
+      taxId,
+      eligibleForDiscount,
+      discountType,
+      tagId,
       isVeg,
       status,
       kitchenIds,
     } = req.body;
+
+    const normalizedKitchenIds = Array.isArray(kitchenIds)
+      ? Array.from(
+          new Set(
+            kitchenIds
+              .map((k: unknown) => (typeof k === 'string' ? k.trim() : ''))
+              .filter((k: string) => k.length > 0)
+          )
+        )
+      : null;
 
     // Build update object dynamically
     const updateData: Prisma.ProductUpdateInput = {};
@@ -1419,6 +1665,48 @@ export async function updateProduct(
       updateData.hsnCode = hsnCode === null ? null : hsnCode?.trim() || null;
     }
 
+    if (measuringUnit !== undefined) {
+      updateData.measuringUnit = measuringUnit === null ? null : measuringUnit?.trim() || null;
+    }
+
+    if (includesTax !== undefined) {
+      updateData.includesTax = Boolean(includesTax);
+    }
+
+    if (taxId !== undefined) {
+      if (taxId === null || taxId === '') {
+        updateData.taxId = null;
+      } else {
+        const tax = await prisma.tax.findFirst({
+          where: {
+            id: taxId,
+            businessOwnerId: tenantId,
+          },
+        });
+
+        if (!tax) {
+          const response: ApiResponse = {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Tax not found or does not belong to your business',
+            },
+          };
+          res.status(400).json(response);
+          return;
+        }
+        updateData.taxId = taxId;
+      }
+    }
+
+    if (eligibleForDiscount !== undefined) {
+      updateData.eligibleForDiscount = Boolean(eligibleForDiscount);
+    }
+
+    if (discountType !== undefined) {
+      updateData.discountType = discountType === null ? null : discountType?.trim() || null;
+    }
+
     // Parse and add numeric fields if provided
     if (preparationTime !== undefined) {
       if (preparationTime === null) {
@@ -1461,16 +1749,64 @@ export async function updateProduct(
     }
 
     // Handle kitchenIds if provided
-    const hasKitchenUpdate = kitchenIds !== undefined && Array.isArray(kitchenIds);
+    const hasKitchenUpdate = kitchenIds !== undefined && Array.isArray(normalizedKitchenIds);
     if (hasKitchenUpdate) {
+      if ((normalizedKitchenIds as string[]).length > 0) {
+        const matchingKitchens = await prisma.kitchen.findMany({
+          where: {
+            id: { in: normalizedKitchenIds as string[] },
+            branch: {
+              businessOwnerId: tenantId,
+            },
+          },
+          select: { id: true },
+        });
+
+        if (matchingKitchens.length !== (normalizedKitchenIds as string[]).length) {
+          const response: ApiResponse = {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'One or more kitchen IDs are invalid for this business',
+            },
+          };
+          res.status(400).json(response);
+          return;
+        }
+      }
+
       updateData.productKitchens = {
         deleteMany: {},
-        create: kitchenIds.map((kid: string) => ({ kitchenId: kid })),
+        create: (normalizedKitchenIds as string[]).map((kid: string) => ({ kitchenId: kid })),
       };
     }
 
+    // Handle tag update (single-select dropdown semantics)
+    const hasTagUpdate = tagId !== undefined;
+    let tagIdToReturn = existingProduct.productTags?.[0]?.tagId || null;
+    if (hasTagUpdate && tagId !== null && tagId !== '') {
+      const tag = await prisma.tag.findFirst({
+        where: {
+          id: tagId,
+          businessOwnerId: tenantId,
+        },
+      });
+
+      if (!tag) {
+        const response: ApiResponse = {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Tag not found or does not belong to your business',
+          },
+        };
+        res.status(400).json(response);
+        return;
+      }
+    }
+
     // Check if there are any fields to update
-    if (Object.keys(updateData).length === 0) {
+    if (Object.keys(updateData).length === 0 && !hasTagUpdate) {
       const response: ApiResponse = {
         success: false,
         error: {
@@ -1482,10 +1818,32 @@ export async function updateProduct(
       return;
     }
 
-    // Update product
-    const updatedProduct = await prisma.product.update({
-      where: { id },
-      data: updateData,
+    // Update product and tag mapping in a transaction
+    const updatedProduct = await prisma.$transaction(async (tx) => {
+      const nextProduct = await tx.product.update({
+        where: { id },
+        data: updateData,
+      });
+
+      if (hasTagUpdate) {
+        await tx.productTag.deleteMany({
+          where: { productId: id },
+        });
+
+        if (tagId !== null && tagId !== '') {
+          await tx.productTag.create({
+            data: {
+              productId: id,
+              tagId,
+            },
+          });
+          tagIdToReturn = tagId;
+        } else {
+          tagIdToReturn = null;
+        }
+      }
+
+      return nextProduct;
     });
 
     // Build response
@@ -1503,6 +1861,12 @@ export async function updateProduct(
       hsnCode: updatedProduct.hsnCode,
       preparationTime: updatedProduct.preparationTime,
       servesCount: updatedProduct.servesCount,
+      measuringUnit: (updatedProduct as any).measuringUnit ?? null,
+      includesTax: (updatedProduct as any).includesTax ?? true,
+      taxId: (updatedProduct as any).taxId ?? null,
+      eligibleForDiscount: (updatedProduct as any).eligibleForDiscount ?? true,
+      discountType: (updatedProduct as any).discountType ?? null,
+      tagId: tagIdToReturn,
       isVeg: updatedProduct.isVeg,
       status: updatedProduct.status,
       createdAt: updatedProduct.createdAt,
@@ -1524,7 +1888,12 @@ export async function updateProduct(
       success: false,
       error: {
         code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to update product',
+        message:
+          process.env.NODE_ENV === 'production'
+            ? 'Failed to update product'
+            : error instanceof Error
+              ? `Failed to update product: ${error.message}`
+              : 'Failed to update product',
       },
     };
     res.status(500).json(response);

@@ -25,6 +25,7 @@ function mapToPlan(sp: SubscriptionPlan): Plan {
 }
 
 const PlansPage = () => {
+  const [searchTerm, setSearchTerm] = useState("");
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +48,18 @@ const PlansPage = () => {
       setLoading(false);
     }
   }, [statusFilter]);
+const filteredPlans = plans.filter((plan) => {
+  if (!searchTerm) return true;
+
+  const q = searchTerm.toLowerCase();
+
+  return (
+    plan.name.toLowerCase().includes(q) ||
+    plan.duration.toLowerCase().includes(q) ||
+    String(plan.price).toLowerCase().includes(q) ||
+    plan.status.toLowerCase().includes(q)
+  );
+});
 
   useEffect(() => {
     loadPlans();
@@ -54,7 +67,11 @@ const PlansPage = () => {
 
   return (
     <div className="space-y-6">
-      <PlansHeader />
+      <PlansHeader
+  searchTerm={searchTerm}
+  onSearchChange={setSearchTerm}
+/>
+
       <PlansFilter
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
@@ -63,7 +80,8 @@ const PlansPage = () => {
 
       {loading && <div className="text-center py-8 text-bb-textSoft">Loading plans...</div>}
       {error && <div className="text-center py-8 text-red-500">{error}</div>}
-      {!loading && !error && <PlansTable plans={plans} onDeleted={loadPlans} />}
+      {!loading && !error && <PlansTable plans={filteredPlans} onDeleted={loadPlans} />
+}
     </div>
   );
 };

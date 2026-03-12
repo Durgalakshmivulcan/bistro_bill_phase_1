@@ -10,7 +10,7 @@ interface ProductQuickViewModalProps {
   open: boolean;
   productId: string | number;
   onClose: () => void;
-  onDelete?: (id: number) => void;
+  onDelete?: (id: string | number) => void;
 }
 
 export default function ProductQuickViewModal({
@@ -356,7 +356,7 @@ export default function ProductQuickViewModal({
             <button
               onClick={() => {
                 onClose();
-                onDelete?.(Number(product.id));
+                onDelete?.(product.id);
               }}
               className="flex items-center gap-1.5 border border-red-300 text-red-500 px-4 py-2 rounded text-sm font-medium hover:bg-red-50"
             >
@@ -368,3 +368,4 @@ export default function ProductQuickViewModal({
     </Modal>
   );
 }
+

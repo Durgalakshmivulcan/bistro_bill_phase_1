@@ -30,7 +30,10 @@ import {
  *   );
  * }
  */
-export function usePermissions(module?: PermissionModule) {
+export function usePermissions(
+  module?: PermissionModule,
+  resource?: string
+){
   const [user, setUser] = useState(getCurrentUser());
 
   // Listen for localStorage changes (e.g., login/logout)
@@ -54,20 +57,22 @@ export function usePermissions(module?: PermissionModule) {
   /**
    * Check if user has permission for a specific action on the module
    */
-  const check = (action: PermissionAction): boolean => {
-    if (!module) return false;
-    return hasPermission(module, action);
-  };
+ const check = (action: PermissionAction): boolean => {
+  if (isAdmin()) return true;
+  if (!module) return false;
+  return hasPermission(module, action, resource);
+};
 
   /**
    * Check permission on any module
    */
-  const checkModule = (
-    targetModule: PermissionModule,
-    action: PermissionAction
-  ): boolean => {
-    return hasPermission(targetModule, action);
-  };
+ const checkModule = (
+  targetModule: PermissionModule,
+  action: PermissionAction,
+  targetResource?: string
+): boolean => {
+  return hasPermission(targetModule, action, targetResource);
+};
 
   return {
     // Current user info
@@ -76,10 +81,10 @@ export function usePermissions(module?: PermissionModule) {
     isAdmin: isAdmin(),
 
     // Module-specific permissions (if module provided)
-    canView: module ? hasPermission(module, 'view') : false,
-    canCreate: module ? hasPermission(module, 'create') : false,
-    canUpdate: module ? hasPermission(module, 'update') : false,
-    canDelete: module ? hasPermission(module, 'delete') : false,
+  canCreate: module ? (isAdmin() || hasPermission(module, 'create', resource)) : false,
+canUpdate: module ? (isAdmin() || hasPermission(module, 'update', resource)) : false,
+canDelete: module ? (isAdmin() || hasPermission(module, 'delete', resource)) : false,
+canView: module ? (isAdmin() || hasPermission(module, 'read', resource)) : false,
 
     // Generic permission checking
     check,

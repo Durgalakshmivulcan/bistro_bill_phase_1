@@ -1,9 +1,10 @@
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Modal from "../../ui/Modal";
 import tickImg from "../../../assets/tick.png";
 import deleteIcon from "../../../assets/deleteConformImg.png";
 import { BranchFormData } from "../CreateBranchModal";
+import { getStaff } from "../../../services/staffService";
 
 type Props = {
   data: BranchFormData;
@@ -14,15 +15,16 @@ type FloorArea = {
   id: number;
   name: string;
   staff: string;
-  status: boolean;
+  status: "active" | "inactive";
+  description: string;
 };
 
 const initialData: FloorArea[] = [
-  { id: 1, name: "Private Dining", staff: "Salman Khan", status: false },
-  { id: 2, name: "Family Section", staff: "Aman", status: true },
-  { id: 3, name: "Bar", staff: "Salman Khan", status: false },
-  { id: 4, name: "Non-AC", staff: "Aman", status: true },
-  { id: 5, name: "Outdoor Seating", staff: "Salman Khan", status: false },
+  { id: 1, name: "Private Dining", staff: "Salman Khan", status: "inactive", description: "Private section" },
+  { id: 2, name: "Family Section", staff: "Aman", status: "active", description: "Family tables" },
+  { id: 3, name: "Bar", staff: "Salman Khan", status: "inactive", description: "Bar area" },
+  { id: 4, name: "Non-AC", staff: "Aman", status: "active", description: "Open seating" },
+  { id: 5, name: "Outdoor Seating", staff: "Salman Khan", status: "inactive", description: "Outdoor zone" },
 ];
 
 export default function FloorAreaStep({ data, onChange }: Props) {
@@ -34,18 +36,43 @@ export default function FloorAreaStep({ data, onChange }: Props) {
     setAreas(updated);
     onChange({ floors: updated });
   };
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
 
+  const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editArea, setEditArea] = useState<FloorArea | null>(null);
-
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [staffOptions, setStaffOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadStaff = async () => {
+      try {
+        const response = await getStaff({ page: 1, limit: 100 });
+        if (response.success && response.data) {
+          const options = response.data.staff
+            .map((staff) => `${staff.firstName} ${staff.lastName}`.trim())
+            .filter(Boolean);
+          setStaffOptions(Array.from(new Set(options)));
+        }
+      } catch {
+        setStaffOptions([]);
+      }
+    };
+
+    loadStaff();
+  }, []);
 
   const toggleStatus = (id: number) => {
-    const updated = areas.map((a) => (a.id === id ? { ...a, status: !a.status } : a));
+    const updated = areas.map((a) =>
+      a.id === id
+        ? {
+            ...a,
+            status: (a.status === "active" ? "inactive" : "active") as "active" | "inactive",
+          }
+        : a
+    );
     syncFloors(updated);
   };
 
@@ -65,7 +92,6 @@ export default function FloorAreaStep({ data, onChange }: Props) {
     const updated = areas.filter((a) => a.id !== deleteId);
     syncFloors(updated);
     setShowConfirm(false);
-
     setSuccessMessage("Floor has been successfully removed.");
     setShowSuccess(true);
   };
@@ -89,7 +115,6 @@ export default function FloorAreaStep({ data, onChange }: Props) {
   return (
     <>
       <div className="space-y-6">
-        {/* HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h3 className="text-lg font-semibold">Manage Floor / Area</h3>
 
@@ -104,7 +129,6 @@ export default function FloorAreaStep({ data, onChange }: Props) {
           </button>
         </div>
 
-        {/* TABLE */}
         <div className="overflow-x-auto border rounded-xl">
           <table className="min-w-[700px] w-full text-sm">
             <thead className="bg-yellow-400">
@@ -118,37 +142,28 @@ export default function FloorAreaStep({ data, onChange }: Props) {
 
             <tbody>
               {areas.map((area, index) => (
-                <tr
-                  key={area.id}
-                  className={`border-t ${
-                    index % 2 === 1 ? "bg-[#FFF8E7]" : ""
-                  }`}
-                >
+                <tr key={area.id} className={`border-t ${index % 2 === 1 ? "bg-[#FFF8E7]" : ""}`}>
                   <td className="px-4 py-3">{area.name}</td>
                   <td className="px-4 py-3">{area.staff}</td>
 
-                  {/* STATUS */}
                   <td className="px-4 py-3">
                     <button
                       onClick={() => toggleStatus(area.id)}
                       className={`relative inline-flex h-5 w-10 items-center rounded-full ${
-                        area.status ? "bg-green-500" : "bg-gray-300"
+                        area.status === "active" ? "bg-green-500" : "bg-gray-300"
                       }`}
                     >
                       <span
                         className={`h-4 w-4 bg-white rounded-full transition transform ${
-                          area.status ? "translate-x-5" : "translate-x-1"
+                          area.status === "active" ? "translate-x-5" : "translate-x-1"
                         }`}
                       />
                     </button>
                   </td>
 
-                  {/* ACTIONS */}
                   <td className="px-4 py-3 text-right relative">
                     <button
-                      onClick={() =>
-                        setOpenMenu(openMenu === area.id ? null : area.id)
-                      }
+                      onClick={() => setOpenMenu(openMenu === area.id ? null : area.id)}
                       className="p-2 rounded-md hover:bg-gray-100"
                     >
                       <MoreVertical size={16} />
@@ -179,9 +194,9 @@ export default function FloorAreaStep({ data, onChange }: Props) {
         </div>
       </div>
 
-      {/* ================= CREATE / EDIT MODAL ================= */}
       {modalOpen && (
         <FloorModal
+          staffOptions={staffOptions}
           defaultValues={editArea}
           onClose={() => {
             setModalOpen(false);
@@ -191,79 +206,65 @@ export default function FloorAreaStep({ data, onChange }: Props) {
         />
       )}
 
-      {/* ================= DELETE CONFIRM ================= */}
       <Modal
         open={showConfirm}
         onClose={() => setShowConfirm(false)}
         className="w-[90%] max-w-md p-6 text-center"
       >
         <h2 className="text-2xl font-bold mb-4">Delete</h2>
-
         <div className="flex justify-center mb-4">
           <img src={deleteIcon} alt="delete" className="w-16 h-16" />
         </div>
-
         <p className="text-sm text-gray-600 mb-6">
           This action cannot be undone. <br />
           Do you want to proceed with deletion?
         </p>
-
         <div className="flex justify-center gap-3">
-          <button
-            onClick={() => setShowConfirm(false)}
-            className="border px-6 py-2 rounded"
-          >
+          <button onClick={() => setShowConfirm(false)} className="border px-6 py-2 rounded">
             Cancel
           </button>
-
-          <button
-            onClick={confirmDelete}
-            className="bg-yellow-400 px-6 py-2 rounded font-medium"
-          >
+          <button onClick={confirmDelete} className="bg-yellow-400 px-6 py-2 rounded font-medium">
             Yes
           </button>
         </div>
       </Modal>
 
-      {/* ================= SUCCESS ================= */}
       <Modal
         open={showSuccess}
         onClose={() => setShowSuccess(false)}
         className="w-[90%] max-w-md p-6 text-center"
       >
         <h2 className="text-2xl font-bold mb-4">Success</h2>
-
         <div className="flex justify-center mb-4">
           <img src={tickImg} alt="success" className="w-16 h-16" />
         </div>
-
         <p className="text-sm text-gray-600">{successMessage}</p>
       </Modal>
     </>
   );
 }
 
-//////////////////////// MODAL COMPONENT ////////////////////////
-
 function FloorModal({
   onClose,
   onSave,
   defaultValues,
+  staffOptions,
 }: {
   onClose: () => void;
   onSave: (data: Omit<FloorArea, "id">) => void;
   defaultValues: FloorArea | null;
+  staffOptions: string[];
 }) {
   const [name, setName] = useState(defaultValues?.name || "");
   const [staff, setStaff] = useState(defaultValues?.staff || "");
-  const [status, setStatus] = useState(defaultValues?.status || false);
+  const [status, setStatus] = useState<"active" | "inactive">(defaultValues?.status || "active");
+  const [description, setDescription] = useState(defaultValues?.description || "");
 
   const isEdit = Boolean(defaultValues);
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-
       <div className="relative w-full max-w-xl bg-white rounded-xl p-6">
         <h2 className="text-xl font-semibold mb-4">
           {isEdit ? "Edit Floor / Area" : "Add New Floor / Area"}
@@ -282,21 +283,40 @@ function FloorModal({
 
           <div>
             <label className="text-sm font-medium">Assigned Staff *</label>
-            <input
+            <select
               value={staff}
               onChange={(e) => setStaff(e.target.value)}
               className="w-full border rounded-md px-3 py-2 mt-1"
-              placeholder="Staff name"
-            />
+            >
+              <option value="">Select staff</option>
+              {staffOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={status}
-              onChange={(e) => setStatus(e.target.checked)}
+          <div>
+            <label className="text-sm font-medium">Status *</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value === "inactive" ? "inactive" : "active")}
+              className="w-full border rounded-md px-3 py-2 mt-1"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 mt-1"
+              placeholder="Description"
             />
-            <span className="text-sm">Active</span>
           </div>
         </div>
 
@@ -304,15 +324,8 @@ function FloorModal({
           <button onClick={onClose} className="border px-6 py-2 rounded">
             Cancel
           </button>
-
           <button
-            onClick={() =>
-              onSave({
-                name,
-                staff,
-                status,
-              })
-            }
+            onClick={() => onSave({ name, staff, status, description })}
             className="bg-yellow-400 px-6 py-2 rounded font-medium"
           >
             {isEdit ? "Update" : "Create"}

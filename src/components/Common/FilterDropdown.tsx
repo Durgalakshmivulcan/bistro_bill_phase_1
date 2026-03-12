@@ -92,14 +92,17 @@ export default function FilterDropdown({
   // For single-select mode, use existing Select component
   if (!multiSelect) {
     const selectOptions = [
-      { label, value: label }, // Default option
+      { label, value: "" }, // Placeholder option
       ...options
     ];
+
+    const normalizedValue =
+      typeof value === "string" && value !== label ? value : "";
 
     return (
       <div className={className}>
         <Select
-          value={typeof value === 'string' ? value : label}
+          value={normalizedValue}
           onChange={(newValue) => onChange(newValue)}
           options={selectOptions}
           disabled={disabled}

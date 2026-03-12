@@ -3,6 +3,7 @@ import { MoreVertical, Pencil, Trash2, Eye } from "lucide-react";
 import { useState } from "react";
 import Modal from "../../components/ui/Modal";
 import { deleteBlogCategoryApi, BlogCategory } from "../../services/blogService";
+import { getBlogCategoryImage, removeBlogCategoryImage } from "../../utils/blogCategoryImageStore";
 
 // Images
 import deleteConfirmImg from "../../assets/deleteConformImg.png";
@@ -52,6 +53,9 @@ const BlogCategoriesTable = ({ categories, onDeleted }: BlogCategoriesTableProps
   };
 
   const handleSuccessClose = () => {
+    if (deleteItem?.id) {
+      removeBlogCategoryImage(deleteItem.id);
+    }
     setShowSuccess(false);
     setDeleteItem(null);
     onDeleted();
@@ -66,7 +70,8 @@ const BlogCategoriesTable = ({ categories, onDeleted }: BlogCategoriesTableProps
           <thead className="bg-yellow-400">
             <tr className="text-left font-medium">
               <th className="px-4 py-3">Category Name</th>
-              <th className="px-4 py-3">Blogs</th>
+              <th className="px-4 py-3">Image/Icon</th>
+              <th className="px-4 py-3">Number of Blogs</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3 text-center">Actions</th>
             </tr>
@@ -75,76 +80,92 @@ const BlogCategoriesTable = ({ categories, onDeleted }: BlogCategoriesTableProps
           <tbody>
             {categories.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-8 text-gray-500">
+                <td colSpan={5} className="text-center py-8 text-gray-500">
                   No categories found. Try adjusting your filters.
                 </td>
               </tr>
             ) : (
-              categories.map((item) => (
-              <tr
-                key={item.id}
-                className="border-t odd:bg-white even:bg-[#FFF8E7]"
-              >
-                <td className="px-4 py-3 font-medium">{item.name}</td>
-
-                <td className="px-4 py-3">{item.blogsCount}</td>
-
-                <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${
-                      item.status === "Active"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-red-100 text-red-600"
-                    }`}
+              categories.map((item) => {
+                const imageSrc = getBlogCategoryImage(item.id) || item.imageUrl || null;
+                return (
+                  <tr
+                    key={item.id}
+                    className="border-t odd:bg-white even:bg-[#FFF8E7]"
                   >
-                    {item.status}
-                  </span>
-                </td>
+                    <td className="px-4 py-3 font-medium">{item.name}</td>
+                    <td className="px-4 py-3">
+                      {imageSrc ? (
+                        <img
+                          src={imageSrc}
+                          alt={item.name}
+                          className="w-32 h-16 object-cover rounded-md border border-gray-200"
+                        />
+                      ) : (
+                        <div className="w-32 h-16 rounded-md border border-gray-200 bg-gray-100 text-gray-500 text-xs flex items-center justify-center">
+                          No Image
+                        </div>
+                      )}
+                    </td>
 
-                <td className="px-4 py-3 text-center relative">
-                  <button
-                    onClick={() =>
-                      setOpenId(openId === item.id ? null : item.id)
-                    }
-                  >
-                    <MoreVertical size={18} />
-                  </button>
+                    <td className="px-4 py-3">{item.blogsCount}</td>
 
-                  {openId === item.id && (
-                    <div className="absolute right-4 top-8 w-36 bg-white border rounded-md shadow z-20">
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          item.status.toLowerCase() === "active"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-red-100 text-red-600"
+                        }`}
+                      >
+                        {item.status.toLowerCase() === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3 text-center relative">
                       <button
                         onClick={() =>
-                          navigate(
-                            `/blog-management/categories/${item.id}/view`,
-                          )
+                          setOpenId(openId === item.id ? null : item.id)
                         }
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100"
                       >
-                        <Eye size={14} /> View
+                        <MoreVertical size={18} />
                       </button>
 
-                      <button
-                        onClick={() =>
-                          navigate(
-                            `/blog-management/categories/${item.id}/edit`,
-                          )
-                        }
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100"
-                      >
-                        <Pencil size={14} /> Edit
-                      </button>
+                      {openId === item.id && (
+                        <div className="absolute right-4 top-8 w-36 bg-white border rounded-md shadow z-20">
+                          <button
+                            onClick={() =>
+                              navigate(
+                                `/blog-management/categories/${item.id}/view`,
+                              )
+                            }
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                            <Eye size={14} /> View
+                          </button>
 
-                      <button
-                        onClick={() => handleDeleteClick(item)}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                      >
-                        <Trash2 size={14} /> Delete
-                      </button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-              ))
+                          <button
+                            onClick={() =>
+                              navigate(
+                                `/blog-management/categories/${item.id}/edit`,
+                              )
+                            }
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                            <Pencil size={14} /> Edit
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteClick(item)}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                          >
+                            <Trash2 size={14} /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

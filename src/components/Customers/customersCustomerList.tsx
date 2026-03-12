@@ -3,7 +3,7 @@ import { getCustomers, deleteCustomer, createCustomer, updateCustomer, importCus
 import type { Tag as TagType } from "../../services/customerService";
 import Select from "../form/Select";
 import Pagination from "../Common/Pagination";
-import { LoadingSpinner, ErrorDisplay } from "../Common";
+import { LoadingSpinner } from "../Common";
 import { useState, useRef, useEffect, useMemo } from "react";
 import Modal from "../../components/ui/Modal";
 import deleteImg from "../../assets/deleteConformImg.png";
@@ -15,11 +15,99 @@ import { CRUDToasts } from "../../utils/toast";
 import { useDebounce } from "../../hooks/useDebounce";
 import { usePagination } from "../../hooks/usePagination";
 import { usePermissions } from "../../hooks/usePermissions";
+import Swal from "sweetalert2";
 
 type Mode = "add" | "edit" | "view";
 
+const META_PREFIX = "__BB_CUSTOMER_META__:";
+
+const parseDateParts = (dateValue?: string | Date | null) => {
+  if (!dateValue) return { day: "", month: "", year: "" };
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return { day: "", month: "", year: "" };
+  return {
+    day: String(date.getDate()),
+    month: String(date.getMonth() + 1),
+    year: String(date.getFullYear()),
+  };
+};
+
+const buildIsoDate = (day: string, month: string, year: string) => {
+  if (!day || !month || !year) return "";
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+};
+
+const parseCustomerMeta = (notes?: string | null) => {
+  if (!notes) {
+    return {
+      plainNotes: "",
+      meta: {
+        anniversary: "",
+        companyName: "",
+        companyAddress: "",
+        taxStateCode: "",
+      },
+    };
+  }
+
+  if (!notes.startsWith(META_PREFIX)) {
+    return {
+      plainNotes: notes,
+      meta: {
+        anniversary: "",
+        companyName: "",
+        companyAddress: "",
+        taxStateCode: "",
+      },
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(notes.slice(META_PREFIX.length));
+    return {
+      plainNotes: parsed.notes || "",
+      meta: {
+        anniversary: parsed.anniversary || "",
+        companyName: parsed.companyName || "",
+        companyAddress: parsed.companyAddress || "",
+        taxStateCode: parsed.taxStateCode || "",
+      },
+    };
+  } catch {
+    return {
+      plainNotes: notes,
+      meta: {
+        anniversary: "",
+        companyName: "",
+        companyAddress: "",
+        taxStateCode: "",
+      },
+    };
+  }
+};
+
+const serializeCustomerNotes = (data: {
+  notes: string;
+  anniversary: string;
+  companyName: string;
+  companyAddress: string;
+  taxStateCode: string;
+}) => {
+  const hasMeta = data.anniversary || data.companyName || data.companyAddress || data.taxStateCode;
+  if (!hasMeta) return data.notes || undefined;
+
+  return `${META_PREFIX}${JSON.stringify({
+    notes: data.notes || "",
+    anniversary: data.anniversary || "",
+    companyName: data.companyName || "",
+    companyAddress: data.companyAddress || "",
+    taxStateCode: data.taxStateCode || "",
+  })}`;
+};
+
 export default function CustomersListing() {
-  const { canCreate, canUpdate, canDelete } = usePermissions('customers');
+  const { canDelete, isAdmin } = usePermissions('customers');
+  const allowDelete = canDelete || isAdmin;
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,16 +159,26 @@ export default function CustomersListing() {
   const [bulkTagOpen, setBulkTagOpen] = useState(false);
   const [bulkTagIds, setBulkTagIds] = useState<Set<string>>(new Set());
   const [loadingTags, setLoadingTags] = useState(false);
-
+  const [formCustomerGroups, setFormCustomerGroups] = useState<CustomerGroup[]>([]);
+  const [loadingFormGroups, setLoadingFormGroups] = useState(false);
   // Form state
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
-    type: "Regular" as "Regular" | "VIP" | "Wholesale",
+    type: "Regular" as Customer["type"],
     gender: "",
-    dob: "",
+    dobDay: "",
+    dobMonth: "",
+    dobYear: "",
+    anniversaryDay: "",
+    anniversaryMonth: "",
+    anniversaryYear: "",
+    companyName: "",
+    companyAddress: "",
+    gstin: "",
+    taxStateCode: "",
     notes: "",
   });
 
@@ -129,6 +227,27 @@ export default function CustomersListing() {
 
   // Fetch available tags on mount
   useEffect(() => {
+    const loadCustomerGroups = async () => {
+      try {
+        setLoadingFormGroups(true);
+        const response = await getCustomerGroups();
+
+        if (response.success && response.data) {
+          const groups = Array.isArray(response.data) ? response.data : [];
+          setFormCustomerGroups(
+            groups.filter((g: CustomerGroup) => g.status === "active")
+          );
+        }
+      } catch {
+        // optional: silent fail
+      } finally {
+        setLoadingFormGroups(false);
+      }
+    };
+
+    loadCustomerGroups();
+  }, []);
+  useEffect(() => {
     const loadTags = async () => {
       try {
         const response = await getTags('active');
@@ -141,6 +260,17 @@ export default function CustomersListing() {
     };
     loadTags();
   }, []);
+
+  useEffect(() => {
+    if (!error) return;
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: error,
+      background: "#ffffff",
+    });
+    setError(null);
+  }, [error]);
 
   // Fetch customers with search query, pagination, and tag filter
   useEffect(() => {
@@ -219,7 +349,6 @@ export default function CustomersListing() {
         onOptimisticUpdate: () => {
           // Remove customer immediately
           setCustomers((prev) => optimisticListOperations.remove(prev, customerToDelete.id));
-          setDeleteOpen(false);
         },
         onRollback: () => {
           // Re-add customer on failure
@@ -237,6 +366,23 @@ export default function CustomersListing() {
     }
   };
 
+  const confirmDeleteCustomer = async (cust: Customer) => {
+    const result = await Swal.fire({
+      title: "Delete Customer?",
+      text: `Do you want to delete ${cust.name}? This action cannot be undone.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, Delete",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#EAB308",
+    });
+
+    if (result.isConfirmed) {
+      setSelectedCustomer(cust);
+      await handleDeleteConfirm();
+    }
+  };
+
   const openAdd = () => {
     setMode("add");
     setSelectedCustomer(null);
@@ -249,7 +395,16 @@ export default function CustomersListing() {
       phone: "",
       type: "Regular",
       gender: "",
-      dob: "",
+      dobDay: "",
+      dobMonth: "",
+      dobYear: "",
+      anniversaryDay: "",
+      anniversaryMonth: "",
+      anniversaryYear: "",
+      companyName: "",
+      companyAddress: "",
+      gstin: "",
+      taxStateCode: "",
       notes: "",
     });
     setModalOpen(true);
@@ -259,6 +414,9 @@ export default function CustomersListing() {
     setMode("view");
     setSelectedCustomer(cust);
     setSelectedTagIds(new Set(cust.tags?.map(t => t.id) || []));
+    const dobParts = parseDateParts(cust.dob);
+    const parsed = parseCustomerMeta(cust.notes);
+    const anniversaryParts = parseDateParts(parsed.meta.anniversary);
     // Load customer data into form
     const [firstName, ...lastNameParts] = cust.name.split(" ");
     setFormData({
@@ -268,8 +426,17 @@ export default function CustomersListing() {
       phone: cust.phone || "",
       type: cust.type,
       gender: cust.gender || "",
-      dob: cust.dob ? new Date(cust.dob).toISOString().split('T')[0] : "",
-      notes: cust.notes || "",
+      dobDay: dobParts.day,
+      dobMonth: dobParts.month,
+      dobYear: dobParts.year,
+      anniversaryDay: anniversaryParts.day,
+      anniversaryMonth: anniversaryParts.month,
+      anniversaryYear: anniversaryParts.year,
+      companyName: parsed.meta.companyName,
+      companyAddress: parsed.meta.companyAddress,
+      gstin: cust.gstin || "",
+      taxStateCode: parsed.meta.taxStateCode,
+      notes: parsed.plainNotes,
     });
     setModalOpen(true);
   };
@@ -278,6 +445,9 @@ export default function CustomersListing() {
     setMode("edit");
     setSelectedCustomer(cust);
     setSelectedTagIds(new Set(cust.tags?.map(t => t.id) || []));
+    const dobParts = parseDateParts(cust.dob);
+    const parsed = parseCustomerMeta(cust.notes);
+    const anniversaryParts = parseDateParts(parsed.meta.anniversary);
     // Load customer data into form
     const [firstName, ...lastNameParts] = cust.name.split(" ");
     setFormData({
@@ -287,8 +457,17 @@ export default function CustomersListing() {
       phone: cust.phone || "",
       type: cust.type,
       gender: cust.gender || "",
-      dob: cust.dob ? new Date(cust.dob).toISOString().split('T')[0] : "",
-      notes: cust.notes || "",
+      dobDay: dobParts.day,
+      dobMonth: dobParts.month,
+      dobYear: dobParts.year,
+      anniversaryDay: anniversaryParts.day,
+      anniversaryMonth: anniversaryParts.month,
+      anniversaryYear: anniversaryParts.year,
+      companyName: parsed.meta.companyName,
+      companyAddress: parsed.meta.companyAddress,
+      gstin: cust.gstin || "",
+      taxStateCode: parsed.meta.taxStateCode,
+      notes: parsed.plainNotes,
     });
     setModalOpen(true);
   };
@@ -296,7 +475,12 @@ export default function CustomersListing() {
   const handleSaveCustomer = async () => {
     // Validation
     if (!formData.firstName || !formData.phone) {
-      setError("First name and phone number are required");
+      await Swal.fire({
+        icon: "error",
+        title: "Validation Error",
+        text: "First name and phone number are required",
+        background: "#ffffff",
+      });
       return;
     }
 
@@ -305,15 +489,29 @@ export default function CustomersListing() {
 
     // Combine first and last name
     const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+    const dob = buildIsoDate(formData.dobDay, formData.dobMonth, formData.dobYear);
+    const anniversary = buildIsoDate(
+      formData.anniversaryDay,
+      formData.anniversaryMonth,
+      formData.anniversaryYear
+    );
+    const serializedNotes = serializeCustomerNotes({
+      notes: formData.notes,
+      anniversary,
+      companyName: formData.companyName,
+      companyAddress: formData.companyAddress,
+      taxStateCode: formData.taxStateCode,
+    });
 
     const customerData = {
       name: fullName,
       phone: formData.phone,
       email: formData.email || undefined,
       gender: formData.gender || undefined,
-      dob: formData.dob || undefined,
+      dob: dob || undefined,
       type: formData.type,
-      notes: formData.notes || undefined,
+      gstin: formData.gstin || undefined,
+      notes: serializedNotes,
       tagIds: Array.from(selectedTagIds),
     };
 
@@ -327,9 +525,11 @@ export default function CustomersListing() {
           phone: formData.phone,
           email: formData.email || null,
           gender: formData.gender || null,
-          dob: formData.dob ? new Date(formData.dob) : null,
+          dob: dob ? new Date(dob) : null,
           type: formData.type,
-          notes: formData.notes || null,
+          gstin: formData.gstin || null,
+          notes: serializedNotes || null,
+          amountDue: 0,
           totalSpent: 0,
           customerGroupId: null,
           customerGroupName: null,
@@ -381,9 +581,10 @@ export default function CustomersListing() {
           phone: formData.phone,
           email: formData.email || null,
           gender: formData.gender || null,
-          dob: formData.dob ? new Date(formData.dob) : null,
+          dob: dob ? new Date(dob) : null,
           type: formData.type,
-          notes: formData.notes || null,
+          gstin: formData.gstin || null,
+          notes: serializedNotes || null,
           tags: Array.from(selectedTagIds).map(id => {
             const tag = availableTags.find(t => t.id === id);
             return { id, name: tag?.name || "", color: tag?.color || null };
@@ -790,13 +991,6 @@ export default function CustomersListing() {
 
   return (
     <div className="bg-bb-bg min-h-screen p-4 md:p-6 space-y-4">
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
-
       {/* Import Success Message */}
       {importSuccess && (
         <div className="bg-green-50 border border-green-300 text-green-700 px-4 py-3 rounded">
@@ -805,27 +999,27 @@ export default function CustomersListing() {
       )}
 
       {/* ================= HEADER ================= */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+      <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4">
         <h1 className="text-[28px] md:text-[32px] font-bold">
-          Customers Listing
+          Customers
         </h1>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-          <div className="relative w-full sm:w-64">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 w-full xl:w-auto">
+          <div className="relative w-full lg:w-[360px]">
             <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              size={18}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
             />
             <input
-              placeholder="Search by name, email, or phone..."
+              placeholder="Search here..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="text-black w-full border rounded-md pl-10 pr-10 py-2 text-sm bg-white"
+              className="text-black w-full border rounded-md px-4 pr-11 h-11 text-base bg-[#F3F4F6] placeholder:text-gray-500"
             />
             {searchQuery && (
               <button
                 onClick={handleClearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 aria-label="Clear search"
               >
                 <X size={16} />
@@ -833,7 +1027,7 @@ export default function CustomersListing() {
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
             <input
               type="file"
               ref={fileInputRef}
@@ -841,30 +1035,19 @@ export default function CustomersListing() {
               accept=".csv"
               className="hidden"
             />
-            {canCreate && (
-              <button
-                onClick={handleImportClick}
-                disabled={importing || loading}
-                className="bg-yellow-400 px-4 py-2 rounded text-sm border border-black disabled:opacity-50"
-              >
-                {importing ? "Importing..." : "Import"}
-              </button>
-            )}
             <button
-              onClick={handleExportCustomers}
-              disabled={exporting || loading}
-              className="border px-4 py-2 rounded text-sm border-black disabled:opacity-50"
+              onClick={handleImportClick}
+              disabled={importing || loading}
+              className="bg-yellow-400 px-4 h-11 rounded text-sm border border-black disabled:opacity-50"
             >
-              {exporting ? "Exporting..." : "Export"}
+              {importing ? "Importing..." : "Import"}
             </button>
-            {canCreate && (
-              <button
-                onClick={openAdd}
-                className="bg-black text-white px-4 py-2 rounded text-sm border border-black"
-              >
-                Add New
-              </button>
-            )}
+            <button
+              onClick={openAdd}
+              className="bg-black text-white px-4 h-11 rounded text-sm border border-black"
+            >
+              Add New
+            </button>
           </div>
         </div>
       </div>
@@ -902,20 +1085,21 @@ export default function CustomersListing() {
       )}
 
       {/* ================= FILTER ================= */}
-      <div className="flex flex-col sm:flex-row justify-end gap-2">
-        <div className="w-full sm:w-[15%]">
+      <div className="flex flex-col lg:flex-row lg:justify-end lg:items-end gap-2">
+        <div className="w-full lg:w-52">
           <Select
             value={filterValues.group as string}
-            onChange={(value) => setFilterValue('group', value)}
+            onChange={(value) => setFilterValue("group", value)}
             options={[
               { label: "Filter by Group", value: "Filter by Group" },
-              { label: "Regular", value: "Regular" },
-              { label: "Corporate", value: "Corporate" },
-              { label: "VIP", value: "VIP" },
+              ...formCustomerGroups.map((group) => ({
+                label: group.name,
+                value: group.name, // ⚠️ see note below
+              })),
             ]}
           />
         </div>
-        <div className="w-full sm:w-[15%]">
+        <div className="w-full lg:w-52">
           <Select
             value={filterValues.spendingTier as string}
             onChange={(value) => setFilterValue('spendingTier', value)}
@@ -927,7 +1111,7 @@ export default function CustomersListing() {
             ]}
           />
         </div>
-        <div className="w-full sm:w-[15%]">
+        <div className="w-full lg:w-52">
           <Select
             value={tagFilter}
             onChange={(value) => { setTagFilter(value); resetPagination(); }}
@@ -939,7 +1123,7 @@ export default function CustomersListing() {
         </div>
         <button
           onClick={handleClearFilters}
-          className="bg-yellow-400 px-4 py-2 rounded text-sm border border-black"
+          className="bg-yellow-400 px-4 h-11 rounded text-sm border border-black"
         >
           Clear
         </button>
@@ -986,7 +1170,7 @@ export default function CustomersListing() {
                 >
                   <Download size={14} /> Export Selected
                 </button>
-                {canDelete && (
+                {allowDelete && (
                   <button
                     className="w-full px-4 py-2.5 flex items-center gap-2 hover:bg-red-50 text-red-600 text-sm"
                     onClick={() => { setBulkDeleteOpen(true); setBulkActionOpen(false); }}
@@ -1027,7 +1211,7 @@ export default function CustomersListing() {
             </button>
           </div>
         ) : (
-          <table className="w-full text-sm min-w-[1250px]">
+          <table className="w-full text-sm min-w-[980px]">
             <thead className="bg-bb-primary">
               <tr>
                 <th className="px-4 py-3 w-10">
@@ -1044,11 +1228,8 @@ export default function CustomersListing() {
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">Gender</th>
                 <th className="px-4 py-3">DOB</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Tags</th>
-                <th className="px-4 py-3">Total Spent</th>
-                <th className="px-4 py-3">Orders</th>
-                <th className="px-4 py-3">Avg. Order</th>
+                <th className="px-4 py-3">Customer Group</th>
+                <th className="px-4 py-3">Amount Due</th>
                 <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
@@ -1058,113 +1239,79 @@ export default function CustomersListing() {
                 // Calculate actual row number based on pagination
                 const rowNumber = (page - 1) * pageSize + index + 1;
                 return (
-              <tr key={cust.id} className={`border-t ${selectedIds.has(cust.id) ? 'bg-blue-50' : ''}`}>
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(cust.id)}
-                    onChange={() => handleSelectOne(cust.id)}
-                    className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-bb-primary"
-                  />
-                </td>
-                <td className="px-4 py-3">{rowNumber}</td>
-                <td className="px-4 py-3 font-medium">{cust.name}</td>
-                <td className="px-4 py-3">{cust.phone || "N/A"}</td>
-                <td className="px-4 py-3 text-gray-600">{cust.email || "N/A"}</td>
-                <td className="px-4 py-3">{cust.gender || "N/A"}</td>
-                <td className="px-4 py-3">
-                  {cust.dob ? new Date(cust.dob).toLocaleDateString() : "N/A"}
-                </td>
-                <td className="px-4 py-3">
-                  <span className="px-3 py-1 rounded-full text-xs bg-yellow-100 capitalize">
-                    {cust.type}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {(cust.tags || []).map(tag => (
-                      <span
-                        key={tag.id}
-                        className="px-2 py-0.5 rounded-full text-[10px] font-medium"
-                        style={{
-                          backgroundColor: tag.color || "#3B82F6",
-                          color: (() => {
-                            const hex = tag.color || "#3B82F6";
-                            const r = parseInt(hex.slice(1, 3), 16);
-                            const g = parseInt(hex.slice(3, 5), 16);
-                            const b = parseInt(hex.slice(5, 7), 16);
-                            return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? "#1A1C1E" : "#FFFFFF";
-                          })(),
-                        }}
-                      >
-                        {tag.name}
+                  <tr key={cust.id} className={`border-t ${selectedIds.has(cust.id) ? 'bg-blue-50' : ''}`}>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(cust.id)}
+                        onChange={() => handleSelectOne(cust.id)}
+                        className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-bb-primary"
+                      />
+                    </td>
+                    <td className="px-4 py-3">{rowNumber}</td>
+                    <td className="px-4 py-3 font-medium">{cust.name}</td>
+                    <td className="px-4 py-3">{cust.phone || "N/A"}</td>
+                    <td className="px-4 py-3 text-gray-600">{cust.email || "N/A"}</td>
+                    <td className="px-4 py-3">{cust.gender || "N/A"}</td>
+                    <td className="px-4 py-3">
+                      {cust.dob ? new Date(cust.dob).toLocaleDateString() : "N/A"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="px-3 py-1 rounded-full text-xs bg-yellow-100 capitalize">
+                        {cust.customerGroupName || cust.type}
                       </span>
-                    ))}
-                    {(!cust.tags || cust.tags.length === 0) && (
-                      <span className="text-gray-400 text-xs">—</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3 font-semibold">₹{cust.totalSpent.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                <td className="px-4 py-3">{cust.orderCount}</td>
-                <td className="px-4 py-3">
-                  ₹{cust.orderCount > 0 ? (cust.totalSpent / cust.orderCount).toFixed(2) : '0.00'}
-                </td>
+                    </td>
+                    <td className="px-4 py-3 font-semibold">
+                      Rs. {(cust.amountDue || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </td>
 
-                {/* ================= ACTION MENU ================= */}
-                <td className="px-4 py-3 text-center relative">
-                  <button
-                    onClick={() =>
-                      setOpenMenuId(openMenuId === cust.id ? null : cust.id)
-                    }
-                  >
-                    <MoreVertical size={16} />
-                  </button>
-
-                  {openMenuId === cust.id && (
-                    <div
-                      ref={menuRef}
-                      className="absolute right-8 top-10 z-50 bg-white border rounded-md shadow w-40"
-                    >
+                    {/* ================= ACTION MENU ================= */}
+                    <td className="px-4 py-3 text-center relative">
                       <button
-                        className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-100"
-                        onClick={() => {
-                          openView(cust);
-                          setOpenMenuId(null);
-                        }}
+                        onClick={() =>
+                          setOpenMenuId(openMenuId === cust.id ? null : cust.id)
+                        }
                       >
-                        <Eye size={14} /> View
+                        <MoreVertical size={16} />
                       </button>
 
-                      {canUpdate && (
-                        <button
-                          className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-100"
-                          onClick={() => {
-                            openEdit(cust);
-                            setOpenMenuId(null);
-                          }}
+                      {openMenuId === cust.id && (
+                        <div
+                          ref={menuRef}
+                          className="absolute right-8 top-10 z-50 bg-white border rounded-md shadow w-40"
                         >
-                          <Pencil size={14} /> Edit
-                        </button>
+                          <button
+                            className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-100"
+                            onClick={() => {
+                              openView(cust);
+                              setOpenMenuId(null);
+                            }}
+                          >
+                            <Eye size={14} /> View
+                          </button>
+                          <button
+                            className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-100"
+                            onClick={() => {
+                              openEdit(cust);
+                              setOpenMenuId(null);
+                            }}
+                          >
+                            <Pencil size={14} /> Edit
+                          </button>
+                          <button
+                            className="w-full px-3 py-2 flex items-center gap-2 text-red-600 hover:bg-red-50"
+                            onClick={async () => {
+                              setOpenMenuId(null);
+                              await confirmDeleteCustomer(cust);
+                            }}
+                          >
+                            <Trash2 size={14} /> Delete
+                          </button>
+                        </div>
                       )}
-
-                      {canDelete && (
-                        <button
-                          className="w-full px-3 py-2 flex items-center gap-2 text-red-600 hover:bg-red-50"
-                          onClick={() => {
-                            setSelectedCustomer(cust);
-                            setDeleteOpen(true);
-                            setOpenMenuId(null);
-                          }}
-                        >
-                          <Trash2 size={14} /> Delete
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            );
+                    </td>
+                  </tr>
+                );
               })}
             </tbody>
           </table>
@@ -1255,15 +1402,20 @@ export default function CustomersListing() {
           </div>
 
           <div>
-            <label className="text-sm font-medium">Customer Type *</label>
+            <label className="text-sm font-medium">Customer Group *</label>
             <Select
               value={formData.type}
-              onChange={(value) => setFormData({ ...formData, type: value as "Regular" | "VIP" | "Wholesale" })}
+              onChange={(value) =>
+                setFormData({ ...formData, type: value as Customer["type"] })
+              }
               options={[
-                { label: "Regular", value: "Regular" },
-                { label: "VIP", value: "VIP" },
-                { label: "Wholesale", value: "Wholesale" },
+                { label: "Select Customer Group", value: "" },
+                ...formCustomerGroups.map((group) => ({
+                  label: group.name,
+                  value: group.name, // ⚠️ adjust if backend expects ID
+                })),
               ]}
+              disabled={isView || loadingFormGroups}
             />
           </div>
 
@@ -1280,19 +1432,128 @@ export default function CustomersListing() {
             />
           </div>
 
-          {/* DOB */}
           <div>
             <label className="text-sm font-medium">Date of Birth</label>
-            <input
-              type="date"
-              disabled={isView}
-              value={formData.dob}
-              onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-              className="w-full mt-1 border rounded-md px-3 py-2 disabled:bg-gray-100"
-            />
+            <div className="grid grid-cols-3 gap-2 mt-1">
+              <Select
+                value={formData.dobDay}
+                onChange={(value) => setFormData({ ...formData, dobDay: value })}
+                options={[
+                  { label: "Day", value: "" },
+                  ...Array.from({ length: 31 }, (_, i) => ({ label: String(i + 1), value: String(i + 1) })),
+                ]}
+                disabled={isView}
+              />
+              <Select
+                value={formData.dobMonth}
+                onChange={(value) => setFormData({ ...formData, dobMonth: value })}
+                options={[
+                  { label: "Month", value: "" },
+                  ...Array.from({ length: 12 }, (_, i) => ({
+                    label: new Date(2000, i, 1).toLocaleString("en-US", { month: "long" }),
+                    value: String(i + 1),
+                  })),
+                ]}
+                disabled={isView}
+              />
+              <Select
+                value={formData.dobYear}
+                onChange={(value) => setFormData({ ...formData, dobYear: value })}
+                options={[
+                  { label: "Year", value: "" },
+                  ...Array.from({ length: 100 }, (_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return { label: String(year), value: String(year) };
+                  }),
+                ]}
+                disabled={isView}
+              />
+            </div>
           </div>
 
           <div>
+            <label className="text-sm font-medium">Anniversary</label>
+            <div className="grid grid-cols-3 gap-2 mt-1">
+              <Select
+                value={formData.anniversaryDay}
+                onChange={(value) => setFormData({ ...formData, anniversaryDay: value })}
+                options={[
+                  { label: "Day", value: "" },
+                  ...Array.from({ length: 31 }, (_, i) => ({ label: String(i + 1), value: String(i + 1) })),
+                ]}
+                disabled={isView}
+              />
+              <Select
+                value={formData.anniversaryMonth}
+                onChange={(value) => setFormData({ ...formData, anniversaryMonth: value })}
+                options={[
+                  { label: "Month", value: "" },
+                  ...Array.from({ length: 12 }, (_, i) => ({
+                    label: new Date(2000, i, 1).toLocaleString("en-US", { month: "long" }),
+                    value: String(i + 1),
+                  })),
+                ]}
+                disabled={isView}
+              />
+              <Select
+                value={formData.anniversaryYear}
+                onChange={(value) => setFormData({ ...formData, anniversaryYear: value })}
+                options={[
+                  { label: "Year", value: "" },
+                  ...Array.from({ length: 100 }, (_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return { label: String(year), value: String(year) };
+                  }),
+                ]}
+                disabled={isView}
+              />
+            </div>
+          </div>
+        </div>
+
+        <h3 className="text-yellow-600 font-semibold mb-4">Additional Detail's</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="text-sm font-medium">Company Name</label>
+            <input
+              disabled={isView}
+              value={formData.companyName}
+              onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+              className="w-full mt-1 border rounded-md px-3 py-2 disabled:bg-gray-100"
+              placeholder="Company Name"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Company Address</label>
+            <input
+              disabled={isView}
+              value={formData.companyAddress}
+              onChange={(e) => setFormData({ ...formData, companyAddress: e.target.value })}
+              className="w-full mt-1 border rounded-md px-3 py-2 disabled:bg-gray-100"
+              placeholder="Company Address"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">GSTIN</label>
+            <input
+              disabled={isView}
+              value={formData.gstin}
+              onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+              className="w-full mt-1 border rounded-md px-3 py-2 disabled:bg-gray-100"
+              placeholder="Enter GSTIN Number"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Tax State Code</label>
+            <input
+              disabled={isView}
+              value={formData.taxStateCode}
+              onChange={(e) => setFormData({ ...formData, taxStateCode: e.target.value })}
+              className="w-full mt-1 border rounded-md px-3 py-2 disabled:bg-gray-100"
+              placeholder="Enter Tax State Code"
+            />
+          </div>
+          <div className="md:col-span-2">
             <label className="text-sm font-medium">Notes</label>
             <textarea
               disabled={isView}
@@ -1324,9 +1585,8 @@ export default function CustomersListing() {
                   type="button"
                   disabled={isView}
                   onClick={() => toggleFormTag(tag.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    isSelected ? "ring-2 ring-offset-1 ring-black" : "opacity-50 hover:opacity-80"
-                  } disabled:cursor-default`}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isSelected ? "ring-2 ring-offset-1 ring-black" : "opacity-50 hover:opacity-80"
+                    } disabled:cursor-default`}
                   style={{ backgroundColor: hex, color: textColor }}
                 >
                   {isSelected && "✓ "}{tag.name}
@@ -1576,9 +1836,8 @@ export default function CustomersListing() {
                         key={tag.id}
                         type="button"
                         onClick={() => toggleBulkTag(tag.id)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                          isSelected ? "ring-2 ring-offset-1 ring-black" : "opacity-50 hover:opacity-80"
-                        }`}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${isSelected ? "ring-2 ring-offset-1 ring-black" : "opacity-50 hover:opacity-80"
+                          }`}
                         style={{ backgroundColor: hex, color: textColor }}
                       >
                         {isSelected && "✓ "}{tag.name}
@@ -1637,3 +1896,4 @@ export default function CustomersListing() {
     </div>
   );
 }
+

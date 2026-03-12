@@ -1,8 +1,15 @@
 import { Router } from 'express';
-import { submitFeedbackResponse } from '../controllers/feedback.controller';
+import { getPublicFeedbackForm, submitFeedbackResponse } from '../controllers/feedback.controller';
 import { viewSharedReport } from '../controllers/reports.controller';
 
 const router = Router();
+
+/**
+ * @route GET /api/v1/public/feedback/:formId
+ * @desc Get feedback form details for public/mobile submission
+ * @access Public
+ */
+router.get('/feedback/:formId', getPublicFeedbackForm);
 
 /**
  * @route POST /api/v1/public/feedback/:formId

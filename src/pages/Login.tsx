@@ -7,7 +7,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { UserType } from "../services/authService";
 import { CRUDToasts } from "../utils/toast";
 
-
 const Login = () => {
   const [userType, setUserType] = useState<UserType>("BusinessOwner");
   const [email, setEmail] = useState("");
@@ -15,7 +14,12 @@ const Login = () => {
   const [branchId, setBranchId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<{
+  email?: string;
+  password?: string;
+  branchId?: string;
+  general?: string;
+}>({});
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -38,63 +42,59 @@ const Login = () => {
   // Note: Redirect path is determined in handleSubmit based on user type
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  e.preventDefault();
 
-    // Validate inputs
-    if (!email.trim()) {
-      setError("Email is required");
-      return;
+  const newErrors: typeof errors = {};
+
+  if (!email.trim()) {
+    newErrors.email = "Email ID is required";
+  }
+
+  if (!password.trim()) {
+    newErrors.password = "Password is required";
+  }
+
+  if (userType === "Staff" && !branchId.trim()) {
+    newErrors.branchId = "Branch ID is required";
+  }
+
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    if (userType === "Staff") {
+      await login(userType, { email, password, branchId });
+    } else {
+      await login(userType, { email, password });
     }
 
-    if (!password.trim()) {
-      setError("Password is required");
-      return;
-    }
+    CRUDToasts.welcome(email.split("@")[0]);
 
-    // Validate branchId for staff login
-    if (userType === "Staff" && !branchId.trim()) {
-      setError("Branch is required for staff login");
-      return;
-    }
+    const redirectPath =
+      (location.state as any)?.from?.pathname ||
+      getDefaultDashboard(userType);
 
-    setLoading(true);
-
-    try {
-      console.log('[Login] Starting login for user type:', userType);
-
-      // Call login with appropriate credentials based on user type
-      if (userType === "Staff") {
-        await login(userType, { email, password, branchId });
-      } else {
-        await login(userType, { email, password });
-      }
-
-      console.log('[Login] Login successful, preparing to navigate');
-
-      // Show welcome toast with user name (user will be available in context after login)
-      // Note: We show a generic welcome message since user might not be immediately available
-      CRUDToasts.welcome(email.split('@')[0]);
-
-      // Navigate to the appropriate dashboard based on user type
-      const redirectPath = (location.state as any)?.from?.pathname || getDefaultDashboard(userType);
-      console.log('[Login] Navigating to:', redirectPath);
-      navigate(redirectPath, { replace: true });
-      console.log('[Login] Navigate called successfully');
-    } catch (err: any) {
-      console.error('[Login] Login failed:', err);
-      setError(err.message || "Login failed. Please check your credentials and try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    navigate(redirectPath, { replace: true });
+  } catch (err: any) {
+    // 👇 Only set password error
+    setErrors({
+      password: "Invalid Email or password",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <AuthLayout>
       {/* Icon */}
       <div className="flex justify-center mb-4">
-        <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center">
-          <LogIn size={26} />
+        <div className="w-14 h-14 rounded-full flex items-center justify-center">
+          <LogIn size={40} />
         </div>
       </div>
 
@@ -107,11 +107,11 @@ const Login = () => {
       </p>
 
       {/* Error Message */}
-      {error && (
+      {/* {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
           <p className="text-sm">{error}</p>
         </div>
-      )}
+      )} */}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -168,57 +168,70 @@ const Login = () => {
             </button>
           </div>
         </div>
+<InputField
+  label="Email ID"
+  type="email"
+  value={email}
+  onChange={(e) => {
+    setEmail(e.target.value);
+    setErrors((prev) => ({ ...prev, email: undefined }));
+  }}
+  disabled={loading}
+  error={errors.email}
+  placeholder="Email Id"
+/>
+<InputField
+  label="Password"
+  type={showPassword ? "text" : "password"}
+  value={password}
+  onChange={(e) => {
+    setPassword(e.target.value);
 
-        <InputField
-          label="Email ID"
-          type="email"
-          placeholder={
-            userType === "SuperAdmin"
-              ? "admin@bistrobill.com"
-              : userType === "Staff"
-              ? "staff@example.com"
-              : "owner@restaurant.com"
-          }
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={loading}
-        />
-
-        <InputField
-          label="Password"
-          type={showPassword ? "text" : "password"}
-          placeholder="********"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={loading}
-          rightIcon={
-            showPassword ? (
-              <EyeOff
-                size={18}
-                className="text-gray-500 cursor-pointer"
-                onClick={() => setShowPassword(false)}
-              />
-            ) : (
-              <Eye
-                size={18}
-                className="text-gray-500 cursor-pointer"
-                onClick={() => setShowPassword(true)}
-              />
-            )
-          }
-        />
-
+    if (errors.password) {
+      setErrors((prev) => ({ ...prev, password: undefined }));
+    }
+  }}
+  disabled={loading}
+  placeholder="Enter your password"
+  error={errors.password}
+  rightIcon={
+    showPassword ? (
+      <EyeOff
+        size={18}
+        className="text-gray-500 cursor-pointer"
+        onClick={() => setShowPassword(false)}
+      />
+    ) : (
+      <Eye
+        size={18}
+        className="text-gray-500 cursor-pointer"
+        onClick={() => setShowPassword(true)}
+      />
+    )
+  }
+/>
         {/* Branch ID field - only for Staff login */}
         {userType === "Staff" && (
-          <InputField
-            label="Branch ID"
-            type="text"
-            placeholder="Enter your branch ID"
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            disabled={loading}
-          />
-        )}
+  <>
+    <InputField
+      label="Branch ID"
+      type="text"
+      value={branchId}
+      onChange={(e) => {
+        setBranchId(e.target.value);
+        setErrors((prev) => ({ ...prev, branchId: undefined }));
+      }}
+      disabled={loading}
+      error={errors.branchId}
+    />
+
+    {errors.branchId && (
+      <p className="text-xs text-red-500 mt-1">
+        {errors.branchId}
+      </p>
+    )}
+  </>
+)}
 
         {/* Forgot password */}
         <div className="text-right">

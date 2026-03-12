@@ -1,266 +1,295 @@
-import { useState, useEffect, useRef } from "react";
-import { Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import ProductCard from "../Cards/ProductCard";
-import FilterGroupDropdown from "../Common/FilterGroupDropdown";
+import FilterGroupDropdown, {
+  FilterByValue,
+  GroupByValue,
+} from "../Common/FilterGroupDropdown";
 import Pagination from "../Common/Pagination";
 import LoadingSpinner from "../Common/LoadingSpinner";
-import { getProducts, deleteProduct, importProducts, exportAllProducts, Product, bulkUpdateProductStatus, bulkDeleteProducts, getCategories, Category } from "../../services/catalogService";
-import { getKitchens, getBranches, Kitchen } from "../../services/branchService";
+import {
+  deleteProduct,
+  exportAllProducts,
+  getCategories,
+  getProducts,
+  importProducts,
+  Category,
+  Product,
+} from "../../services/catalogService";
 import { PaginationMeta } from "../../types/api";
-import { usePermissions } from "../../hooks/usePermissions";
-import { CRUDToasts, showErrorToast } from "../../utils/toast";
 import { useDebounce } from "../../hooks/useDebounce";
-import { withOptimisticUpdate } from "../../utils/optimisticUpdate";
+import { getBranches, getKitchens, Kitchen } from "../../services/branchService";
+
+const TYPE_FILTERS: FilterByValue[] = ["regular", "combo", "retail"];
 
 const CatalogProductsPage = () => {
-  const [showFilters, setShowFilters] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const [exportingAll, setExportingAll] = useState(false);
-  const [exportProgress, setExportProgress] = useState(0);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [selectedFilterBy, setSelectedFilterBy] = useState<FilterByValue | null>(null);
+  const [selectedGroupBy, setSelectedGroupBy] = useState<GroupByValue>("type");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [kitchens, setKitchens] = useState<Kitchen[]>([]);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [selectedType, setSelectedType] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedKitchenId, setSelectedKitchenId] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
+
   const [importing, setImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<string>("");
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [bulkActionLoading, setBulkActionLoading] = useState(false);
-  const [bulkSuccess, setBulkSuccess] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [exporting, setExporting] = useState(false);
 
-  // Filter states
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [typeFilter, setTypeFilter] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [minPrice, setMinPrice] = useState<string>("");
-  const [maxPrice, setMaxPrice] = useState<string>("");
-  const [kitchenList, setKitchenList] = useState<Kitchen[]>([]);
-  const [kitchenFilter, setKitchenFilter] = useState<string>("");
-
-  // ================= PERMISSIONS =================
-  const { canCreate, canDelete } = usePermissions('catalog');
-
-  // 🔥 Detect Add / Edit / View child routes
   const isChildRoute =
     location.pathname.includes("/add") ||
     location.pathname.includes("/edit/") ||
     location.pathname.includes("/view/");
 
-  // Debounce search query to avoid excessive API calls
   const debouncedSearch = useDebounce(searchQuery, 300);
 
-  // Initialize filters from URL params on mount
   useEffect(() => {
-    const category = searchParams.get('category');
-    const type = searchParams.get('type');
-    const status = searchParams.get('status');
-    const min = searchParams.get('minPrice');
-    const max = searchParams.get('maxPrice');
-    const kitchen = searchParams.get('kitchen');
-
-    if (category) setCategoryFilter(category);
-    if (type) setTypeFilter(type);
-    if (status) setStatusFilter(status);
-    if (min) setMinPrice(min);
-    if (max) setMaxPrice(max);
-    if (kitchen) setKitchenFilter(kitchen);
-  }, []);
-
-  // Fetch categories for filter dropdown
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await getCategories({ status: 'active' });
-        if (response.success && response.data) {
-          setCategories(response.data.categories || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch categories:', err);
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  // Fetch kitchens for filter dropdown
-  useEffect(() => {
-    const fetchKitchens = async () => {
-      try {
-        const branchesRes = await getBranches({ status: "Active" });
-        if (branchesRes.success && branchesRes.data && branchesRes.data.branches.length > 0) {
-          const kitchenRes = await getKitchens(branchesRes.data.branches[0].id, "active");
-          if (kitchenRes.success && kitchenRes.data) {
-            setKitchenList(kitchenRes.data.kitchens || []);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch kitchens:", err);
-      }
-    };
-    fetchKitchens();
-  }, []);
-
-  // Fetch products with search query and filters
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Build query params
-        const params: any = {
-          page: 1,
-          limit: 20,
-          search: debouncedSearch.trim() || undefined,
-          categoryId: categoryFilter || undefined,
-          type: typeFilter || undefined,
-          status: statusFilter || undefined,
-          kitchenId: kitchenFilter || undefined,
-        };
-
-        // Add price filters if both min and max are provided
-        // Note: Backend may not support minPrice/maxPrice yet - will need backend update
-        if (minPrice && maxPrice) {
-          params.minPrice = parseFloat(minPrice);
-          params.maxPrice = parseFloat(maxPrice);
-        }
-
-        const response = await getProducts(params);
-
-        if (response.success && response.data) {
-          setProducts(response.data.products || []);
-          setPagination(response.pagination || null);
-        } else {
-          setError(response.message || 'Failed to fetch products');
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch products');
-      } finally {
-        setLoading(false);
+    const onOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(target)) {
+        setShowSearchDropdown(false);
       }
     };
 
+    document.addEventListener("mousedown", onOutsideClick);
+    return () => document.removeEventListener("mousedown", onOutsideClick);
+  }, []);
+
+  useEffect(() => {
     if (!isChildRoute) {
-      fetchProducts();
+      void fetchProducts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isChildRoute, debouncedSearch, categoryFilter, typeFilter, statusFilter, minPrice, maxPrice, kitchenFilter]);
+  }, [
+    isChildRoute,
+    debouncedSearch,
+    currentPage,
+    selectedFilterBy,
+    selectedCategoryId,
+    selectedType,
+    selectedStatus,
+    selectedKitchenId,
+    minPrice,
+    maxPrice,
+  ]);
 
-  const handleDeleteProduct = async (id: number) => {
-    try {
-      // Convert number ID to string UUID (product IDs from backend are strings)
-      const productId = String(id);
-      const response = await deleteProduct(productId);
+  useEffect(() => {
+    if (isChildRoute) return;
 
-      if (response.success) {
-        CRUDToasts.deleted("Product");
-        // Refresh product list after successful deletion
-        const refreshResponse = await getProducts({ page: 1, limit: 20 });
-        if (refreshResponse.success && refreshResponse.data) {
-          setProducts(refreshResponse.data.products || []);
-          setPagination(refreshResponse.pagination || null);
+    const loadFilterOptions = async () => {
+      try {
+        const [categoriesResponse, branchesResponse] = await Promise.all([
+          getCategories(),
+          getBranches({ status: "Active" }),
+        ]);
+
+        if (categoriesResponse.success && categoriesResponse.data) {
+          setCategories(categoriesResponse.data.categories || []);
         }
+
+        if (branchesResponse.success && branchesResponse.data) {
+          const kitchenResponses = await Promise.all(
+            branchesResponse.data.branches.map((branch) =>
+              getKitchens(branch.id, "active")
+            )
+          );
+
+          const merged = kitchenResponses.flatMap((response) =>
+            response.success && response.data ? response.data.kitchens : []
+          );
+
+          const unique = merged.filter(
+            (kitchen, index, arr) =>
+              arr.findIndex((item) => item.id === kitchen.id) === index
+          );
+
+          setKitchens(unique);
+        }
+      } catch {
+        // If filter metadata fails, keep page functional with available controls.
+      }
+    };
+
+    void loadFilterOptions();
+  }, [isChildRoute]);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const params: {
+        page: number;
+        limit: number;
+        search?: string;
+        categoryId?: string;
+        kitchenId?: string;
+        status?: "active" | "inactive";
+        minPrice?: number;
+        maxPrice?: number;
+        type?: "Regular" | "Combo" | "Retail";
+        sortBy?: "name" | "createdAt" | "price";
+        sortOrder?: "asc" | "desc";
+      } = {
+        page: currentPage,
+        limit: itemsPerPage,
+        search: debouncedSearch.trim() || undefined,
+      };
+
+      if (selectedCategoryId) {
+        params.categoryId = selectedCategoryId;
+      }
+
+      if (selectedKitchenId) {
+        params.kitchenId = selectedKitchenId;
+      }
+
+      if (selectedStatus) {
+        params.status = selectedStatus as "active" | "inactive";
+      }
+
+      if (minPrice.trim() !== "") {
+        const parsedMin = Number(minPrice);
+        if (!Number.isNaN(parsedMin) && parsedMin >= 0) {
+          params.minPrice = parsedMin;
+        }
+      }
+
+      if (maxPrice.trim() !== "") {
+        const parsedMax = Number(maxPrice);
+        if (!Number.isNaN(parsedMax) && parsedMax >= 0) {
+          params.maxPrice = parsedMax;
+        }
+      }
+
+      if (selectedType) {
+        params.type = selectedType as "Regular" | "Combo" | "Retail";
+      } else if (selectedFilterBy && TYPE_FILTERS.includes(selectedFilterBy)) {
+        params.type =
+          selectedFilterBy === "regular"
+            ? "Regular"
+            : selectedFilterBy === "combo"
+              ? "Combo"
+              : "Retail";
+      }
+
+      if (selectedFilterBy === "recent") {
+        params.sortBy = "createdAt";
+        params.sortOrder = "desc";
+      }
+
+      if (selectedFilterBy === "az") {
+        params.sortBy = "name";
+        params.sortOrder = "asc";
+      }
+
+      if (selectedFilterBy === "za") {
+        params.sortBy = "name";
+        params.sortOrder = "desc";
+      }
+
+      const response = await getProducts(params);
+
+      if (response.success && response.data) {
+        setProducts(response.data.products || []);
+        const paginationMeta =
+          response.pagination ||
+          (response as any).meta ||
+          (response as any).data?.pagination ||
+          null;
+        setPagination(paginationMeta);
       } else {
-        // Show error message if deletion fails
-        setError(response.message || 'Failed to delete product');
-        // Clear error after 3 seconds
-        setTimeout(() => setError(null), 3000);
+        setError(response.message || "Failed to fetch products");
+        setProducts([]);
+        setPagination(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete product');
-      // Clear error after 3 seconds
-      setTimeout(() => setError(null), 3000);
+      setError(err instanceof Error ? err.message : "Failed to fetch products");
+      setProducts([]);
+      setPagination(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleExportProducts = async () => {
-    try {
-      setExporting(true);
-      setError(null);
+  const displayProducts = useMemo(() => {
+    let list = [...products];
 
-      // Fetch all products (or use current products if you want to export only visible ones)
-      // For now, we'll export the currently loaded products
-      if (products.length === 0) {
-        setError('No products to export');
-        setTimeout(() => setError(null), 3000);
-        return;
-      }
-
-      // Generate CSV content
-      const headers = ['ID', 'Name', 'SKU', 'Type', 'Category', 'Brand', 'Base Price', 'Discount Price', 'Status', 'Is Veg', 'Created At'];
-      const csvRows = [headers.join(',')];
-
-      products.forEach((product) => {
-        const priceData = product.prices?.[0];
-        const basePrice = priceData?.basePrice || 0;
-        const discountPrice = priceData?.discountPrice || '';
-        const categoryName = product.category?.name || '';
-        const brandName = product.brand?.name || '';
-
-        const row = [
-          product.id,
-          `"${product.name.replace(/"/g, '""')}"`, // Escape quotes in product name
-          product.sku || '',
-          product.type,
-          `"${categoryName.replace(/"/g, '""')}"`,
-          `"${brandName.replace(/"/g, '""')}"`,
-          basePrice,
-          discountPrice,
-          product.status,
-          product.isVeg ? 'Yes' : 'No',
-          new Date(product.createdAt).toLocaleDateString()
-        ];
-        csvRows.push(row.join(','));
-      });
-
-      const csvContent = csvRows.join('\n');
-
-      // Create blob and trigger download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `products-export-${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to export products');
-      setTimeout(() => setError(null), 3000);
-    } finally {
-      setExporting(false);
+    if (selectedFilterBy === "addons") {
+      list = list.filter((product) => (product.addons?.length || 0) > 0);
     }
-  };
 
-  const handleExportAll = async () => {
+    if (selectedFilterBy === "favorites") {
+      const favoriteIds = new Set<string>();
+      list = list.filter((product) => favoriteIds.has(product.id));
+    }
+
+    if (selectedFilterBy === "lowStock") {
+      list = list.filter(() => false);
+    }
+
+    const sorter = (a: Product, b: Product, aValue: string, bValue: string) =>
+      aValue.localeCompare(bValue, undefined, { sensitivity: "base" });
+
+    if (selectedGroupBy === "type") {
+      list.sort((a, b) => sorter(a, b, a.type || "", b.type || ""));
+    } else if (selectedGroupBy === "category") {
+      list.sort((a, b) => sorter(a, b, a.category?.name || "", b.category?.name || ""));
+    } else if (selectedGroupBy === "subCategory") {
+      list.sort((a, b) =>
+        sorter(a, b, a.subCategory?.name || "", b.subCategory?.name || "")
+      );
+    } else if (selectedGroupBy === "menu") {
+      list.sort((a, b) => sorter(a, b, a.menu?.name || "", b.menu?.name || ""));
+    } else if (selectedGroupBy === "tags") {
+      list.sort((a, b) =>
+        sorter(a, b, a.tags?.[0]?.name || "", b.tags?.[0]?.name || "")
+      );
+    } else if (selectedGroupBy === "brand") {
+      list.sort((a, b) => sorter(a, b, a.brand?.name || "", b.brand?.name || ""));
+    }
+
+    return list;
+  }, [products, selectedFilterBy, selectedGroupBy]);
+
+  const handleDeleteProduct = async (id: string | number): Promise<boolean> => {
     try {
-      setExportingAll(true);
-      setExportProgress(0);
-      setError(null);
-
-      await exportAllProducts((progress) => {
-        setExportProgress(progress);
-      });
+      const response = await deleteProduct(String(id));
+      if (response.success) {
+        await fetchProducts();
+        return true;
+      } else {
+        setError(response.message || "Failed to delete product");
+        setTimeout(() => setError(null), 3000);
+        return false;
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to export all products');
+      setError(err instanceof Error ? err.message : "Failed to delete product");
       setTimeout(() => setError(null), 3000);
-    } finally {
-      setExportingAll(false);
-      setExportProgress(0);
+      return false;
     }
   };
 
   const handleImportClick = () => {
-    // Trigger file input click
     fileInputRef.current?.click();
   };
 
@@ -268,9 +297,8 @@ const CatalogProductsPage = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.name.endsWith('.csv')) {
-      setError('Please select a CSV file');
+    if (!file.name.endsWith(".csv")) {
+      setError("Please select a CSV file");
       setTimeout(() => setError(null), 3000);
       return;
     }
@@ -281,416 +309,245 @@ const CatalogProductsPage = () => {
       setImportSuccess(null);
 
       const response = await importProducts(file);
-
       if (response.success && response.data) {
-        const { imported, failed, errors } = response.data;
-
-        // Show success message
-        let message = `Import completed: ${imported} products imported`;
-        if (failed > 0) {
-          message += `, ${failed} failed`;
-          if (errors.length > 0) {
-            // Show first few errors
-            const errorMessages = errors.slice(0, 3).map(e => `Row ${e.row}: ${e.error}`).join('; ');
-            message += `. Errors: ${errorMessages}`;
-            if (errors.length > 3) {
-              message += ` (and ${errors.length - 3} more)`;
-            }
-          }
-        }
-
-        setImportSuccess(message);
+        setImportSuccess(`Import completed: ${response.data.imported} products imported`);
         setTimeout(() => setImportSuccess(null), 5000);
-
-        // Refresh product list if any products were imported
-        if (imported > 0) {
-          const refreshResponse = await getProducts({ page: 1, limit: 20 });
-          if (refreshResponse.success && refreshResponse.data) {
-            setProducts(refreshResponse.data.products || []);
-            setPagination(refreshResponse.pagination || null);
-          }
-        }
+        setCurrentPage(1);
+        await fetchProducts();
       } else {
-        setError(response.message || 'Failed to import products');
+        setError(response.message || "Failed to import products");
         setTimeout(() => setError(null), 3000);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import products');
+      setError(err instanceof Error ? err.message : "Failed to import products");
       setTimeout(() => setError(null), 3000);
     } finally {
       setImporting(false);
-      // Reset file input so the same file can be selected again
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
 
-  // Update URL params when filters change
-  useEffect(() => {
-    const params: any = {};
-    if (categoryFilter) params.category = categoryFilter;
-    if (typeFilter) params.type = typeFilter;
-    if (statusFilter) params.status = statusFilter;
-    if (minPrice) params.minPrice = minPrice;
-    if (maxPrice) params.maxPrice = maxPrice;
-    if (kitchenFilter) params.kitchen = kitchenFilter;
-
-    setSearchParams(params, { replace: true });
-  }, [categoryFilter, typeFilter, statusFilter, minPrice, maxPrice, kitchenFilter, setSearchParams]);
-
-  // Clear all filters
-  const handleClearAllFilters = () => {
-    setCategoryFilter("");
-    setTypeFilter("");
-    setStatusFilter("");
-    setMinPrice("");
-    setMaxPrice("");
-    setKitchenFilter("");
-    setSearchQuery("");
-    setSearchParams({}, { replace: true });
-  };
-
-  // Count active filters
-  const activeFiltersCount = [categoryFilter, typeFilter, statusFilter, minPrice, maxPrice, kitchenFilter].filter(Boolean).length;
-
-  // Toggle product selection
-  const toggleProductSelection = (productId: string) => {
-    setSelectedProducts(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(productId)) {
-        newSet.delete(productId);
-      } else {
-        newSet.add(productId);
-      }
-      return newSet;
-    });
-  };
-
-  // Toggle select all
-  const toggleSelectAll = () => {
-    if (selectedProducts.size === products.length) {
-      setSelectedProducts(new Set());
-    } else {
-      setSelectedProducts(new Set(products.map(p => p.id)));
-    }
-  };
-
-  // Handle bulk action selection
-  const handleBulkActionChange = (action: string) => {
-    setBulkAction(action);
-    if (action === 'delete') {
-      setShowBulkDeleteConfirm(true);
-    } else if (action === 'activate' || action === 'deactivate') {
-      executeBulkStatusUpdate(action);
-    }
-  };
-
-  // Execute bulk status update with optimistic UI
-  const executeBulkStatusUpdate = async (action: string) => {
-    if (selectedProducts.size === 0) return;
-
-    const originalProducts = [...products];
-    const status = action === 'activate' ? 'active' : 'inactive';
-    const selectedIds = Array.from(selectedProducts);
-
-    setBulkActionLoading(true);
-    setError(null);
-
+  const handleExport = async () => {
     try {
-      await withOptimisticUpdate({
-        operation: async () => {
-          const response = await bulkUpdateProductStatus(selectedIds, status);
-          if (!response.success) {
-            throw new Error(response.message || 'Failed to update products');
-          }
-          return response;
-        },
-        onOptimisticUpdate: () => {
-          // Immediately update product statuses in UI
-          setProducts(prev =>
-            prev.map(p =>
-              selectedIds.includes(p.id) ? { ...p, status } : p
-            )
-          );
-        },
-        onRollback: () => {
-          setProducts(originalProducts);
-        },
-        successMessage: `${selectedIds.length} product${selectedIds.length !== 1 ? 's' : ''} ${action === 'activate' ? 'activated' : 'deactivated'} successfully`,
-        errorMessage: `Failed to ${action} products. Reverting change.`,
-        onSuccess: () => {
-          setSelectedProducts(new Set());
-          setBulkAction("");
-        },
-      });
-    } catch {
-      // withOptimisticUpdate already handled rollback and toast
-    } finally {
-      setBulkActionLoading(false);
-    }
-  };
-
-  // Execute bulk delete
-  const executeBulkDelete = async () => {
-    if (selectedProducts.size === 0) return;
-
-    try {
-      setBulkActionLoading(true);
+      setExporting(true);
       setError(null);
-      setShowBulkDeleteConfirm(false);
-
-      const response = await bulkDeleteProducts(Array.from(selectedProducts));
-
-      if (response.success && response.data) {
-        const { deletedCount, failedCount, errors } = response.data;
-
-        let message = `${deletedCount} product${deletedCount !== 1 ? 's' : ''} deleted successfully`;
-        if (failedCount > 0) {
-          message += `, ${failedCount} failed`;
-          if (errors && errors.length > 0) {
-            const errorMessages = errors.slice(0, 2).join('; ');
-            message += `. Errors: ${errorMessages}`;
-            if (errors.length > 2) {
-              message += ` (and ${errors.length - 2} more)`;
-            }
-          }
-        }
-
-        setBulkSuccess(message);
-        setTimeout(() => setBulkSuccess(null), 5000);
-
-        // Refresh product list
-        const refreshResponse = await getProducts({ page: 1, limit: 20 });
-        if (refreshResponse.success && refreshResponse.data) {
-          setProducts(refreshResponse.data.products || []);
-          setPagination(refreshResponse.pagination || null);
-        }
-
-        // Clear selections
-        setSelectedProducts(new Set());
-        setBulkAction("");
-      } else {
-        setError(response.message || 'Failed to delete products');
-        setTimeout(() => setError(null), 3000);
-      }
+      await exportAllProducts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete products');
+      setError(err instanceof Error ? err.message : "Failed to export products");
       setTimeout(() => setError(null), 3000);
     } finally {
-      setBulkActionLoading(false);
+      setExporting(false);
     }
   };
 
-  // Cancel bulk delete
-  const cancelBulkDelete = () => {
-    setShowBulkDeleteConfirm(false);
-    setBulkAction("");
+  const isAnyAdvancedFilterApplied =
+    Boolean(selectedFilterBy) ||
+    Boolean(selectedCategoryId) ||
+    Boolean(selectedType) ||
+    Boolean(selectedStatus) ||
+    Boolean(selectedKitchenId) ||
+    minPrice.trim() !== "" ||
+    maxPrice.trim() !== "";
+
+  const handleClearFilters = () => {
+    setSelectedFilterBy(null);
+    setSelectedCategoryId("");
+    setSelectedType("");
+    setSelectedStatus("");
+    setSelectedKitchenId("");
+    setMinPrice("");
+    setMaxPrice("");
+    setCurrentPage(1);
   };
+
+  const totalPages = pagination?.totalPages || 1;
 
   return (
     <div className="bg-bb-bg min-h-screen p-6 space-y-4">
-      {/* PAGE HEADER */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <h1 className="text-xl font-semibold">Products</h1>
+      <div className="flex flex-col gap-3">
+        <h1 className="text-[36px] font-semibold leading-none">Products</h1>
 
-        {/* 🔥 HIDE HEADER ACTIONS ON ADD / EDIT / VIEW */}
         {!isChildRoute && (
-          <div
-            className="relative"
-            onMouseEnter={() => setShowFilters(true)}
-            onMouseLeave={() => setShowFilters(false)}
-          >
-            <div className="flex flex-col gap-3">
-              {/* Search and Action Buttons Row */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <div className="space-y-3">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="relative w-full max-w-[420px]" ref={searchDropdownRef}>
                 <input
                   placeholder="Search here..."
-                  className="border rounded-md px-3 py-2 text-sm bg-white w-full sm:w-64"
+                  className="w-full h-10 border border-[#d0d0d0] rounded-md px-3 pr-9 text-sm bg-[#f3f3f3]"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowSearchDropdown(true)}
+                  onChange={(e) => {
+                    setCurrentPage(1);
+                    setSearchQuery(e.target.value);
+                  }}
                 />
-
-                <div className="flex gap-2 flex-wrap">
-                {/* Bulk Actions Dropdown */}
-                {selectedProducts.size > 0 && (
-                  <select
-                    className="border rounded-md px-3 py-2 text-sm bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    value={bulkAction}
-                    onChange={(e) => handleBulkActionChange(e.target.value)}
-                    disabled={bulkActionLoading}
-                  >
-                    <option value="">Bulk Actions ({selectedProducts.size} selected)</option>
-                    <option value="activate">Activate</option>
-                    <option value="deactivate">Deactivate</option>
-                    {canDelete && <option value="delete">Delete</option>}
-                  </select>
-                )}
-                {/* Hidden file input for CSV import */}
-                {canCreate && (
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv"
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                  />
-                )}
-
-                {canCreate && (
-                  <button
-                    className="bg-yellow-400 px-3 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={handleImportClick}
-                    disabled={importing || loading}
-                  >
-                    {importing ? 'Importing...' : 'Import CSV'}
-                  </button>
-                )}
-
                 <button
-                  className="border px-3 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={handleExportProducts}
-                  disabled={exporting || loading}
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-600"
+                  onClick={() => setShowSearchDropdown((prev) => !prev)}
                 >
-                  {exporting ? 'Exporting...' : 'Export Current Page'}
+                  <Search size={16} />
                 </button>
 
-                <button
-                  className="border px-3 py-2 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed relative"
-                  onClick={handleExportAll}
-                  disabled={exportingAll || loading}
-                >
-                  {exportingAll ? (
-                    <span className="flex items-center gap-1">
-                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                      </svg>
-                      {exportProgress > 0 ? `${exportProgress}%` : 'Exporting...'}
-                    </span>
-                  ) : 'Export All'}
-                </button>
-
-                {canCreate && (
-                  <button
-                    className="bg-black text-white px-3 py-2 rounded"
-                    onClick={() => navigate("add")}
-                  >
-                    Add New
-                  </button>
+                {showSearchDropdown && (
+                  <div className="absolute left-0 top-[42px] z-30">
+                    <FilterGroupDropdown
+                      selectedFilter={selectedFilterBy}
+                      selectedGroup={selectedGroupBy}
+                      onFilterBySelect={(value) => {
+                        setCurrentPage(1);
+                        setSelectedFilterBy(value);
+                      }}
+                      onGroupBySelect={(value) => setSelectedGroupBy(value)}
+                    />
+                  </div>
                 )}
-                </div>
               </div>
 
-              {/* Advanced Filters Row */}
-              <div className="flex flex-wrap gap-2 items-center">
-                {/* Category Filter */}
-                <select
-                  className="border rounded-md px-3 py-2 text-sm bg-white"
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                >
-                  <option value="">All Categories</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Type Filter */}
-                <select
-                  className="border rounded-md px-3 py-2 text-sm bg-white"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                >
-                  <option value="">All Types</option>
-                  <option value="Regular">Regular</option>
-                  <option value="Combo">Combo</option>
-                  <option value="Retail">Retail</option>
-                </select>
-
-                {/* Status Filter */}
-                <select
-                  className="border rounded-md px-3 py-2 text-sm bg-white"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-
-                {/* Kitchen Filter */}
-                <select
-                  className="border rounded-md px-3 py-2 text-sm bg-white"
-                  value={kitchenFilter}
-                  onChange={(e) => setKitchenFilter(e.target.value)}
-                >
-                  <option value="">All Kitchens</option>
-                  {kitchenList.map((kitchen) => (
-                    <option key={kitchen.id} value={kitchen.id}>
-                      {kitchen.name}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Price Range Filters */}
+              <div className="flex items-center gap-2">
                 <input
-                  type="number"
-                  placeholder="Min Price"
-                  className="border rounded-md px-3 py-2 text-sm bg-white w-32"
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                  min="0"
-                  step="0.01"
-                />
-                <span className="text-sm text-gray-500">to</span>
-                <input
-                  type="number"
-                  placeholder="Max Price"
-                  className="border rounded-md px-3 py-2 text-sm bg-white w-32"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  min="0"
-                  step="0.01"
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
 
-                {/* Clear Filters Button */}
-                {activeFiltersCount > 0 && (
-                  <button
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white hover:bg-gray-50"
-                    onClick={handleClearAllFilters}
-                  >
-                    Clear All Filters ({activeFiltersCount})
-                  </button>
-                )}
+                <button
+                  className="h-9 px-4 rounded bg-yellow-400 border border-[#b38900] text-sm font-medium disabled:opacity-60"
+                  onClick={handleImportClick}
+                  disabled={importing || loading}
+                >
+                  {importing ? "Uploading..." : "Upload Menu"}
+                </button>
+
+                <button
+                  className="h-9 px-4 rounded border border-gray-300 bg-white text-sm disabled:opacity-60"
+                  onClick={handleExport}
+                  disabled={exporting || loading}
+                >
+                  {exporting ? "Exporting..." : "Export"}
+                </button>
+
+                <button
+                  className="h-9 px-4 rounded bg-black text-white text-sm"
+                  onClick={() => navigate("add")}
+                >
+                  Add New
+                </button>
               </div>
             </div>
 
-            {showFilters && (
-              <div className="absolute z-30 mt-2 left-0">
-                <FilterGroupDropdown />
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={selectedCategoryId}
+                onChange={(event) => {
+                  setCurrentPage(1);
+                  setSelectedCategoryId(event.target.value);
+                }}
+                className="h-9 min-w-[160px] px-3 rounded border border-gray-300 bg-white text-sm"
+              >
+                <option value="">All Categories</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={selectedType}
+                onChange={(event) => {
+                  setCurrentPage(1);
+                  setSelectedType(event.target.value);
+                }}
+                className="h-9 min-w-[140px] px-3 rounded border border-gray-300 bg-white text-sm"
+              >
+                <option value="">All Types</option>
+                <option value="Regular">Regular</option>
+                <option value="Combo">Combo</option>
+                <option value="Retail">Retail</option>
+              </select>
+
+              <select
+                value={selectedStatus}
+                onChange={(event) => {
+                  setCurrentPage(1);
+                  setSelectedStatus(event.target.value);
+                }}
+                className="h-9 min-w-[140px] px-3 rounded border border-gray-300 bg-white text-sm"
+              >
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+
+              <select
+                value={selectedKitchenId}
+                onChange={(event) => {
+                  setCurrentPage(1);
+                  setSelectedKitchenId(event.target.value);
+                }}
+                className="h-9 min-w-[150px] px-3 rounded border border-gray-300 bg-white text-sm"
+              >
+                <option value="">All Kitchens</option>
+                {kitchens.map((kitchen) => (
+                  <option key={kitchen.id} value={kitchen.id}>
+                    {kitchen.name}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="number"
+                min={0}
+                value={minPrice}
+                onChange={(event) => {
+                  setCurrentPage(1);
+                  setMinPrice(event.target.value);
+                }}
+                placeholder="Min Price"
+                className="h-9 w-[110px] px-3 rounded border border-gray-300 bg-white text-sm"
+              />
+
+              <input
+                type="number"
+                min={0}
+                value={maxPrice}
+                onChange={(event) => {
+                  setCurrentPage(1);
+                  setMaxPrice(event.target.value);
+                }}
+                placeholder="Max Price"
+                className="h-9 w-[110px] px-3 rounded border border-gray-300 bg-white text-sm"
+              />
+
+              {isAnyAdvancedFilterApplied && (
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  className="h-9 px-4 rounded border border-gray-300 bg-white text-sm"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* 🔽 CHILD ROUTES RENDER HERE (Add / Edit / View) */}
       <Outlet />
 
-      {/* 🔥 PRODUCT GRID ONLY FOR LIST PAGE */}
       {!isChildRoute && (
         <>
-          {/* Loading State */}
           {loading && (
             <div className="flex justify-center items-center py-12">
               <LoadingSpinner size="lg" message="Loading products..." />
             </div>
           )}
 
-          {/* Error State */}
           {error && !loading && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
               <p className="text-red-600 font-medium">Error</p>
@@ -698,7 +555,6 @@ const CatalogProductsPage = () => {
             </div>
           )}
 
-          {/* Import Success Message */}
           {importSuccess && !loading && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
               <p className="text-green-600 font-medium">Import Successful</p>
@@ -706,127 +562,47 @@ const CatalogProductsPage = () => {
             </div>
           )}
 
-          {/* Bulk Action Success Message */}
-          {bulkSuccess && !loading && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-              <p className="text-green-600 font-medium">Success</p>
-              <p className="text-sm text-green-600 mt-1">{bulkSuccess}</p>
-            </div>
-          )}
-
-          {/* Bulk Delete Confirmation Modal */}
-          {showBulkDeleteConfirm && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                <h3 className="text-lg font-semibold mb-2">Confirm Bulk Delete</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Are you sure you want to delete {selectedProducts.size} product{selectedProducts.size !== 1 ? 's' : ''}? This action cannot be undone.
-                </p>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    className="px-4 py-2 border rounded text-sm"
-                    onClick={cancelBulkDelete}
-                    disabled={bulkActionLoading}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="px-4 py-2 bg-red-600 text-white rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={executeBulkDelete}
-                    disabled={bulkActionLoading}
-                  >
-                    {bulkActionLoading ? 'Deleting...' : 'Delete'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Select All Checkbox */}
-          {!loading && !error && products.length > 0 && (
-            <div className="flex items-center gap-2 mb-2">
-              <input
-                type="checkbox"
-                id="select-all"
-                checked={selectedProducts.size === products.length && products.length > 0}
-                onChange={toggleSelectAll}
-                className="w-4 h-4 cursor-pointer"
-              />
-              <label htmlFor="select-all" className="text-sm text-gray-600 cursor-pointer">
-                Select All ({selectedProducts.size} of {products.length} selected)
-              </label>
-            </div>
-          )}
-
-          {/* Products Grid */}
-          {!loading && !error && products.length > 0 && (
+          {!loading && !error && displayProducts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products.map((product) => {
-                // Get the first price from prices array, use discountPrice if available, otherwise basePrice
+              {displayProducts.map((product) => {
                 const priceData = product.prices?.[0];
-                const price = priceData?.discountPrice || priceData?.basePrice || 0;
-                // Get the first image URL, or use placeholder
-                const imageUrl = product.images?.[0]?.url || '/placeholder.jpg';
-                const isSelected = selectedProducts.has(product.id);
+                const price =
+                  priceData?.discountPrice ??
+                  priceData?.basePrice ??
+                  product.basePrice ??
+                  0;
+                const imageUrl = product.primaryImage || product.images?.[0]?.url || "/placeholder.jpg";
 
                 return (
-                  <div key={product.id} className="relative">
-                    {/* Checkbox overlay */}
-                    <div className="absolute top-2 left-2 z-10">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleProductSelection(product.id)}
-                        className="w-5 h-5 cursor-pointer bg-white rounded border-2 border-gray-300"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    <ProductCard
-                      id={Number(product.id)}
-                      name={product.name}
-                      price={price}
-                      image={imageUrl}
-                      onDelete={handleDeleteProduct}
-                    />
-                  </div>
+                  <ProductCard
+                    key={product.id}
+                    id={product.id}
+                    name={product.name}
+                    price={price}
+                    image={imageUrl}
+                    onDelete={handleDeleteProduct}
+                  />
                 );
               })}
             </div>
           )}
 
-          {/* Product Count */}
-          {!loading && !error && products.length > 0 && (
-            <div className="text-sm text-gray-600 mb-2">
-              Showing {products.length} {pagination?.total ? `of ${pagination.total}` : ''} product{products.length !== 1 ? 's' : ''}
-              {activeFiltersCount > 0 && ` (${activeFiltersCount} filter${activeFiltersCount !== 1 ? 's' : ''} active)`}
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!loading && !error && products.length === 0 && (
+          {!loading && !error && displayProducts.length === 0 && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-              <p className="text-gray-600">
-                {searchQuery.trim() || activeFiltersCount > 0 ? "No products match your search or filters" : "No products found"}
-              </p>
-              {searchQuery.trim() || activeFiltersCount > 0 ? (
-                <button
-                  onClick={handleClearAllFilters}
-                  className="mt-4 bg-bb-primary text-black px-4 py-2 rounded"
-                >
-                  Clear All Filters
-                </button>
-              ) : canCreate ? (
-                <button
-                  onClick={() => navigate('add')}
-                  className="mt-4 bg-black text-white px-4 py-2 rounded"
-                >
-                  Add Your First Product
-                </button>
-              ) : null}
+              <p className="text-gray-600">No products found</p>
             </div>
           )}
 
-          <Pagination />
+          {!loading && !error && totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={pagination?.total || 0}
+              itemsPerPage={itemsPerPage}
+              showPageSize={false}
+              onPageChange={(page) => setCurrentPage(page)}
+            />
+          )}
         </>
       )}
     </div>

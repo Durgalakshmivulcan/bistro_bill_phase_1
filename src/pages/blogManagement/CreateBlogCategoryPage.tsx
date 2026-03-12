@@ -8,6 +8,16 @@ import {
   createBlogCategoryApi,
   updateBlogCategoryApi,
 } from "../../services/blogService";
+import {
+  getBusinessOwners,
+  BusinessOwnerListItem,
+} from "../../services/superAdminService";
+import { getSelectedBoId, setSelectedBoId } from "../../services/saReportContext";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  getBlogCategoryImage,
+  setBlogCategoryImage,
+} from "../../utils/blogCategoryImageStore";
 
 // Images
 import createSuccessImg from "../../assets/tick.png";
@@ -28,6 +38,8 @@ const CATEGORY_LIST_ROUTE = "/blog-management/categories";
 const CreateBlogCategoryPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.userType === "SuperAdmin";
 
   // MODES
   const isEditMode = window.location.pathname.includes("/edit");
@@ -40,7 +52,11 @@ const CreateBlogCategoryPage = () => {
   // FORM STATE
   const [name, setName] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedImageDataUrl, setSelectedImageDataUrl] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(true);
+  const [selectedBo, setSelectedBo] = useState<string>(getSelectedBoId() || "");
+  const [boList, setBoList] = useState<BusinessOwnerListItem[]>([]);
+  const [boLoading, setBoLoading] = useState(false);
 
   // MODALS
   const [showConfirm, setShowConfirm] = useState(false);
@@ -50,9 +66,30 @@ const CreateBlogCategoryPage = () => {
 
   const fileRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const loadBusinessOwners = async () => {
+      if (!isSuperAdmin) return;
+      setBoLoading(true);
+      try {
+        const res = await getBusinessOwners({ limit: 100 });
+        if (res.success && res.data) {
+          setBoList(res.data.businessOwners);
+        }
+      } finally {
+        setBoLoading(false);
+      }
+    };
+    loadBusinessOwners();
+  }, [isSuperAdmin]);
+
   // LOAD CATEGORY DATA FOR EDIT/VIEW
   useEffect(() => {
     if (!id || (!isEditMode && !isViewMode)) return;
+    if (isSuperAdmin && !selectedBo) {
+      setError("Select a restaurant to load this category.");
+      setLoading(false);
+      return;
+    }
 
     const loadCategory = async () => {
       try {
@@ -62,7 +99,12 @@ const CreateBlogCategoryPage = () => {
           const found = response.data.categories.find((c) => c.id === id);
           if (found) {
             setName(found.name);
-            setIsActive(found.status === "Active");
+            setIsActive(found.status.toLowerCase() === "active");
+            const storedImage = getBlogCategoryImage(found.id);
+            if (storedImage) {
+              setImagePreview(storedImage);
+              setSelectedImageDataUrl(storedImage);
+            }
           } else {
             setError("Category not found");
           }
@@ -78,7 +120,7 @@ const CreateBlogCategoryPage = () => {
 
     loadCategory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, isSuperAdmin, selectedBo]);
 
   // ---------------- HANDLERS ----------------
 
@@ -92,6 +134,10 @@ const CreateBlogCategoryPage = () => {
   };
 
   const handleSubmit = async () => {
+    if (isSuperAdmin && !selectedBo) {
+      setError("Select a restaurant before saving.");
+      return;
+    }
     if (!validateForm()) return;
     try {
       setSaving(true);
@@ -100,6 +146,9 @@ const CreateBlogCategoryPage = () => {
       if (isEditMode && id) {
         const response = await updateBlogCategoryApi(id, { name: name.trim() });
         if (response.success) {
+          if (selectedImageDataUrl) {
+            setBlogCategoryImage(id, selectedImageDataUrl);
+          }
           setSuccessType("edit");
           setShowSuccess(true);
         } else {
@@ -108,6 +157,10 @@ const CreateBlogCategoryPage = () => {
       } else {
         const response = await createBlogCategoryApi({ name: name.trim() });
         if (response.success) {
+          const categoryId = response.data?.category?.id;
+          if (categoryId && selectedImageDataUrl) {
+            setBlogCategoryImage(categoryId, selectedImageDataUrl);
+          }
           setSuccessType("create");
           setShowSuccess(true);
         } else {
@@ -122,6 +175,10 @@ const CreateBlogCategoryPage = () => {
   };
 
   const handleToggleStatus = () => {
+    if (isSuperAdmin && !selectedBo) {
+      setError("Select a restaurant before changing status.");
+      return;
+    }
     setShowConfirm(true);
   };
 
@@ -129,7 +186,7 @@ const CreateBlogCategoryPage = () => {
     if (!id) return;
     try {
       setSaving(true);
-      const newStatus = isActive ? "Inactive" : "Active";
+      const newStatus = isActive ? "inactive" : "active";
       const response = await updateBlogCategoryApi(id, { status: newStatus });
       if (response.success) {
         setIsActive(!isActive);
@@ -146,6 +203,11 @@ const CreateBlogCategoryPage = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleBusinessOwnerChange = (boId: string) => {
+    setSelectedBo(boId);
+    setSelectedBoId(boId || null);
   };
 
   // ---------------- HELPERS ----------------
@@ -211,6 +273,26 @@ const CreateBlogCategoryPage = () => {
     <DashboardLayout>
       <div className="p-8 bg-[#FFFDF5] min-h-screen">
         <div className="max-w-6xl mx-auto space-y-10">
+          {isSuperAdmin && (
+            <div className="bg-white border rounded-lg p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Restaurant Context
+              </label>
+              <select
+                value={selectedBo}
+                onChange={(e) => handleBusinessOwnerChange(e.target.value)}
+                className="w-full md:w-80 border rounded-md px-3 py-2 text-sm bg-white"
+                disabled={boLoading}
+              >
+                <option value="">-- Select a Restaurant --</option>
+                {boList.map((bo) => (
+                  <option key={bo.id} value={bo.id}>
+                    {bo.restaurantName} ({bo.ownerName})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* HEADER */}
           <h1 className="text-3xl font-semibold text-gray-500">
@@ -257,9 +339,13 @@ const CreateBlogCategoryPage = () => {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      setImagePreview(
-                        URL.createObjectURL(file)
-                      );
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const result = typeof reader.result === "string" ? reader.result : null;
+                        setImagePreview(result);
+                        setSelectedImageDataUrl(result);
+                      };
+                      reader.readAsDataURL(file);
                     }
                   }}
                 />

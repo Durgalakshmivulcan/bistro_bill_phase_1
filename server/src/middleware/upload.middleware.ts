@@ -1,6 +1,9 @@
 import multer, { FileFilterCallback, Multer } from 'multer';
 import { Request, Response, NextFunction } from 'express';
 import { uploadImage, uploadDocument, UploadResult } from '../services/s3.service';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { randomUUID } from 'crypto';
 
 // File size limits in bytes
 const MAX_IMAGE_SIZE = parseInt(process.env.MAX_IMAGE_SIZE || '5242880', 10); // 5MB
@@ -31,6 +34,90 @@ export interface UploadedFile {
 export interface RequestWithUpload extends Request {
   uploadedFile?: UploadedFile;
   uploadedFiles?: UploadedFile[];
+}
+
+function getServerBaseUrl(req: Request): string {
+  if (process.env.SERVER_PUBLIC_URL && process.env.SERVER_PUBLIC_URL.trim() !== '') {
+    return process.env.SERVER_PUBLIC_URL.replace(/\/+$/, '');
+  }
+  const protocol = req.protocol || 'http';
+  const host = req.get('host') || `localhost:${process.env.PORT || '5001'}`;
+  return `${protocol}://${host}`;
+}
+
+function normalizeFolder(folder?: string): string {
+  if (!folder) return 'uploads';
+  return folder.replace(/[^a-zA-Z0-9/_-]/g, '').replace(/^\/+|\/+$/g, '') || 'uploads';
+}
+
+async function saveFileToAssets(
+  req: Request,
+  file: MulterFile,
+  folder?: string
+): Promise<UploadedFile> {
+  const safeFolder = normalizeFolder(folder);
+  const extensionFromName = path.extname(file.originalname);
+  const extensionFromMime = file.mimetype.split('/')[1] || 'bin';
+  const extension = (extensionFromName || `.${extensionFromMime}`).toLowerCase();
+  const isProductImage = safeFolder === 'products';
+
+  let absoluteDir: string;
+  let publicUrlPrefix: string;
+  let keyPrefix: string;
+
+  if (isProductImage) {
+    // Product images must be stored in frontend public folder so they are served at /images/products/*
+    const cwd = process.cwd();
+    const cwdBase = path.basename(cwd).toLowerCase();
+    const frontendPublicDir =
+      cwdBase === 'server'
+        ? path.resolve(cwd, '../public/images/products')
+        : path.resolve(cwd, 'public/images/products');
+
+    absoluteDir = frontendPublicDir;
+    publicUrlPrefix = '/images/products';
+    keyPrefix = 'images/products';
+  } else {
+    const relativeDir = path.posix.join('catalog', safeFolder);
+    // Resolve frontend assets path from workspace root first (works in dev + compiled server).
+    const cwdAssetsRoot = path.resolve(process.cwd(), 'src/assets');
+    let assetsRoot = cwdAssetsRoot;
+    try {
+      await fs.access(cwdAssetsRoot);
+    } catch {
+      assetsRoot = path.resolve(__dirname, '../../../src/assets');
+    }
+    absoluteDir = path.resolve(assetsRoot, relativeDir);
+    publicUrlPrefix = `${getServerBaseUrl(req)}/assets/${relativeDir}`;
+    keyPrefix = relativeDir;
+  }
+
+  await fs.mkdir(absoluteDir, { recursive: true });
+
+  let fileName = `${Date.now()}-${randomUUID()}${extension}`;
+  if (isProductImage) {
+    // Keep exact uploaded filename for product images.
+    const originalBaseName = path.basename(file.originalname);
+    const hasExtension = path.extname(originalBaseName).length > 0;
+    fileName = hasExtension ? originalBaseName : `${originalBaseName}${extension}`;
+  }
+
+  const absolutePath = path.resolve(absoluteDir, fileName);
+  const key = path.posix.join(keyPrefix, fileName);
+  const url = isProductImage
+    ? `${publicUrlPrefix}/${fileName}`
+    : `${publicUrlPrefix}/${fileName}`;
+
+  await fs.writeFile(absolutePath, file.buffer);
+
+  return {
+    url,
+    key,
+    bucket: 'local-assets',
+    originalName: file.originalname,
+    mimetype: file.mimetype,
+    size: file.size,
+  };
 }
 
 /**
@@ -161,6 +248,32 @@ export function uploadToS3Middleware(folder?: string) {
         size: file.size,
       };
 
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+/**
+ * Middleware to upload a single file to local assets after multer processing
+ * Saves files under server/assets/catalog/<folder>
+ */
+export function uploadToLocalAssetsMiddleware(folder?: string) {
+  return async (
+    req: RequestWithUpload,
+    _res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const file = req.file as MulterFile | undefined;
+
+      if (!file) {
+        next();
+        return;
+      }
+
+      req.uploadedFile = await saveFileToAssets(req, file, folder);
       next();
     } catch (error) {
       next(error);

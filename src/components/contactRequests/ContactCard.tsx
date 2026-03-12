@@ -6,10 +6,12 @@ import {
   Move,
   Trash2,
   ArrowUpDown,
+  Paperclip,
 } from "lucide-react";
 import TickImg from "../../assets/tick.png";
 import DeleteImg from "../../assets/deleteConformImg.png";
 import { deleteLead, updateLeadStage, LeadStage } from "../../services/contactService";
+import CreateLeadModal from "./addContactLead";
 
 /* ================= TYPES ================= */
 
@@ -19,9 +21,18 @@ type ContactItem = {
   ownerName: string;
   email: string;
   phone: string | null;
+  businessType: string | null;
   inquiryType: string | null;
+  country: string | null;
+  state: string | null;
+  city: string | null;
+  zipCode: string | null;
+  address: string | null;
   description: string | null;
   stage: LeadStage;
+  avatarUrl?: string | null;
+  attachmentCount?: number | null;
+  attachments?: unknown[] | null;
 };
 
 type Props = {
@@ -57,7 +68,7 @@ export default function ContactCard({ item, onRefresh }: Props) {
 
   /* MODALS */
   const [viewDetail, setViewDetail] = useState(false);
-  const [editSuccess, setEditSuccess] = useState(false);
+  const [editDetail, setEditDetail] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
 
@@ -143,13 +154,29 @@ export default function ContactCard({ item, onRefresh }: Props) {
     }
   };
 
+  const ownerInitials = item.ownerName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+
+  const rawAttachmentCount =
+    typeof item.attachmentCount === "number"
+      ? item.attachmentCount
+      : Array.isArray(item.attachments)
+      ? item.attachments.length
+      : 0;
+
+  const attachmentCount = Math.max(0, rawAttachmentCount);
+
   return (
     <>
       {/* ================= CARD ================= */}
-      <div className="bg-white rounded-lg border p-4 space-y-3 relative">
+      <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4 relative shadow-sm">
         {/* HEADER */}
         <div className="flex justify-between items-start">
-          <span className="px-3 py-1 text-xs rounded-md bg-purple-100 text-purple-600">
+          <span className="px-3 py-1 text-xs rounded-lg bg-purple-100 text-purple-600 font-medium">
             {item.inquiryType || 'Lead'}
           </span>
 
@@ -180,7 +207,7 @@ export default function ContactCard({ item, onRefresh }: Props) {
                 label="Edit"
                 onClick={() => {
                   setOpenMenu(false);
-                  setEditSuccess(true);
+                  setEditDetail(true);
                 }}
               />
 
@@ -207,37 +234,57 @@ export default function ContactCard({ item, onRefresh }: Props) {
         </div>
 
         {/* CONTENT */}
-        <h3 className="font-semibold text-gray-800">{item.restaurantName}</h3>
-        <p className="text-xs text-gray-500">{item.ownerName}</p>
+        <h3 className="text-2xl leading-tight font-semibold text-gray-900">
+          {item.restaurantName}
+        </h3>
+        <p className="text-sm text-gray-500">{item.ownerName}</p>
 
-        <p className="text-sm text-gray-600 line-clamp-3">{item.description || ''}</p>
+        <p className="text-[18px] leading-tight text-gray-600 line-clamp-3">
+          &ldquo;{item.description || "No message provided."}&rdquo;
+        </p>
 
-        <div className="flex justify-between items-center pt-2">
-          <div className="w-8 h-8 rounded-full bg-gray-300" />
-          <span className="text-xs text-gray-500">
-            {item.email}
-          </span>
+        <div className="border-t border-gray-200 pt-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            {item.avatarUrl ? (
+              <img
+                src={item.avatarUrl}
+                alt={item.ownerName}
+                className="w-12 h-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-gray-300 text-gray-700 font-medium flex items-center justify-center">
+                {ownerInitials || "NA"}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 text-gray-700">
+            <Paperclip size={24} />
+            <span className="text-[40px] leading-none select-none">
+              {attachmentCount.toString().padStart(2, "0")}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* ================= VIEW DETAIL ================= */}
       {viewDetail && (
-        <ViewDetailModal item={item} onClose={() => setViewDetail(false)} />
+        <CreateLeadModal
+          open={viewDetail}
+          mode="view"
+          initialData={item}
+          onClose={() => setViewDetail(false)}
+        />
       )}
 
-      {/* ================= EDIT SUCCESS ================= */}
-      {editSuccess && (
-        <AlertModal
-          icon={
-            <img
-              src={TickImg}
-              alt="success"
-              className="w-9 h-9 object-contain"
-            />
-          }
-          title="Lead Updated"
-          message="Contact Lead updated successfully!"
-          onClose={() => setEditSuccess(false)}
+      {/* ================= EDIT ================= */}
+      {editDetail && (
+        <CreateLeadModal
+          open={editDetail}
+          mode="edit"
+          initialData={item}
+          onClose={() => setEditDetail(false)}
+          onSaved={onRefresh}
         />
       )}
 
@@ -386,72 +433,6 @@ const ConfirmModal = ({
           {isLoading ? 'Processing...' : 'Yes'}
         </button>
       </div>
-    </div>
-  </div>
-);
-
-const STAGE_LABELS: Record<LeadStage, string> = {
-  NewRequest: "New Lead",
-  InitialContacted: "Initial Contacted",
-  ScheduledDemo: "Scheduled Demo",
-  Completed: "Completed",
-  ClosedWin: "Closed Won",
-  ClosedLoss: "Closed Lost",
-};
-
-const ViewDetailModal = ({
-  item,
-  onClose,
-}: {
-  item: ContactItem;
-  onClose: () => void;
-}) => (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div className="bg-white rounded-xl p-6 w-96 space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-lg">Contact Details</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
-      </div>
-
-      <div className="space-y-3 text-sm">
-        <div>
-          <span className="text-gray-500">Restaurant Name</span>
-          <p className="font-medium text-gray-800">{item.restaurantName}</p>
-        </div>
-        <div>
-          <span className="text-gray-500">Owner Name</span>
-          <p className="font-medium text-gray-800">{item.ownerName}</p>
-        </div>
-        <div>
-          <span className="text-gray-500">Email</span>
-          <p className="font-medium text-gray-800">{item.email}</p>
-        </div>
-        <div>
-          <span className="text-gray-500">Phone</span>
-          <p className="font-medium text-gray-800">{item.phone || "N/A"}</p>
-        </div>
-        <div>
-          <span className="text-gray-500">Inquiry Type</span>
-          <p className="font-medium text-gray-800">{item.inquiryType || "N/A"}</p>
-        </div>
-        <div>
-          <span className="text-gray-500">Stage</span>
-          <p className="font-medium text-gray-800">{STAGE_LABELS[item.stage] || item.stage}</p>
-        </div>
-        {item.description && (
-          <div>
-            <span className="text-gray-500">Description</span>
-            <p className="font-medium text-gray-800">{item.description}</p>
-          </div>
-        )}
-      </div>
-
-      <button
-        onClick={onClose}
-        className="w-full bg-[#FDC836] px-5 py-2 rounded text-sm font-medium"
-      >
-        Close
-      </button>
     </div>
   </div>
 );

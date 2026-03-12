@@ -339,6 +339,48 @@ export const createBlog = async (req: AuthenticatedRequest, res: Response): Prom
       return;
     }
 
+    // Validate author belongs to tenant when provided
+    if (authorId) {
+      const authorStaff = await prisma.staff.findFirst({
+        where: {
+          id: authorId,
+          businessOwnerId: tenantId,
+        },
+        select: { id: true },
+      });
+      if (!authorStaff) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Selected author is invalid for this tenant',
+          },
+        });
+        return;
+      }
+    }
+
+    // Validate tag IDs belong to tenant when provided
+    if (Array.isArray(tagIds) && tagIds.length > 0) {
+      const validTags = await prisma.blogTag.findMany({
+        where: {
+          id: { in: tagIds },
+          businessOwnerId: tenantId,
+        },
+        select: { id: true },
+      });
+      if (validTags.length !== tagIds.length) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'One or more selected tags are invalid for this tenant',
+          },
+        });
+        return;
+      }
+    }
+
     // Generate slug from title
     const baseSlug = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     let slug = baseSlug;
@@ -478,6 +520,12 @@ export const updateBlog = async (req: AuthenticatedRequest, res: Response): Prom
 
     const { title, categoryId, content, excerpt, featuredImage, featuredImageAlt, author, authorId, tagIds, status } = req.body;
 
+    const revisionAuthorId = req.user?.userType === 'Staff' ? req.user.id : null;
+    const revisionAuthorName =
+      req.user?.userType === 'Staff'
+        ? undefined
+        : req.user?.email || req.user?.userType || 'System';
+
     // Save revision of current state before updating (US-163)
     await prisma.blogRevision.create({
       data: {
@@ -485,8 +533,8 @@ export const updateBlog = async (req: AuthenticatedRequest, res: Response): Prom
         content: existingBlog.content,
         title: existingBlog.title,
         excerpt: existingBlog.excerpt,
-        authorId: req.user?.id || null,
-        authorName: req.user?.id ? undefined : 'System',
+        authorId: revisionAuthorId,
+        authorName: revisionAuthorName,
       },
     });
 
@@ -589,10 +637,48 @@ export const updateBlog = async (req: AuthenticatedRequest, res: Response): Prom
     }
 
     if (authorId !== undefined) {
+      if (authorId) {
+        const authorStaff = await prisma.staff.findFirst({
+          where: {
+            id: authorId,
+            businessOwnerId: tenantId,
+          },
+          select: { id: true },
+        });
+        if (!authorStaff) {
+          res.status(400).json({
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Selected author is invalid for this tenant',
+            },
+          });
+          return;
+        }
+      }
       updateData.authorId = authorId || null;
     }
 
     if (Array.isArray(tagIds)) {
+      if (tagIds.length > 0) {
+        const validTags = await prisma.blogTag.findMany({
+          where: {
+            id: { in: tagIds },
+            businessOwnerId: tenantId,
+          },
+          select: { id: true },
+        });
+        if (validTags.length !== tagIds.length) {
+          res.status(400).json({
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'One or more selected tags are invalid for this tenant',
+            },
+          });
+          return;
+        }
+      }
       updateData.tags = { set: tagIds.map((tid: string) => ({ id: tid })) };
     }
 
@@ -1452,6 +1538,12 @@ export const restoreBlogRevision = async (req: AuthenticatedRequest, res: Respon
       return;
     }
 
+    const revisionAuthorId = req.user?.userType === 'Staff' ? req.user.id : null;
+    const revisionAuthorName =
+      req.user?.userType === 'Staff'
+        ? undefined
+        : req.user?.email || req.user?.userType || 'System';
+
     // Save current state as a revision before restoring
     await prisma.blogRevision.create({
       data: {
@@ -1459,8 +1551,8 @@ export const restoreBlogRevision = async (req: AuthenticatedRequest, res: Respon
         content: blog.content,
         title: blog.title,
         excerpt: blog.excerpt,
-        authorId: req.user?.id || null,
-        authorName: req.user?.id ? undefined : 'System',
+        authorId: revisionAuthorId,
+        authorName: revisionAuthorName,
       },
     });
 

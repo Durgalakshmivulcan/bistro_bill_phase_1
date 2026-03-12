@@ -25,7 +25,7 @@ export default function EditAdvertisement() {
     status: "active" as "active" | "inactive",
     startDate: "",
     endDate: "",
-    branch: "All",
+    branch: "",
     description: "",
   });
 
@@ -53,13 +53,17 @@ export default function EditAdvertisement() {
   const loadBranches = async () => {
     try {
       setLoadingBranches(true);
-      const response = await getBranches({ status: 'Active' });
+      const response = await getBranches({ status: 'active' });
       if (response.success && response.data) {
         const options = response.data.branches.map(branch => ({
           label: branch.name,
           value: branch.id,
         }));
         setBranchOptions(options);
+        setForm((prev) => ({
+          ...prev,
+          branch: prev.branch || options[0]?.value || "",
+        }));
       }
     } catch (err) {
       console.error('Error loading branches:', err);
@@ -67,6 +71,17 @@ export default function EditAdvertisement() {
       setLoadingBranches(false);
     }
   };
+
+  useEffect(() => {
+    if (!branchOptions.length) {
+      setForm((prev) => ({ ...prev, branch: "" }));
+      return;
+    }
+    const isExisting = branchOptions.some((option) => option.value === form.branch);
+    if (!isExisting) {
+      setForm((prev) => ({ ...prev, branch: branchOptions[0].value }));
+    }
+  }, [branchOptions, form.branch]);
 
   const loadAdvertisement = async () => {
     if (!id) return;
@@ -95,7 +110,7 @@ export default function EditAdvertisement() {
         status: ad.status,
         startDate: formatDateForInput(ad.startDate),
         endDate: formatDateForInput(ad.endDate),
-        branch: "All",
+        branch: branchOptions[0]?.value || "",
         description: ad.description || "",
       });
 
@@ -112,6 +127,10 @@ export default function EditAdvertisement() {
   const handleUpdate = async () => {
     if (!id || !form.title) {
       alert('Please fill in the title');
+      return;
+    }
+    if (!form.branch) {
+      alert('Please select branch');
       return;
     }
 
@@ -209,16 +228,16 @@ export default function EditAdvertisement() {
           onChange={(value) =>
             setForm({ ...form, branch: value })
           }
-          options={[
-            { label: "All", value: "All" },
-            ...branchOptions,
-          ]}
+          options={branchOptions}
+          disabled={saving || loadingBranches}
         />
 
         {/* DESCRIPTION */}
         <Textarea
           label="Description"
           placeholder="Type here..."
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
 
         {/* ACTIONS */}

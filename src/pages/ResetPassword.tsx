@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AuthLayout from "../components/Auth/AuthLayout";
-import InputField from "../components/Common/InputField";
-import { Eye, EyeOff, RotateCcw } from "lucide-react";
+import { Eye, EyeOff, RotateCcw, CheckCircle } from "lucide-react";
 import { resetPassword } from "../services/authService";
 
 const ResetPassword = () => {
@@ -12,53 +11,82 @@ const ResetPassword = () => {
   const [token, setToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [validationError, setValidationError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Get token from URL on mount
+  const [strength, setStrength] = useState<"Weak" | "Fair" | "Strong" | null>(null);
+  const [matchMessage, setMatchMessage] = useState<string | null>(null);
+
+  /* ================= TOKEN ================= */
   useEffect(() => {
     const urlToken = searchParams.get("token");
     if (urlToken) {
       setToken(urlToken);
     } else {
-      setError("Invalid or missing reset token. Please request a new password reset link.");
+      setError("Invalid or expired reset link.");
     }
   }, [searchParams]);
 
-  // Validate password strength
-  const validatePassword = (password: string): string => {
-    if (password.length < 6) {
-      return "Password must be at least 6 characters long";
+  /* ================= PASSWORD STRENGTH ================= */
+  useEffect(() => {
+    if (!newPassword) {
+      setStrength(null);
+      return;
     }
-    // Add more validation if needed
-    return "";
-  };
 
+    const strongRegex =
+      /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+
+    const mediumRegex =
+      /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
+
+    if (strongRegex.test(newPassword)) {
+      setStrength("Strong");
+    } else if (mediumRegex.test(newPassword)) {
+      setStrength("Fair");
+    } else {
+      setStrength("Weak");
+    }
+  }, [newPassword]);
+
+  /* ================= MATCH CHECK ================= */
+  useEffect(() => {
+    if (!confirmPassword) {
+      setMatchMessage(null);
+      return;
+    }
+
+    if (newPassword === confirmPassword) {
+      setMatchMessage("matched");
+    } else {
+      setMatchMessage("not-matched");
+    }
+  }, [confirmPassword, newPassword]);
+
+  /* ================= SUBMIT ================= */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setValidationError("");
+    setError(null);
 
-    // Validate token
     if (!token) {
-      setError("Invalid reset token. Please request a new password reset link.");
+      setError("Invalid reset link.");
       return;
     }
 
-    // Validate new password
-    const passwordError = validatePassword(newPassword);
-    if (passwordError) {
-      setValidationError(passwordError);
+    if (strength === "Weak") {
+      setError(
+        "Password must be at least 8 characters long and contain letters, numbers and special characters."
+      );
       return;
     }
 
-    // Check if passwords match
     if (newPassword !== confirmPassword) {
-      setValidationError("Passwords do not match");
+      setError("Password does not match. Please check.");
       return;
     }
 
@@ -69,154 +97,167 @@ const ResetPassword = () => {
 
       if (response.success) {
         setSuccess(true);
-        // Redirect to login after 2 seconds
-        setTimeout(() => {
-          navigate("/login");
-        }, 2000);
       } else {
-        setError(response.error?.message || "Failed to reset password. Please try again.");
+        setError(response.error?.message || "Failed to reset password.");
       }
     } catch (err: any) {
-      setError(err.message || "Failed to reset password. Please try again.");
+      setError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= SUCCESS SCREEN ================= */
+  if (success) {
+    return (
+      <AuthLayout>
+        <div className="text-center space-y-4">
+          <CheckCircle size={60} className="mx-auto text-green-600" />
+
+          <h2 className="text-2xl font-semibold">
+            Password Changed!
+          </h2>
+
+          <p className="text-gray-600 text-sm">
+            You've successfully completed your password reset!
+          </p>
+
+          <button
+            onClick={() => navigate("/login")}
+            className="w-full h-11 rounded-lg bg-yellow-400 text-black font-medium hover:bg-yellow-500 transition"
+          >
+            Login Now
+          </button>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  /* ================= MAIN FORM ================= */
   return (
     <AuthLayout>
-      {/* Icon */}
-      <div className="flex justify-center mb-4">
-        <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center">
-          <RotateCcw size={26} />
-        </div>
+      <div className="text-center mb-4">
+        <RotateCcw size={60} className="mx-auto text-gray-700" />
       </div>
 
-      {/* Title */}
       <h1 className="text-2xl font-semibold text-center mb-2">
         Reset Password
       </h1>
 
       <p className="text-sm text-gray-600 text-center mb-6">
-        Please set your new password.
+        Please kindly set your new password.
       </p>
 
-      {/* Success Message */}
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-          <p className="text-sm">
-            Password reset successfully! Redirecting to login...
-          </p>
-        </div>
-      )}
-
-      {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-          <p className="text-sm">{error}</p>
-        </div>
+        <p className="text-sm text-red-500 text-center mb-4">
+          {error}
+        </p>
       )}
 
-      {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* New Password */}
+        {/* NEW PASSWORD */}
         <div>
-          <InputField
-            label="New Password"
-            type={showNewPassword ? "text" : "password"}
-            placeholder="Enter new password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            disabled={loading || success}
-            rightIcon={
-              showNewPassword ? (
-                <EyeOff
-                  size={18}
-                  className="text-gray-500 cursor-pointer"
-                  onClick={() => setShowNewPassword(false)}
-                />
-              ) : (
-                <Eye
-                  size={18}
-                  className="text-gray-500 cursor-pointer"
-                  onClick={() => setShowNewPassword(true)}
-                />
-              )
-            }
-          />
+          <label className="text-sm font-medium text-gray-800">
+            New Password
+          </label>
 
-          {/* Validation Error */}
-          {validationError && (
-            <p className="text-xs text-red-500 mt-1">
-              {validationError}
+          <div className="relative">
+            <input
+              type={showNewPassword ? "text" : "password"}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className={`w-full h-11 rounded-lg px-4 pr-10 text-sm outline-none border transition
+                ${
+                  strength === "Weak"
+                    ? "border-red-500"
+                    : strength === "Fair"
+                    ? "border-orange-400"
+                    : strength === "Strong"
+                    ? "border-green-500"
+                    : "border-gray-300"
+                }
+              `}
+            />
+
+            <div
+              className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+            >
+              {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </div>
+          </div>
+
+          {strength && (
+            <p
+              className={`text-xs mt-1 ${
+                strength === "Weak"
+                  ? "text-red-500"
+                  : strength === "Fair"
+                  ? "text-orange-500"
+                  : "text-green-600"
+              }`}
+            >
+              Password Strength: {strength}
             </p>
           )}
         </div>
 
-        {/* Confirm Password */}
-        <InputField
-          label="Confirm New Password"
-          type={showConfirmPassword ? "text" : "password"}
-          placeholder="Confirm password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          disabled={loading || success}
-          rightIcon={
-            showConfirmPassword ? (
-              <EyeOff
-                size={18}
-                className="text-gray-500 cursor-pointer"
-                onClick={() => setShowConfirmPassword(false)}
-              />
-            ) : (
-              <Eye
-                size={18}
-                className="text-gray-500 cursor-pointer"
-                onClick={() => setShowConfirmPassword(true)}
-              />
-            )
-          }
-        />
+        {/* CONFIRM PASSWORD */}
+        <div>
+          <label className="text-sm font-medium text-gray-800">
+            Confirm New Password
+          </label>
 
-        {/* Submit Button */}
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className={`w-full h-11 rounded-lg px-4 pr-10 text-sm outline-none border transition
+                ${
+                  matchMessage === "not-matched"
+                    ? "border-red-500"
+                    : matchMessage === "matched"
+                    ? "border-green-500"
+                    : "border-gray-300"
+                }
+              `}
+            />
+
+            <div
+              className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
+              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </div>
+          </div>
+
+          {matchMessage === "not-matched" && (
+            <p className="text-xs text-red-500 mt-1">
+              Password does not match. Please check.
+            </p>
+          )}
+
+          {matchMessage === "matched" && (
+            <p className="text-xs text-green-600 mt-1">
+              Password matched!
+            </p>
+          )}
+        </div>
+
+        {/* SUBMIT */}
         <button
           type="submit"
-          disabled={loading || success || !token}
-          className="
-            w-full
-            h-11
-            rounded-lg
-            bg-yellow-400
-            text-black
-            font-medium
-            hover:bg-yellow-500
-            transition
-            disabled:opacity-50
-            disabled:cursor-not-allowed
-            flex
-            items-center
-            justify-center
-            gap-2
-          "
+          disabled={loading}
+          className="w-full h-11 rounded-lg bg-yellow-400 text-black font-medium hover:bg-yellow-500 transition disabled:opacity-50"
         >
-          {loading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-              <span>Resetting...</span>
-            </>
-          ) : success ? (
-            "Password Reset!"
-          ) : (
-            "Reset Password"
-          )}
+          {loading ? "Resetting..." : "Reset Password"}
         </button>
       </form>
 
-      {/* Back to Login */}
       <p className="text-sm text-center mt-4">
-        Remember your password?{" "}
+        Remember your Password?{" "}
         <button
-          type="button"
           onClick={() => navigate("/login")}
           className="text-yellow-700 font-medium hover:underline"
         >

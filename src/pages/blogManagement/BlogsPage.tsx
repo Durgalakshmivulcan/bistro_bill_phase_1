@@ -6,10 +6,18 @@ import Select from "../../components/form/Select";
 import { SearchInput } from "../../components/Common";
 import { getBlogs, getBlogTags, Blog, BlogTag } from "../../services/blogService";
 import { getStaff, Staff } from "../../services/staffService";
+import {
+  getBusinessOwners,
+  BusinessOwnerListItem,
+} from "../../services/superAdminService";
+import { getSelectedBoId, setSelectedBoId } from "../../services/saReportContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { useState, useEffect, useCallback } from "react";
 
 const BlogsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.userType === "SuperAdmin";
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -17,6 +25,9 @@ const BlogsPage = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [authorFilter, setAuthorFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
+  const [selectedBo, setSelectedBo] = useState<string>(getSelectedBoId() || "");
+  const [boList, setBoList] = useState<BusinessOwnerListItem[]>([]);
+  const [boLoading, setBoLoading] = useState(false);
 
   // Data state
   const [blogs, setBlogs] = useState<Blog[]>([]);
@@ -27,9 +38,32 @@ const BlogsPage = () => {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [tagsList, setTagsList] = useState<BlogTag[]>([]);
 
+  // Load business owners for SuperAdmin tenant switch
+  useEffect(() => {
+    const loadBusinessOwners = async () => {
+      if (!isSuperAdmin) return;
+      setBoLoading(true);
+      try {
+        const res = await getBusinessOwners({ limit: 100 });
+        if (res.success && res.data) {
+          setBoList(res.data.businessOwners);
+        }
+      } finally {
+        setBoLoading(false);
+      }
+    };
+    loadBusinessOwners();
+  }, [isSuperAdmin]);
+
   // Load staff and tags for filter dropdowns
   useEffect(() => {
     const loadFilterData = async () => {
+      if (isSuperAdmin && !selectedBo) {
+        setStaffList([]);
+        setTagsList([]);
+        return;
+      }
+
       try {
         const [staffRes, tagsRes] = await Promise.all([
           getStaff({ status: "active" }),
@@ -46,9 +80,16 @@ const BlogsPage = () => {
       }
     };
     loadFilterData();
-  }, []);
+  }, [isSuperAdmin, selectedBo]);
 
   const fetchBlogs = useCallback(async () => {
+    if (isSuperAdmin && !selectedBo) {
+      setBlogs([]);
+      setLoading(false);
+      setError("Select a restaurant to load blog data.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -85,7 +126,15 @@ const BlogsPage = () => {
       setBlogs([]);
     }
     setLoading(false);
-  }, [searchQuery, statusFilter, dateFilter, authorFilter, tagFilter]);
+  }, [
+    searchQuery,
+    statusFilter,
+    dateFilter,
+    authorFilter,
+    tagFilter,
+    isSuperAdmin,
+    selectedBo,
+  ]);
 
   useEffect(() => {
     fetchBlogs();
@@ -103,10 +152,36 @@ const BlogsPage = () => {
     fetchBlogs();
   };
 
+  const handleBusinessOwnerChange = (boId: string) => {
+    setSelectedBo(boId);
+    setSelectedBoId(boId || null);
+  };
+
   return (
     <DashboardLayout>
       <div className="p-6 bg-[#FFFDF5] min-h-screen space-y-6">
         <BlogNavTabs />
+
+        {isSuperAdmin && (
+          <div className="bg-white border rounded-lg p-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Restaurant Context
+            </label>
+            <select
+              value={selectedBo}
+              onChange={(e) => handleBusinessOwnerChange(e.target.value)}
+              className="w-full lg:w-80 border rounded-md px-3 py-2 text-sm bg-white"
+              disabled={boLoading}
+            >
+              <option value="">-- Select a Restaurant --</option>
+              {boList.map((bo) => (
+                <option key={bo.id} value={bo.id}>
+                  {bo.restaurantName} ({bo.ownerName})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-col lg:flex-row gap-4 justify-between">
@@ -120,7 +195,7 @@ const BlogsPage = () => {
             {/* CREATED DATE FILTER */}
             <div className="w-56">
               <Select
-                value={dateFilter || "Filter by Created Date"}
+                value={dateFilter || ""}
                 onChange={setDateFilter}
                 options={[
                   {
@@ -142,7 +217,7 @@ const BlogsPage = () => {
             {/* STATUS FILTER */}
             <div className="w-48">
               <Select
-                value={statusFilter || "Filter by Status"}
+                value={statusFilter || ""}
                 onChange={setStatusFilter}
                 options={[
                   {
@@ -168,7 +243,7 @@ const BlogsPage = () => {
             {/* AUTHOR FILTER */}
             <div className="w-48">
               <Select
-                value={authorFilter || "Filter by Author"}
+                value={authorFilter || ""}
                 onChange={setAuthorFilter}
                 options={[
                   {
@@ -186,7 +261,7 @@ const BlogsPage = () => {
             {/* TAG FILTER */}
             <div className="w-48">
               <Select
-                value={tagFilter || "Filter by Tag"}
+                value={tagFilter || ""}
                 onChange={setTagFilter}
                 options={[
                   {

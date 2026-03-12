@@ -42,6 +42,11 @@ export default function MultiSelect({
     }
   };
 
+  const getLabelByValue = (val: string) => {
+    const option = options.find((opt) => opt.value === val);
+    return option?.label || val;
+  };
+
   return (
     <div ref={ref} className="space-y-2">
       <label className="font-bold">
@@ -113,7 +118,7 @@ export default function MultiSelect({
               key={v}
               className="bg-bb-coloredborder text-black px-3 py-1 rounded-full text-xs flex items-center gap-1"
             >
-              {v}
+              {getLabelByValue(v)}
               <button
                 type="button"
                 onClick={() => toggleValue(v)}

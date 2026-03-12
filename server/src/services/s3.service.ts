@@ -6,6 +6,8 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 // S3 Configuration
 const s3Config = {
@@ -18,6 +20,7 @@ const s3Config = {
 
 const s3Client = new S3Client(s3Config);
 const bucketName = process.env.AWS_S3_BUCKET || 'bistrobill-uploads';
+const localUploadRoot = path.resolve(__dirname, '../../../src/assets/uploads');
 
 export interface UploadResult {
   url: string;
@@ -49,6 +52,47 @@ function getPublicUrl(key: string): string {
   return `https://${bucketName}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
 }
 
+function getServerBaseUrl(): string {
+  if (process.env.SERVER_PUBLIC_URL && process.env.SERVER_PUBLIC_URL.trim() !== '') {
+    return process.env.SERVER_PUBLIC_URL.replace(/\/+$/, '');
+  }
+  const port = process.env.PORT || '5001';
+  return `http://localhost:${port}`;
+}
+
+function hasValidAwsConfig(): boolean {
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID || '';
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || '';
+  const region = process.env.AWS_REGION || '';
+  const bucket = process.env.AWS_S3_BUCKET || '';
+
+  // Ignore placeholder values so local/dev environments don't hard-fail uploads.
+  const invalidPlaceholders = ['your-aws-access-key-id', 'your-aws-secret-access-key'];
+  if (!accessKeyId || !secretAccessKey || !region || !bucket) return false;
+  if (invalidPlaceholders.includes(accessKeyId) || invalidPlaceholders.includes(secretAccessKey)) return false;
+  return true;
+}
+
+async function uploadToLocalStorage(params: FileUploadParams): Promise<UploadResult> {
+  const { buffer, originalname, folder = 'uploads' } = params;
+  const uuid = randomUUID();
+  const extension = originalname.split('.').pop() || 'bin';
+  const fileName = `${Date.now()}-${uuid}.${extension}`;
+  const relativeDir = path.posix.join('uploads', folder);
+  const relativePath = path.posix.join(relativeDir, fileName);
+  const diskDir = path.join(localUploadRoot, folder);
+  const diskPath = path.join(diskDir, fileName);
+
+  await fs.mkdir(diskDir, { recursive: true });
+  await fs.writeFile(diskPath, buffer);
+
+  return {
+    url: `${getServerBaseUrl()}/assets/${relativePath}`,
+    key: relativePath,
+    bucket: 'local-assets',
+  };
+}
+
 /**
  * Upload a file to S3
  * @param params - File upload parameters
@@ -56,23 +100,33 @@ function getPublicUrl(key: string): string {
  */
 export async function uploadToS3(params: FileUploadParams): Promise<UploadResult> {
   const { buffer, mimetype, originalname, folder = 'uploads' } = params;
+  const shouldTryS3 = (process.env.FILE_UPLOAD_PROVIDER || 's3').toLowerCase() === 's3' && hasValidAwsConfig();
 
-  const key = generateS3Key(folder, originalname);
+  if (!shouldTryS3) {
+    return uploadToLocalStorage(params);
+  }
 
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: key,
-    Body: buffer,
-    ContentType: mimetype,
-  });
+  try {
+    const key = generateS3Key(folder, originalname);
 
-  await s3Client.send(command);
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: buffer,
+      ContentType: mimetype,
+    });
 
-  return {
-    url: getPublicUrl(key),
-    key,
-    bucket: bucketName,
-  };
+    await s3Client.send(command);
+
+    return {
+      url: getPublicUrl(key),
+      key,
+      bucket: bucketName,
+    };
+  } catch (error) {
+    console.warn('S3 upload failed, falling back to local storage:', error);
+    return uploadToLocalStorage({ buffer, mimetype, originalname, folder });
+  }
 }
 
 /**

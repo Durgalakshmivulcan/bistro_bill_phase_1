@@ -102,6 +102,7 @@ export const createDiscount = async (req: AuthenticatedRequest, res: Response): 
     const {
       code,
       name,
+      description,
       type,
       valueType,
       value,
@@ -160,6 +161,7 @@ export const createDiscount = async (req: AuthenticatedRequest, res: Response): 
         businessOwnerId: tenantId,
         code: discountCode,
         name,
+        description: description || null,
         type,
         valueType,
         value,
@@ -255,6 +257,7 @@ export const updateDiscount = async (req: AuthenticatedRequest, res: Response): 
     const {
       code,
       name,
+      description,
       type,
       valueType,
       value,
@@ -308,6 +311,7 @@ export const updateDiscount = async (req: AuthenticatedRequest, res: Response): 
     const updateData: any = {};
     if (code !== undefined) updateData.code = code;
     if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description || null;
     if (type !== undefined) updateData.type = type;
     if (valueType !== undefined) updateData.valueType = valueType;
     if (value !== undefined) updateData.value = value;

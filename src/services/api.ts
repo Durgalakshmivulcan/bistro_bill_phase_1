@@ -1,6 +1,7 @@
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse, AxiosRequestConfig } from 'axios';
 import { getAccessToken, getRefreshToken, clearTokens, storeTokens, isTokenExpired } from '../utils/tokenManager';
 import { getSelectedBoId } from './saReportContext';
+
 
 /**
  * API Service Foundation
@@ -92,8 +93,26 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const boId = getSelectedBoId();
-    if (boId && config.url && (config.url.includes('/reports/') || config.url.includes('/dashboard/'))) {
-      config.params = { ...config.params, boId };
+    if (!boId || !config.url) {
+      return config;
+    }
+
+    const isReportOrDashboardRoute =
+      config.url.includes('/reports/') || config.url.includes('/dashboard/');
+    const isPaymentsRoute =
+      config.url === '/payments' ||
+      config.url.startsWith('/payments/') ||
+      config.url.startsWith('/payments?');
+    const isTenantScopedContentRoute =
+      config.url.startsWith('/blog/') || config.url.startsWith('/resources/');
+
+    if (isReportOrDashboardRoute || isPaymentsRoute || isTenantScopedContentRoute) {
+      config.params = { ...config.params, boId, tenantId: boId };
+      config.headers = config.headers ?? {};
+      // Send tenant hints both as query and headers for APIs using header-based tenant resolution.
+      config.headers['x-tenant-id'] = boId;
+      config.headers['x-business-owner-id'] = boId;
+      config.headers['x-bo-id'] = boId;
     }
     return config;
   }
@@ -179,7 +198,12 @@ apiClient.interceptors.response.use(
           break;
         case 500:
           // Server error
-          console.error('Server error:', error.response.data);
+          console.error('Server error:', {
+            method: originalRequest?.method,
+            url: originalRequest?.url,
+            status: error.response.status,
+            data: error.response.data,
+          });
           break;
         default:
           console.error('API error:', error.response.data);
@@ -226,40 +250,49 @@ export async function handleApiCall<T>(
 /**
  * API helper functions
  */
+
 export const api = {
-  /**
-   * GET request
-   */
-  get: async <T>(url: string, config = {}): Promise<T> => {
-    return handleApiCall(() => apiClient.get<T>(url, config));
+  get: async <T>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<T> => {
+    const response = await apiClient.get<T>(url, config);
+    return response.data;
   },
 
-  /**
-   * POST request
-   */
-  post: async <T>(url: string, data?: unknown, config = {}): Promise<T> => {
-    return handleApiCall(() => apiClient.post<T>(url, data, config));
+  post: async <T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<T> => {
+    const response = await apiClient.post<T>(url, data, config);
+    return response.data;
   },
 
-  /**
-   * PUT request
-   */
-  put: async <T>(url: string, data?: unknown, config = {}): Promise<T> => {
-    return handleApiCall(() => apiClient.put<T>(url, data, config));
+  put: async <T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<T> => {
+    const response = await apiClient.put<T>(url, data, config);
+    return response.data;
   },
 
-  /**
-   * PATCH request
-   */
-  patch: async <T>(url: string, data?: unknown, config = {}): Promise<T> => {
-    return handleApiCall(() => apiClient.patch<T>(url, data, config));
+  patch: async <T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<T> => {
+    const response = await apiClient.patch<T>(url, data, config);
+    return response.data;
   },
 
-  /**
-   * DELETE request
-   */
-  delete: async <T>(url: string, config = {}): Promise<T> => {
-    return handleApiCall(() => apiClient.delete<T>(url, config));
+  delete: async <T>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<T> => {
+    const response = await apiClient.delete<T>(url, config);
+    return response.data;
   },
 };
 

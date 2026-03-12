@@ -168,6 +168,7 @@ router.post(
   authenticate,
   requireUserType('SuperAdmin'),
   requirePermission('super_admin', 'create'),
+  imageUpload.single('avatar'),
   createBusinessOwner
 );
 
@@ -184,6 +185,7 @@ router.put(
   authenticate,
   requireUserType('SuperAdmin'),
   requirePermission('super_admin', 'update'),
+  imageUpload.single('avatar'),
   updateBusinessOwner
 );
 

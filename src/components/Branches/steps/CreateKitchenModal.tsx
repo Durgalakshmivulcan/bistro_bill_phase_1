@@ -8,13 +8,16 @@ export interface Kitchen {
   staff: string;
   printers: string;
   category: string;
-  status: boolean;
+  status: "active" | "inactive";
 }
 
 interface Props {
   onClose: () => void;
   defaultValues?: Kitchen | null;
   onSave?: (kitchen: Kitchen) => void;
+  staffOptions?: string[];
+  printerOptions?: string[];
+  categoryOptions?: string[];
 }
 
 const emptyForm: Kitchen = {
@@ -22,10 +25,17 @@ const emptyForm: Kitchen = {
   staff: "",
   printers: "",
   category: "",
-  status: true,
+  status: "active",
 };
 
-const CreateKitchenModal = ({ onClose, defaultValues = null, onSave }: Props) => {
+const CreateKitchenModal = ({
+  onClose,
+  defaultValues = null,
+  onSave,
+  staffOptions = [],
+  printerOptions = [],
+  categoryOptions = [],
+}: Props) => {
   const [successOpen, setSuccessOpen] = useState(false);
   const [formData, setFormData] = useState<Kitchen>(emptyForm);
 
@@ -40,7 +50,7 @@ const CreateKitchenModal = ({ onClose, defaultValues = null, onSave }: Props) =>
     }
   }, [defaultValues]);
 
-  const handleChange = (key: keyof Kitchen, value: string | boolean) => {
+  const handleChange = (key: keyof Kitchen, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -89,45 +99,74 @@ const CreateKitchenModal = ({ onClose, defaultValues = null, onSave }: Props) =>
             </div>
 
             <div>
-              <label className="text-sm font-medium">
-                Assigned Staff
-              </label>
-              <input
+              <label className="text-sm font-medium">Assigned Staff</label>
+              <select
                 value={formData.staff}
                 onChange={(e) =>
                   handleChange("staff", e.target.value)
                 }
                 className="w-full border px-3 py-2 rounded-md text-sm"
-                placeholder="Staff Name"
-              />
+              >
+                <option value="">Select staff</option>
+                {staffOptions.map((staff) => (
+                  <option key={staff} value={staff}>
+                    {staff}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
-              <label className="text-sm font-medium">
-                Assigned Printers
-              </label>
-              <input
+              <label className="text-sm font-medium">Assigned Printers</label>
+              <select
                 value={formData.printers}
                 onChange={(e) =>
                   handleChange("printers", e.target.value)
                 }
                 className="w-full border px-3 py-2 rounded-md text-sm"
-                placeholder="Printer names"
-              />
+              >
+                <option value="">Select printer</option>
+                {printerOptions.map((printer) => (
+                  <option key={printer} value={printer}>
+                    {printer}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
-              <label className="text-sm font-medium">
-                Assigned Categories
-              </label>
-              <input
+              <label className="text-sm font-medium">Assigned Categories</label>
+              <select
                 value={formData.category}
                 onChange={(e) =>
                   handleChange("category", e.target.value)
                 }
                 className="w-full border px-3 py-2 rounded-md text-sm"
-                placeholder="Categories"
-              />
+              >
+                <option value="">Select category</option>
+                {categoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Status *</label>
+              <select
+                value={formData.status}
+                onChange={(e) =>
+                  handleChange(
+                    "status",
+                    e.target.value === "inactive" ? "inactive" : "active"
+                  )
+                }
+                className="w-full border px-3 py-2 rounded-md text-sm"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
             </div>
           </div>
 

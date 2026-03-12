@@ -3,6 +3,52 @@ import { Prisma } from '@prisma/client';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { prisma } from '../services/db.service';
 import { hashPassword } from '../utils/password';
+import fs from 'fs/promises';
+import path from 'path';
+
+const STAFF_AVATAR_DIR = path.resolve(__dirname, '../../assets/staff');
+
+function getExtensionFromMimeType(mimeType: string): string {
+  const normalized = mimeType.toLowerCase();
+  if (normalized === 'image/jpeg' || normalized === 'image/jpg') return '.jpg';
+  if (normalized === 'image/png') return '.png';
+  if (normalized === 'image/webp') return '.webp';
+  return '.png';
+}
+
+async function persistStaffAvatar(avatar: string): Promise<string> {
+  const base64ImageRegex = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/;
+  const match = avatar.match(base64ImageRegex);
+
+  // If already a URL/path, keep as-is.
+  if (!match) {
+    return avatar;
+  }
+
+  const mimeType = match[1];
+  const base64Data = match[2];
+  const extension = getExtensionFromMimeType(mimeType);
+
+  await fs.mkdir(STAFF_AVATAR_DIR, { recursive: true });
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`;
+  const filePath = path.join(STAFF_AVATAR_DIR, fileName);
+  await fs.writeFile(filePath, Buffer.from(base64Data, 'base64'));
+
+  return `/assets/staff/${fileName}`;
+}
+
+async function removeLocalStaffAvatar(avatarPath?: string | null): Promise<void> {
+  if (!avatarPath || !avatarPath.startsWith('/assets/staff/')) return;
+
+  const fileName = avatarPath.replace('/assets/staff/', '');
+  const filePath = path.join(STAFF_AVATAR_DIR, fileName);
+
+  try {
+    await fs.unlink(filePath);
+  } catch {
+    // Ignore if file is already missing.
+  }
+}
 
 /**
  * Staff Info Interface
@@ -282,6 +328,8 @@ export async function createStaff(
     // Hash password before storing
     const hashedPassword = await hashPassword(password);
 
+    const avatarPath = avatar ? await persistStaffAvatar(String(avatar)) : null;
+
     // Create staff member
     const staff = await prisma.staff.create({
       data: {
@@ -293,7 +341,7 @@ export async function createStaff(
         email,
         password: hashedPassword,
         phone: phone || null,
-        avatar: avatar || null,
+        avatar: avatarPath,
         status: status || 'active',
       },
       include: {
@@ -488,7 +536,18 @@ export async function updateStaff(
     if (lastName) updateData.lastName = lastName;
     if (email) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone || null;
-    if (avatar !== undefined) updateData.avatar = avatar || null;
+    if (avatar !== undefined) {
+      const nextAvatar = avatar ? await persistStaffAvatar(String(avatar)) : null;
+      updateData.avatar = nextAvatar;
+
+      if (nextAvatar && nextAvatar !== existingStaff.avatar) {
+        await removeLocalStaffAvatar(existingStaff.avatar);
+      }
+
+      if (!nextAvatar) {
+        await removeLocalStaffAvatar(existingStaff.avatar);
+      }
+    }
     if (status) updateData.status = status;
 
     // If password is provided, hash it

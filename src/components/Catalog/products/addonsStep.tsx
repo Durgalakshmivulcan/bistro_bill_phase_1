@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MultiSelect from "../../form/Multiselect";
 
 const addonsList = ["Extra Cheese", "Sauce", "Mayo", "Spicy Dip"];
@@ -8,8 +8,40 @@ const addonOptions = addonsList.map(addon => ({
   value: addon,
 }));
 
-const AddonsStep = ({ onNext, onPrev }: any) => {
+const AddonsStep = ({ onNext, onPrev, productData, setProductData }: any) => {
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+
+  useEffect(() => {
+    const existing = Array.isArray(productData?.addons) ? productData.addons : [];
+    setSelectedAddons(existing.map((addon: any) => addon.name).filter(Boolean));
+  }, [productData?.addons]);
+
+  const handleAddonsChange = (nextValues: string[]) => {
+    setSelectedAddons(nextValues);
+
+    const existingByName = new Map(
+      (Array.isArray(productData?.addons) ? productData.addons : []).map((addon: any) => [
+        String(addon.name),
+        addon,
+      ])
+    );
+
+    const normalizedAddons = nextValues.map((name) => {
+      const existing = existingByName.get(name);
+      if (existing) return existing;
+      return {
+        id: `draft-addon-${name.toLowerCase().replace(/\s+/g, "-")}`,
+        name,
+        price: 0,
+        status: "active",
+      };
+    });
+
+    setProductData?.((prev: any) => ({
+      ...prev,
+      addons: normalizedAddons,
+    }));
+  };
 
   return (
     <div className="bg-bb-bg border rounded-xl p-6">
@@ -23,7 +55,7 @@ const AddonsStep = ({ onNext, onPrev }: any) => {
           required
           options={addonOptions}
           value={selectedAddons}
-          onChange={setSelectedAddons}
+          onChange={handleAddonsChange}
         />
       </div>
 

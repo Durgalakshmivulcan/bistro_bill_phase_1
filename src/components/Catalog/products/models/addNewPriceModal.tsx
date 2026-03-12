@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import Select from "../../../form/Select";
 import Input from "../../../form/Input";
 import { Trash2 } from "lucide-react";
 import Modal from "../../../../components/ui/Modal";
 import { getChannels, Channel } from "../../../../services/settingsService";
 import { getBranches } from "../../../../services/branchService";
+import { listProductVariants } from "../../../../services/catalogService";
 
 import deleteImg from "../../../../assets/deleteConformImg.png";
 import tickImg from "../../../../assets/deleteSuccessImg.png";
@@ -24,55 +25,113 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSave: (data: PriceItem) => void;
+  productId?: string;
+  localVariants?: Array<{ id: string | number; name: string; status?: string | boolean }>;
 }
 
-const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
+const AddNewPriceModal = ({ open, onClose, onSave, productId, localVariants = [] }: Props) => {
   const [branch, setBranch] = useState("");
   const [variant, setVariant] = useState("");
   const [channel, setChannel] = useState("");
   const [price, setPrice] = useState("");
   const [rows, setRows] = useState<PriceRow[]>([]);
 
-  // 🔴 MODAL STATES
+  // Delete/success modal states
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  // Channel state
+  // Dynamic dropdown states
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loadingChannels, setLoadingChannels] = useState(true);
+  const [variants, setVariants] = useState<Array<{ id: string; name: string; status: string }>>([]);
+  const [loadingVariants, setLoadingVariants] = useState(false);
   const [branchOptions, setBranchOptions] = useState<Array<{ label: string; value: string }>>([]);
 
-  // Fetch channels and branches on component mount
   useEffect(() => {
     const fetchChannels = async () => {
-      setLoadingChannels(true);
-      const response = await getChannels();
-      if (response.success && response.data) {
-        setChannels(response.data.filter(c => c.status === 'active'));
+      try {
+        setLoadingChannels(true);
+        const response = await getChannels();
+        if (response.success && response.data) {
+          setChannels(response.data.filter((c) => c.status === "active"));
+        } else {
+          setChannels([
+            { id: "dinein", name: "DineIn", status: "active" },
+            { id: "takeaway", name: "TakeAway", status: "active" },
+            { id: "delivery", name: "Delivery", status: "active" },
+          ]);
+        }
+      } catch (err) {
+        console.error("Failed to load channels:", err);
+        setChannels([
+          { id: "dinein", name: "DineIn", status: "active" },
+          { id: "takeaway", name: "TakeAway", status: "active" },
+          { id: "delivery", name: "Delivery", status: "active" },
+        ]);
+      } finally {
+        setLoadingChannels(false);
       }
-      setLoadingChannels(false);
     };
+
     const fetchBranches = async () => {
       try {
-        const res = await getBranches({ status: "Active" });
+        const res = await getBranches({ status: "active" });
         if (res.success && res.data) {
           setBranchOptions([
             { label: "Select Branch Location", value: "" },
             ...res.data.branches.map((b) => ({ label: b.name, value: b.id })),
           ]);
+        } else {
+          setBranchOptions([{ label: "Select Branch Location", value: "" }]);
         }
       } catch (err) {
         console.error("Failed to load branches:", err);
+        setBranchOptions([{ label: "Select Branch Location", value: "" }]);
       }
     };
+
+    const fetchVariants = async () => {
+      if (!productId && localVariants.length === 0) {
+        setVariants([]);
+        return;
+      }
+
+      if (productId) {
+        try {
+          setLoadingVariants(true);
+          const response = await listProductVariants(productId);
+          if (response.success && response.data) {
+            setVariants(
+              (response.data.variants || [])
+                .filter((v) => String(v.status || "").toLowerCase() === "active")
+                .map((v) => ({ id: String(v.id), name: v.name, status: String(v.status || "active") }))
+            );
+          } else {
+            setVariants([]);
+          }
+        } catch (err) {
+          console.error("Failed to load variants:", err);
+          setVariants([]);
+        } finally {
+          setLoadingVariants(false);
+        }
+      } else {
+        setVariants(
+          localVariants
+            .filter((v) => String(v.status ?? "active").toLowerCase() !== "inactive")
+            .map((v) => ({ id: String(v.id), name: v.name, status: "active" }))
+        );
+      }
+    };
+
     fetchChannels();
     fetchBranches();
-  }, []);
+    fetchVariants();
+  }, [productId, localVariants]);
 
   if (!open) return null;
 
-  // 🔁 SAFE SELECT HANDLER
   const safeSet = (setter: (v: string) => void) => (val: any) => {
     if (typeof val === "string") {
       setter(val);
@@ -81,21 +140,23 @@ const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
     }
   };
 
-  /* ADD ROW */
+  const getVariantLabel = (variantId: string) => {
+    if (!variantId) return "Base Product";
+    const selected = variants.find((v) => v.id === variantId);
+    return selected?.name || variantId;
+  };
+
   const handleAddRow = () => {
     setRows((prev) => [...prev, { variant, channel, price }]);
-
     setVariant("");
     setChannel("");
     setPrice("");
   };
 
-  /* DELETE CONFIRM */
   const handleDeleteConfirm = () => {
     if (selectedIndex === null) return;
 
     setRows((prev) => prev.filter((_, i) => i !== selectedIndex));
-
     setDeleteOpen(false);
     setSuccessOpen(true);
 
@@ -104,37 +165,27 @@ const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
     }, 1500);
   };
 
-  /* SAVE ALL */
   const handleSave = () => {
-    // Send data back to parent
     onSave({
       branch,
       prices: rows,
     });
 
-    // 🔥 SHOW SUCCESS MODAL FIRST
     setSuccessOpen(true);
 
-    // 🔁 CLOSE EVERYTHING AFTER MODAL SHOWS
     setTimeout(() => {
       setSuccessOpen(false);
-
-      // Reset form
       setBranch("");
       setRows([]);
-
-      // Close main modal
       onClose();
     }, 2000);
   };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      {/* MAIN PRICE MODAL */}
       <div className="bg-white rounded-lg w-[750px] p-6">
         <h2 className="font-semibold mb-4">Add New Price</h2>
 
-        {/* Branch */}
         <Select
           label="Branch"
           options={branchOptions.length > 0 ? branchOptions : [{ label: "Select Branch Location", value: "" }]}
@@ -142,25 +193,23 @@ const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
           onChange={safeSet(setBranch)}
         />
 
-        {/* INPUT ROW */}
         <div className="grid grid-cols-3 gap-4 mt-4">
           <Select
             label="Variant Name"
             options={[
-              { label: "Select Variant", value: "" },
-              { label: "Small", value: "Small" },
-              { label: "Medium", value: "Medium" },
-              { label: "Large", value: "Large" },
+              { label: loadingVariants ? "Loading variants..." : "Base Product", value: "" },
+              ...variants.map((v) => ({ label: v.name, value: v.id })),
             ]}
             value={variant}
             onChange={safeSet(setVariant)}
+            disabled={loadingVariants}
           />
 
           <Select
             label="Channel"
             options={[
               { label: loadingChannels ? "Loading channels..." : "Select Channel", value: "" },
-              ...channels.map(c => ({ label: c.name, value: c.name })),
+              ...channels.map((c) => ({ label: c.name, value: c.name })),
             ]}
             value={channel}
             onChange={safeSet(setChannel)}
@@ -175,7 +224,6 @@ const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
           />
         </div>
 
-        {/* ADD NEW PRICE */}
         <button
           onClick={handleAddRow}
           className="text-sm text-black w-full mt-4 border border-grey"
@@ -183,7 +231,6 @@ const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
           + Add New Price
         </button>
 
-        {/* TABLE */}
         <table className="w-full text-sm border mt-4">
           <thead className="bg-yellow-400">
             <tr>
@@ -204,9 +251,9 @@ const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
             ) : (
               rows.map((row, idx) => (
                 <tr key={idx} className="border-t">
-                  <td className="p-2">{row.variant || "-"}</td>
+                  <td className="p-2">{getVariantLabel(row.variant)}</td>
                   <td className="p-2">{row.channel || "-"}</td>
-                  <td className="p-2">₹ {row.price || "0"}</td>
+                  <td className="p-2">Rs {row.price || "0"}</td>
                   <td className="p-2 text-center">
                     <button
                       onClick={() => {
@@ -223,7 +270,6 @@ const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
           </tbody>
         </table>
 
-        {/* FOOTER */}
         <div className="flex justify-end gap-3 mt-6">
           <button onClick={onClose} className="border px-4 py-2 rounded">
             Cancel
@@ -237,7 +283,6 @@ const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
         </div>
       </div>
 
-      {/* 🔴 DELETE CONFIRM MODAL */}
       <Modal
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
@@ -271,7 +316,6 @@ const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
         </div>
       </Modal>
 
-      {/* 🔵 SUCCESS MODAL */}
       <Modal
         open={successOpen}
         onClose={() => setSuccessOpen(false)}
@@ -292,3 +336,4 @@ const AddNewPriceModal = ({ open, onClose, onSave }: Props) => {
 };
 
 export default AddNewPriceModal;
+

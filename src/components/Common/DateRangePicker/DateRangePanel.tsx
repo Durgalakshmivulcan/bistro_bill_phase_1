@@ -1,4 +1,5 @@
 import { quickRanges } from "./dateRanges";
+import { useMemo, useState } from "react";
 
 type Props = {
   onApply: (range: { start: Date; end: Date }) => void;
@@ -6,14 +7,51 @@ type Props = {
 };
 
 export default function DateRangePanel({ onApply, onCancel }: Props) {
+  const today = useMemo(() => new Date(), []);
+  const [startDate, setStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
+  });
+  const [endDate, setEndDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+
+  const applyQuickRange = (range: string) => {
+    const end = new Date(today);
+    const start = new Date(today);
+
+    if (range === "Today") {
+      // start and end remain today
+    } else if (range === "Yesterday") {
+      start.setDate(start.getDate() - 1);
+      end.setDate(end.getDate() - 1);
+    } else if (range === "Last 7 days") {
+      start.setDate(start.getDate() - 6);
+    } else if (range === "Last 30 days") {
+      start.setDate(start.getDate() - 29);
+    } else if (range === "This Month") {
+      start.setDate(1);
+    } else if (range === "Last Month") {
+      start.setMonth(start.getMonth() - 1, 1);
+      end.setDate(0);
+    } else if (/^\d{4}$/.test(range)) {
+      const year = Number(range);
+      start.setFullYear(year, 0, 1);
+      end.setFullYear(year, 11, 31);
+    }
+
+    setStartDate(start.toISOString().split("T")[0]);
+    setEndDate(end.toISOString().split("T")[0]);
+  };
+
   return (
-    <div className="bg-white border border-bb-coloredborder rounded-lg shadow-lg flex">
+    <div className="bg-white border border-bb-coloredborder rounded-lg shadow-lg flex relative">
       
       {/* LEFT QUICK RANGES */}
       <div className="w-40 border-r bg-[#FFF9EA] p-2">
         {quickRanges.map((r) => (
           <button
             key={r}
+            onClick={() => applyQuickRange(r)}
             className="w-full text-left px-2 py-1.5 text-sm hover:bg-yellow-100 rounded"
           >
             {r}
@@ -22,11 +60,26 @@ export default function DateRangePanel({ onApply, onCancel }: Props) {
       </div>
 
       {/* RIGHT CALENDARS */}
-      <div className="p-4 flex gap-6">
-        {/* Month 1 */}
-        <CalendarMock title="Apr, 2025" />
-        {/* Month 2 */}
-        <CalendarMock title="May, 2025" />
+      <div className="p-4 flex flex-col gap-4 min-w-[280px]">
+        <div>
+          <label className="text-xs text-bb-textSoft">Start Date</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full border border-bb-coloredborder rounded-md px-3 py-2 text-sm mt-1"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-bb-textSoft">End Date</label>
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-full border border-bb-coloredborder rounded-md px-3 py-2 text-sm mt-1"
+          />
+        </div>
       </div>
 
       {/* FOOTER */}
@@ -38,32 +91,12 @@ export default function DateRangePanel({ onApply, onCancel }: Props) {
           Cancel
         </button>
         <button
-          onClick={() =>
-            onApply({ start: new Date(), end: new Date() })
-          }
+          onClick={() => onApply({ start: new Date(startDate), end: new Date(endDate) })}
           className="px-4 py-1.5 text-sm bg-yellow-400 rounded"
+          disabled={!startDate || !endDate}
         >
           Apply
         </button>
-      </div>
-    </div>
-  );
-}
-
-/* TEMP calendar mock — replace later */
-function CalendarMock({ title }: { title: string }) {
-  return (
-    <div className="w-56">
-      <div className="text-sm font-medium mb-2">{title}</div>
-      <div className="grid grid-cols-7 gap-1 text-xs text-center">
-        {Array.from({ length: 35 }).map((_, i) => (
-          <div
-            key={i}
-            className="py-1 rounded hover:bg-yellow-100 cursor-pointer"
-          >
-            {i + 1 <= 30 ? i + 1 : ""}
-          </div>
-        ))}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { getBranches, BranchResponse } from '../services/branchService';
+import { getSelectedBoId } from '../services/saReportContext';
 
 const BRANCH_STORAGE_KEY = 'bb_selected_branch_id';
 
@@ -77,10 +78,19 @@ export function BranchProvider({ children }: BranchProviderProps) {
       return;
     }
 
+    // SuperAdmin branch listing is tenant-scoped on backend.
+    // If no BO is selected, skip branch fetch to avoid noisy tenant context errors.
+    if (user.userType === 'SuperAdmin' && !getSelectedBoId()) {
+      setAvailableBranches([]);
+      setCurrentBranchId('');
+      setLoading(false);
+      return;
+    }
+
     const fetchBranches = async () => {
       setLoading(true);
       try {
-        const response = await getBranches({ status: 'Active' });
+        const response = await getBranches({ status: 'active' });
         const allBranches: BranchResponse[] = (response.data as any)?.branches || [];
 
         // Filter to user's assigned branches if applicable

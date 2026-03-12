@@ -1,49 +1,59 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Plus, Star } from "lucide-react";
 import Input from "../form/Input";
 import Select from "../form/Select";
 import Textarea from "../form/Textarea";
-import {
-  Trash2,
-  Copy,
-  Plus,
-  Star,
-  ToggleLeft,
-  AlignLeft,
-  List,
-  CheckSquare,
-  MoreVertical,
-} from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import successImg from "../../assets/tick.png";
-import { createFeedbackForm } from "../../services/marketingService";
+import {
+  createFeedbackForm,
+  FeedbackQuestion,
+} from "../../services/marketingService";
 import { getBranches } from "../../services/branchService";
 
 type QuestionType = "rating" | "yesno" | "text" | "multiple" | "checkbox";
 
+const questionTypeMap: Record<
+  QuestionType,
+  "text" | "rating" | "multiple_choice" | "checkbox"
+> = {
+  rating: "rating",
+  yesno: "multiple_choice",
+  text: "text",
+  multiple: "multiple_choice",
+  checkbox: "checkbox",
+};
+
 export default function SubmitFeedbackForm() {
   const navigate = useNavigate();
 
-  const [questionType, setQuestionType] = useState<QuestionType>("rating");
-  const [required, setRequired] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [branchOptions, setBranchOptions] = useState<Array<{ label: string; value: string }>>([]);
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState("");
   const [description, setDescription] = useState("");
-  const [completionMessage, setCompletionMessage] = useState("");
-  const [branch, setBranch] = useState("Select Branches");
+  const [branch, setBranch] = useState("");
   const [channel, setChannel] = useState("Select Channel");
-  const [questionText, setQuestionText] = useState("");
+  const [branchOptions, setBranchOptions] = useState<
+    Array<{ label: string; value: string }>
+  >([]);
+
+  const [draftText, setDraftText] = useState("");
+  const [draftType, setDraftType] = useState<QuestionType>("rating");
+  const [draftRequired, setDraftRequired] = useState(false);
+  const [draftOptions, setDraftOptions] = useState("Option 1, Option 2");
+  const [questions, setQuestions] = useState<FeedbackQuestion[]>([]);
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     const loadBranches = async () => {
       try {
-        const res = await getBranches({ status: "Active" });
+        const res = await getBranches({ status: "active" });
         if (res.success && res.data) {
           setBranchOptions([
-            { label: "Select Branches", value: "Select Branches" },
+            { label: "Select Branches", value: "" },
             ...res.data.branches.map((b) => ({ label: b.name, value: b.id })),
           ]);
         }
@@ -54,76 +64,126 @@ export default function SubmitFeedbackForm() {
     loadBranches();
   }, []);
 
+  const typeOptions = useMemo(
+    () => [
+      { label: "Rating", value: "rating" },
+      { label: "Yes / No", value: "yesno" },
+      { label: "Text", value: "text" },
+      { label: "Multiple Choice", value: "multiple" },
+      { label: "Checkboxes", value: "checkbox" },
+    ],
+    []
+  );
+
+  const buildQuestion = (): FeedbackQuestion | null => {
+    if (!draftText.trim()) {
+      setError("Question text is required.");
+      return null;
+    }
+
+    const base: FeedbackQuestion = {
+      id: crypto.randomUUID(),
+      type: questionTypeMap[draftType],
+      text: draftText.trim(),
+      required: draftRequired,
+    };
+
+    if (draftType === "yesno") {
+      base.options = ["Yes", "No"];
+    }
+
+    if (draftType === "multiple" || draftType === "checkbox") {
+      const opts = draftOptions
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (opts.length < 2) {
+        setError("Add at least 2 options for multiple choice / checkbox.");
+        return null;
+      }
+      base.options = opts;
+    }
+
+    return base;
+  };
+
+  const addQuestion = () => {
+    setError("");
+    const q = buildQuestion();
+    if (!q) return;
+    setQuestions((prev) => [...prev, q]);
+    setDraftText("");
+    setDraftRequired(false);
+    setDraftOptions("Option 1, Option 2");
+    setDraftType("rating");
+  };
+
   const handleCreate = async () => {
-    if (!title) return;
+    if (!title.trim()) {
+      setError("Title is required.");
+      return;
+    }
+    if (!branch) {
+      setError("Please select a branch.");
+      return;
+    }
+
+    let payloadQuestions = [...questions];
+    if (payloadQuestions.length === 0 && draftText.trim()) {
+      const q = buildQuestion();
+      if (!q) return;
+      payloadQuestions = [q];
+    }
+
+    if (payloadQuestions.length === 0) {
+      setError("Please add at least one question.");
+      return;
+    }
+
     try {
       setSaving(true);
+      setError("");
       await createFeedbackForm({
         title,
         description: description || undefined,
-        questions: questionText
-          ? [{ id: crypto.randomUUID(), type: questionType === "yesno" ? "text" : questionType === "multiple" ? "multiple_choice" : questionType, text: questionText, required }]
-          : [],
-        status: status === "Active" ? "active" : status === "Inactive" ? "inactive" : undefined,
+        questions: payloadQuestions,
+        status:
+          status === "Active"
+            ? "active"
+            : status === "Inactive"
+              ? "inactive"
+              : undefined,
       });
       setShowSuccess(true);
-    } catch (err) {
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.error?.message ||
+          "Failed to create feedback form."
+      );
       console.error("Failed to create feedback form:", err);
     } finally {
       setSaving(false);
     }
   };
-  const questionTypeOptions = [
-    {
-      label: (
-        <div className="flex items-center gap-2">
-          <Star size={14} /> Rating
-        </div>
-      ),
-      value: "rating",
-    },
-    {
-      label: (
-        <div className="flex items-center gap-2">
-          <ToggleLeft size={14} /> Yes / No
-        </div>
-      ),
-      value: "yesno",
-    },
-    {
-      label: (
-        <div className="flex items-center gap-2">
-          <AlignLeft size={14} /> Text
-        </div>
-      ),
-      value: "text",
-    },
-    {
-      label: (
-        <div className="flex items-center gap-2">
-          <List size={14} /> Multiple Choice
-        </div>
-      ),
-      value: "multiple",
-    },
-    {
-      label: (
-        <div className="flex items-center gap-2">
-          <CheckSquare size={14} /> Checkboxes
-        </div>
-      ),
-      value: "checkbox",
-    },
-  ];
+
   return (
     <div className="bg-bb-bg min-h-screen p-6">
       <h1 className="text-[28px] font-bold mb-6">Create Feedback Form</h1>
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
 
-      {/* FORM CARD */}
       <div className="bg-bb-bg border border-bb-coloredborder rounded-xl p-6 space-y-6">
-        {/* BASIC DETAILS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input label="Title" required placeholder="Enter Title" value={title} onChange={setTitle} />
+          <Input
+            label="Title"
+            required
+            placeholder="Enter Title"
+            value={title}
+            onChange={setTitle}
+          />
           <Select
             label="Status"
             required
@@ -137,8 +197,12 @@ export default function SubmitFeedbackForm() {
           />
         </div>
 
-        <Textarea label="Description" placeholder="Type Here..." value={description} onChange={(e) => setDescription(e.target.value)} />
-        <Textarea label="Completion Message" placeholder="Type Here..." value={completionMessage} onChange={(e) => setCompletionMessage(e.target.value)} />
+        <Textarea
+          label="Description"
+          placeholder="Type Here..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Select
@@ -146,9 +210,12 @@ export default function SubmitFeedbackForm() {
             value={branch}
             onChange={setBranch}
             required
-            options={branchOptions.length > 0 ? branchOptions : [{ label: "Select Branches", value: "Select Branches" }]}
+            options={
+              branchOptions.length > 0
+                ? branchOptions
+                : [{ label: "Select Branches", value: "" }]
+            }
           />
-
           <Select
             label="Channels"
             required
@@ -163,139 +230,100 @@ export default function SubmitFeedbackForm() {
           />
         </div>
 
-        {/* QUESTIONS */}
-        <div className="border border-solid-bb-coloredborder p-2">
-          <h4 className="text-[#E1A500]">Questions</h4>
+        <div className="border p-4 rounded-lg space-y-3">
+          <h4 className="text-[#E1A500] font-medium">Questions</h4>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {/* Question input – 3 parts */}
             <input
               className="md:col-span-3 w-full border rounded px-3 py-2 bg-gray-100"
               placeholder="Untitled Question"
-              value={questionText}
-              onChange={(e) => setQuestionText(e.target.value)}
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
             />
+            <Select
+              value={draftType}
+              onChange={(v) => setDraftType(v as QuestionType)}
+              options={typeOptions}
+            />
+          </div>
 
-            {/* Question type – 1 part */}
-            <div className="md:col-span-1">
-              <Select
-                value={questionType}
-                onChange={(v) => setQuestionType(v as QuestionType)}
-                options={questionTypeOptions}
+          {(draftType === "multiple" || draftType === "checkbox") && (
+            <input
+              className="w-full border rounded px-3 py-2 bg-gray-100"
+              placeholder="Options separated by comma"
+              value={draftOptions}
+              onChange={(e) => setDraftOptions(e.target.value)}
+            />
+          )}
+
+          {draftType === "rating" && (
+            <div className="flex justify-between max-w-md px-2 py-2">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <div key={n} className="flex flex-col items-center gap-1">
+                  <span>{n}</span>
+                  <Star size={22} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-2 border-t">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={draftRequired}
+                onChange={(e) => setDraftRequired(e.target.checked)}
               />
-            </div>
+              Required
+            </label>
+            <button
+              type="button"
+              onClick={addQuestion}
+              className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded border"
+            >
+              <Plus size={14} />
+              Add Question
+            </button>
           </div>
 
-          {/* DYNAMIC QUESTION BODY */}
-          {questionType === "rating" && (
-            <div className="space-y-3 p-3">
-              {/* STAR COUNT SELECT */}
-              <div className="w-[15%]">
-                <Select
-                  value="5"
-                  options={[
-                    { label: "No. of Stars", value: "" },
-                    { label: "5", value: "5" },
-                  ]}
-                />
-              </div>
-              {/* STAR SCALE */}
-              <div className="flex justify-between max-w-lg m-auto px-2">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <div key={n} className="flex flex-col items-center gap-1">
-                    {/* NUMBER */}
-                    <span>{n}</span>
-
-                    {/* STAR */}
-                    <Star size={28} className="" strokeWidth={1.5} />
-                  </div>
-                ))}
-              </div>
+          {questions.length > 0 && (
+            <div className="pt-2 space-y-2">
+              {questions.map((q, idx) => (
+                <div
+                  key={q.id}
+                  className="flex items-center justify-between bg-gray-50 border rounded px-3 py-2 text-sm"
+                >
+                  <span>
+                    {idx + 1}. {q.text} ({q.type})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuestions((prev) => prev.filter((x) => x.id !== q.id))
+                    }
+                    className="text-red-600"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
             </div>
           )}
-
-          {questionType === "yesno" && (
-            <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" /> Yes
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" /> No
-              </label>
-            </div>
-          )}
-
-          {questionType === "text" && (
-            <div className="text-sm text-gray-400">
-              User will enter a text response
-            </div>
-          )}
-
-          {questionType === "multiple" && (
-            <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <input type="radio" /> Option 1
-              </label>
-              <button className="text-sm text-gray-500">+ Add Option</button>
-            </div>
-          )}
-
-          {questionType === "checkbox" && (
-            <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" /> Option 1
-              </label>
-              <button className="text-sm text-gray-500">+ Add Option</button>
-            </div>
-          )}
-
-          {/* QUESTION FOOTER */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 flex items-center justify-between pt-3 border-t">
-            <div className="md:col-span-3 w-full"></div>
-            <div className="md:col-span-1 w-full flex items-center gap-4">
-              <button className="hover:text-black">
-                <Copy size={18} />
-              </button>
-
-              <button className="hover:text-red-500">
-                <Trash2 size={18} />
-              </button>
-
-              <div className="flex items-center gap-2 text-sm">
-                Required
-                <label className="relative inline-flex cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={required}
-                    onChange={() => setRequired(!required)}
-                  />
-                  <div className="w-9 h-5 bg-gray-200 peer-checked:bg-yellow-400 rounded-full after:absolute after:top-[2px] after:left-[2px] after:bg-white after:h-4 after:w-4 after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
-                </label>
-              </div>
-              <MoreVertical className="cursor-pointer" />
-              <button className="hover:text-black">
-                <Plus size={18} />
-              </button>
-            </div>
-          </div>
         </div>
       </div>
-      {/* ACTION BUTTONS */}
-      <div className="flex justify-end gap-2">
-        <button
-          onClick={() => navigate(-1)}
-          className="border px-4 py-2 rounded"
-        >
+
+      <div className="flex justify-end gap-2 mt-4">
+        <button onClick={() => navigate(-1)} className="border px-4 py-2 rounded">
           Cancel
         </button>
         <button
-            onClick={handleCreate}
-            disabled={saving}
-            className="bg-yellow-400 px-4 py-2 rounded disabled:opacity-50"
-          >
+          onClick={handleCreate}
+          disabled={saving}
+          className="bg-yellow-400 px-4 py-2 rounded disabled:opacity-50"
+        >
           {saving ? "Creating..." : "Create"}
         </button>
       </div>
+
       <Modal
         open={showSuccess}
         onClose={() => {
@@ -305,11 +333,9 @@ export default function SubmitFeedbackForm() {
         className="w-[90%] max-w-md p-6 text-center"
       >
         <h2 className="text-2xl font-bold mb-4">Feedback Form Created</h2>
-
         <div className="flex justify-center mb-4">
           <img src={successImg} alt="success" className="w-16 h-16" />
         </div>
-
         <p className="text-sm text-gray-600">
           New feedback form has been created successfully.
         </p>
@@ -317,3 +343,4 @@ export default function SubmitFeedbackForm() {
     </div>
   );
 }
+

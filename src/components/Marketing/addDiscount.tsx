@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Input from "../form/Input";
 import Select from "../form/Select";
 import { useNavigate } from "react-router-dom";
@@ -6,18 +6,27 @@ import Textarea from "../form/Textarea";
 import Checkbox from "../form/Checkbox";
 import Modal from "../../components/ui/Modal";
 import successImg from "../../assets/tick.png";
-import { createDiscount, CreateDiscountData, DiscountType, DiscountValueType } from "../../services/marketingService";
+import { createDiscount, CreateDiscountData, DiscountType } from "../../services/marketingService";
 import LoadingSpinner from "../Common/LoadingSpinner";
 import { CRUDToasts } from "../../utils/toast";
+import { getCategories } from "../../services/catalogService";
+import { getBranches } from "../../services/branchService";
 
 export default function CreateDiscount() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingBranches, setLoadingBranches] = useState(false);
 
   // Form state
-  const [discountTypeVal, setDiscountTypeVal] = useState<DiscountType>("OrderLevel");
+  const [discountTypeVal, setDiscountTypeVal] = useState<DiscountType>("OrderType");
+  const [orderType, setOrderType] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState<Array<{ label: string; value: string }>>([]);
+  const [branchId, setBranchId] = useState("");
+  const [branchOptions, setBranchOptions] = useState<Array<{ label: string; value: string }>>([]);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -31,10 +40,106 @@ export default function CreateDiscount() {
   const [description, setDescription] = useState("");
   const [displayOnBistro, setDisplayOnBistro] = useState(false);
 
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await getCategories({ status: "active" });
+        if (response.success && response.data) {
+          setCategoryOptions(
+            response.data.categories.map((category) => ({
+              label: category.name,
+              value: category.id,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Error loading categories:", err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        setLoadingBranches(true);
+        const response = await getBranches({ status: "active" });
+        if (response.success && response.data) {
+          const options = response.data.branches.map((branch) => ({
+            label: branch.name,
+            value: branch.id,
+          }));
+          setBranchOptions(options);
+          setBranchId((prev) => prev || options[0]?.value || "");
+        } else {
+          setBranchOptions([]);
+        }
+      } catch (err) {
+        console.error("Error loading branches:", err);
+      } finally {
+        setLoadingBranches(false);
+      }
+    };
+
+    loadBranches();
+  }, []);
+
+  useEffect(() => {
+    // Keep branch selected if still valid after options refresh
+    if (!branchOptions.length) {
+      setBranchId("");
+      return;
+    }
+    const isExisting = branchOptions.some((option) => option.value === branchId);
+    if (!isExisting) {
+      setBranchId(branchOptions[0].value);
+    }
+  }, [branchOptions, branchId]);
+
+  useEffect(() => {
+    // Reset dependent field when primary type changes
+    setOrderType("");
+    setCategoryId("");
+  }, [discountTypeVal]);
+
+  const dependentLabel = discountTypeVal === "OrderType" ? "Order Type" : "Product Category";
+  const showDependentDropdown = discountTypeVal !== "Custom";
+  const dependentOptions = useMemo(
+    () =>
+      discountTypeVal === "OrderType"
+        ? [
+            { label: "Dine In", value: "DineIn" },
+            { label: "Takeaway", value: "Takeaway" },
+            { label: "Delivery", value: "Delivery" },
+            { label: "Online", value: "Online" },
+          ]
+        : categoryOptions,
+    [discountTypeVal, categoryOptions]
+  );
+
   const handleSubmit = async () => {
     // Validation
     if (!name.trim()) {
       setError("Discount name is required");
+      return;
+    }
+
+    if (discountTypeVal === "OrderType" && !orderType) {
+      setError("Please select order type");
+      return;
+    }
+
+    if (discountTypeVal === "ProductCategory" && !categoryId) {
+      setError("Please select product category");
+      return;
+    }
+
+    if (!branchId) {
+      setError("Please select branch");
       return;
     }
 
@@ -55,6 +160,7 @@ export default function CreateDiscount() {
 
       const data: CreateDiscountData = {
         name: name.trim(),
+        description: description.trim() || undefined,
         type: discountTypeVal,
         valueType: discountValueType === "fixed" ? "Fixed" : "Percentage",
         value: parseFloat(value),
@@ -71,6 +177,9 @@ export default function CreateDiscount() {
       if (usageLimit && parseInt(usageLimit) > 0) {
         data.usageLimit = parseInt(usageLimit);
       }
+      if (discountTypeVal === "ProductCategory" && categoryId) {
+        data.categoryIds = [categoryId];
+      }
 
       const response = await createDiscount(data);
 
@@ -81,7 +190,10 @@ export default function CreateDiscount() {
         setError(response.message || "Failed to create discount");
       }
     } catch (err: any) {
-      setError(err.message || "Error creating discount. Please try again.");
+      const serverMessage =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message;
+      setError(serverMessage || err.message || "Error creating discount. Please try again.");
       console.error("Error creating discount:", err);
     } finally {
       setLoading(false);
@@ -108,20 +220,49 @@ export default function CreateDiscount() {
             value={discountTypeVal}
             onChange={(value) => setDiscountTypeVal(value as DiscountType)}
             options={[
-              { label: "Order Level", value: "OrderLevel" },
+              { label: "Order Type", value: "OrderType" },
               { label: "Product Category", value: "ProductCategory" },
+              { label: "Custom Discount", value: "Custom" },
             ]}
           />
 
-          <Input
-            label="Discount Name"
-            required
-            value={name}
-            onChange={setName}
-            disabled={loading}
-          />
+          {showDependentDropdown ? (
+            <Select
+              label={dependentLabel}
+              required
+              value={discountTypeVal === "OrderType" ? orderType : categoryId}
+              onChange={(value) => {
+                if (discountTypeVal === "OrderType") {
+                  setOrderType(value);
+                } else {
+                  setCategoryId(value);
+                }
+              }}
+              options={dependentOptions}
+              disabled={discountTypeVal === "ProductCategory" && loadingCategories}
+            />
+          ) : (
+            <Input
+              label="Discount Name"
+              required
+              value={name}
+              onChange={setName}
+              disabled={loading}
+            />
+          )}
+
+          {showDependentDropdown && (
+            <Input
+              label="Discount Name"
+              required
+              value={name}
+              onChange={setName}
+              disabled={loading}
+            />
+          )}
           <Input
             label="Discount Code"
+            required
             value={code}
             onChange={setCode}
             disabled={loading}
@@ -129,6 +270,7 @@ export default function CreateDiscount() {
           />
           <Input
             label="Start Date"
+            required
             type="date"
             value={startDate}
             onChange={setStartDate}
@@ -136,6 +278,7 @@ export default function CreateDiscount() {
           />
           <Input
             label="End Date"
+            required
             type="date"
             value={endDate}
             onChange={setEndDate}
@@ -151,6 +294,7 @@ export default function CreateDiscount() {
           />
           <Select
             label="Status"
+            required
             value={status}
             onChange={(value) => setStatus(value as "active" | "inactive")}
             options={[
@@ -214,8 +358,17 @@ export default function CreateDiscount() {
 
         {/* USAGE LIMIT */}
         <div className="grid grid-cols-2 gap-4">
+          <Select
+            label="Branch"
+            required
+            value={branchId}
+            onChange={setBranchId}
+            options={branchOptions}
+            disabled={loadingBranches}
+          />
           <Input
             label="Usage Limit"
+            required
             type="number"
             value={usageLimit}
             onChange={setUsageLimit}

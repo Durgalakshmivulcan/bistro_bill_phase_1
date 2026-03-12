@@ -36,7 +36,7 @@ const Modal = ({ open, onClose, children, className = "" }: ModalProps) => {
       >
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 text-gray-400 hover:text-black"
+          className="absolute right-2 top-2 text-black hover:text-black"
         >
           <X size={18} />
         </button>

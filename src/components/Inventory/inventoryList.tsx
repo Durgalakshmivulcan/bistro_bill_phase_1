@@ -18,7 +18,8 @@ import StockAdjustmentModal from "./StockAdjustmentModal";
 
 export default function InventoryList() {
   const navigate = useNavigate();
-  const { canCreate, canUpdate, canDelete } = usePermissions('inventory');
+  const { canCreate, canUpdate, canDelete } =
+    usePermissions('inventory', 'item');
   const [showDelete, setShowDelete] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showAdjustStock, setShowAdjustStock] = useState(false);
@@ -51,6 +52,8 @@ export default function InventoryList() {
   });
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const actionRef = useRef<HTMLDivElement>(null);
 
   // Debounced search for API calls
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -77,12 +80,21 @@ export default function InventoryList() {
       ...suppliers.map(supplier => ({ label: supplier.name, value: supplier.name }))
     ];
   }, [suppliers]);
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (actionRef.current && !actionRef.current.contains(e.target as Node)) {
+        setOpenActionId(null);
+      }
+    };
 
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
   // Load branches and suppliers on mount
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const response = await getBranches({ status: "Active" });
+        const response = await getBranches({ status: "active" });
         if (response.success && response.data) {
           setBranches(response.data.branches);
         }
@@ -519,119 +531,120 @@ export default function InventoryList() {
     <div className="bg-bb-bg min-h-screen p-6 space-y-4">
       {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-  <h1 className="text-2xl font-bold">Inventory</h1>
+        <h1 className="text-2xl font-bold">Inventory</h1>
 
-  {error && (
-    <div className="w-full lg:w-auto bg-red-50 border border-red-200 rounded-md px-4 py-2 text-sm text-red-600">
-      {error}
-    </div>
-  )}
+        {error && (
+          <div className="w-full lg:w-auto bg-red-50 border border-red-200 rounded-md px-4 py-2 text-sm text-red-600">
+            {error}
+          </div>
+        )}
 
-  {importSuccess && (
-    <div className="w-full lg:w-auto bg-green-50 border border-green-200 rounded-md px-4 py-2 text-sm text-green-600">
-      {importSuccess}
-    </div>
-  )}
+        {importSuccess && (
+          <div className="w-full lg:w-auto bg-green-50 border border-green-200 rounded-md px-4 py-2 text-sm text-green-600">
+            {importSuccess}
+          </div>
+        )}
 
-  <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto">
 
-    {/* Search */}
-    <div className="relative w-full sm:w-64">
-      <Search
-        size={16}
-        className="absolute right-3 top-1/2 -translate-y-1/2"
-      />
-      <input
-        placeholder="Search here..."
-        className="w-full border rounded-md px-3 pr-10 py-2 text-sm"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-      />
-    </div>
+          {/* Search */}
+          <div className="relative w-full sm:w-64">
+            <Search
+              size={16}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+            />
+            <input
+              placeholder="Search here..."
+              className="w-full border rounded-md px-3 pr-10 py-2 text-sm bg-bb-bg"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
 
-    {/* Buttons */}
-    <div className="flex flex-wrap gap-2">
-      {/* Bulk Actions Dropdown */}
-      {selectedProducts.size > 0 && (
-        <select
-          className="border rounded-md px-3 py-2 text-sm bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-          value={bulkAction}
-          onChange={(e) => handleBulkActionChange(e.target.value)}
-          disabled={bulkActionLoading}
-        >
-          <option value="">Bulk Actions ({selectedProducts.size} selected)</option>
-          {canDelete && <option value="delete">Delete</option>}
-          {canUpdate && <option value="adjustStock">Adjust Stock</option>}
-          <option value="export">Export Selected</option>
-        </select>
-      )}
-      {canCreate && (
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-      )}
-      {canCreate && (
-        <button
-          onClick={handleImportClick}
-          disabled={importing || loading}
-          className="bg-yellow-400 px-4 py-2 rounded border disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {importing ? "Importing..." : "Import CSV"}
-        </button>
-      )}
-      <button
-        onClick={handleExportProducts}
-        disabled={exporting || loading}
-        className="border px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {exporting ? "Exporting..." : "Export"}
-      </button>
-      <button
-        onClick={() => navigate("/inventory/low-stock")}
-        className="border border-red-300 text-red-600 px-4 py-2 rounded hover:bg-red-50"
-      >
-        Low Stock Alerts
-      </button>
-      {canCreate && (
-        <button
-          onClick={() => navigate("/inventory/addproduct")}
-          className="bg-black text-white px-4 py-2 rounded"
-        >
-          Add New
-        </button>
-      )}
-    </div>
-  </div>
-</div>
+          {/* Buttons */}
+          <div className="flex flex-wrap gap-2">
+            {/* Bulk Actions Dropdown */}
+            {selectedProducts.size > 0 && (
+              <select
+                className="border rounded-md px-3 py-2 text-sm bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                value={bulkAction}
+                onChange={(e) => handleBulkActionChange(e.target.value)}
+                disabled={bulkActionLoading}
+              >
+                <option value="">Bulk Actions ({selectedProducts.size} selected)</option>
+                {canDelete && <option value="delete">Delete</option>}
+                {canUpdate && <option value="adjustStock">Adjust Stock</option>}
+                <option value="export">Export Selected</option>
+              </select>
+            )}
+            {/* {canCreate && ( */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            {/* )} */}
+            {/* {canCreate && ( */}
+            <button
+              onClick={handleImportClick}
+              disabled={importing || loading}
+              className="bg-yellow-400 px-4 py-2 rounded border disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {importing ? "Importing..." : "Import CSV"}
+            </button>
+            {/* )} */}
+            <button
+              onClick={handleExportProducts}
+              disabled={exporting || loading}
+              className="border px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exporting ? "Exporting..." : "Export"}
+            </button>
+            <button
+              onClick={() => navigate("/inventory/low-stock")}
+              className="border border-red-300 text-red-600 px-4 py-2 rounded hover:bg-red-50"
+            >
+              Low Stock Alerts
+            </button>
+            {/* {canCreate && ( */}
+            <button
+              onClick={() => navigate("/inventory/addproduct")}
+              // disabled={!canCreate}
+              className="bg-black text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add New
+            </button>
+            {/* )} */}
+          </div>
+        </div>
+      </div>
 
       <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-3">
-  <div className="w-full sm:w-64">
-    <Select
-      value={selectedBranchId}
-      onChange={(value) => setSelectedBranchId(value)}
-      options={branchOptions}
-    />
-  </div>
+        <div className="w-full sm:w-64">
+          <Select
+            value={selectedBranchId}
+            onChange={(value) => setSelectedBranchId(value)}
+            options={branchOptions}
+          />
+        </div>
 
-  <div className="w-full sm:w-64">
-    <Select
-      value={filterValues.supplier as string}
-      onChange={(value) => setFilterValue('supplier', value)}
-      options={supplierOptions}
-    />
-  </div>
+        <div className="w-full sm:w-64">
+          <Select
+            value={filterValues.supplier as string}
+            onChange={(value) => setFilterValue('supplier', value)}
+            options={supplierOptions}
+          />
+        </div>
 
-  <button
-    onClick={handleClearFilters}
-    className="bg-yellow-400 px-4 py-2 rounded border border-black w-full sm:w-auto"
-  >
-    Clear
-  </button>
-</div>
+        <button
+          onClick={handleClearFilters}
+          className="bg-yellow-400 px-4 py-2 rounded border border-black w-full sm:w-auto"
+        >
+          Clear
+        </button>
+      </div>
 
       {/* BULK SUCCESS MESSAGE */}
       {bulkSuccess && (
@@ -828,41 +841,61 @@ export default function InventoryList() {
                     {item.expiryDate ? new Date(item.expiryDate).toLocaleDateString() : "N/A"}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <Actions
-                      actions={[
-                        "view",
-                        ...(canUpdate ? ["edit" as const] : []),
-                        ...(canUpdate ? ["adjustStock" as const] : []),
-                        ...(canDelete ? ["delete" as const] : []),
-                      ]}
-                      onView={() => navigate(`/inventory/viewproduct/${item.id}`)}
-                      onEdit={
-                        canUpdate
-                          ? () => navigate(`/inventory/editproduct/${item.id}`)
-                          : undefined
-                      }
-                      onAdjustStock={
-                        canUpdate
-                          ? () => {
-                              setAdjustStockProduct({
-                                id: item.id,
-                                name: item.name,
-                                stock: item.inStock,
-                                branchName: item.branch.name,
-                              });
-                              setShowAdjustStock(true);
-                            }
-                          : undefined
-                      }
-                      onDelete={
-                        canDelete
-                          ? () => {
+                    <td className="px-4 py-3 text-center relative">
+                      <button
+                        onClick={() =>
+                          setOpenActionId(openActionId === item.id ? null : item.id)
+                        }
+                        className="p-1 rounded hover:bg-gray-100"
+                      >
+                        ⋮
+                      </button>
+
+                      {openActionId === item.id && (
+                        <div
+                          ref={actionRef}
+                          className="absolute right-8 top-10 z-50 bg-white border rounded-md shadow w-44"
+                        >
+                          {/* Stock Overview */}
+                          <button
+                            className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
+                            onClick={() => {
+                              navigate(`/inventory/viewproduct/${item.id}`);
+                              setOpenActionId(null);
+                            }}
+                          >
+                            👁 Stock Overview
+                          </button>
+
+                          {/* Edit */}
+                          {/* {canUpdate && ( */}
+                          <button
+                            className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
+                            onClick={() => {
+                              navigate(`/inventory/editproduct/${item.id}`);
+                              setOpenActionId(null);
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          {/* )} */}
+
+                          {/* Delete */}
+                          {/* {canDelete && ( */}
+                          <button
+                            className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            onClick={() => {
                               setDeleteId(item.id);
                               setShowDelete(true);
-                            }
-                          : undefined
-                      }
-                    />
+                              setOpenActionId(null);
+                            }}
+                          >
+                            🗑 Delete
+                          </button>
+                          {/* )} */}
+                        </div>
+                      )}
+                    </td>
                   </td>
                 </tr>
               ))}
@@ -884,7 +917,7 @@ export default function InventoryList() {
           showPageSize={true}
         />
       )}
-      
+
       <DeleteModalSuccess
         open={showDelete}
         onClose={() => {

@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import Modal from "../ui/Modal";
 import tickImg from "../../assets/tick.png";
 import { LoadingSpinner } from "../Common";
-import { createRole, updateRole, getRole, type CreateRoleData, type UpdateRoleData } from "../../services/staffService";
+import {
+  createRole,
+  updateRole,
+  type CreateRoleData,
+  type UpdateRoleData,
+} from "../../services/staffService";
 import { CRUDToasts } from "../../utils/toast";
 
 export interface Role {
@@ -11,6 +16,7 @@ export interface Role {
   modules: string[];
   permissions: string[];
   status?: string;
+  permissionsMap?: Record<string, Record<string, boolean>>;
 }
 
 interface CreateRoleModalProps {
@@ -39,6 +45,19 @@ const MODULES = [
 
 const PERMISSIONS = ["Create", "Edit", "Delete", "Show"];
 
+/* ================= HELPERS ================= */
+
+const initializePermissions = () => {
+  const initial: Record<string, Record<string, boolean>> = {};
+  MODULES.forEach((m) => {
+    initial[m] = {};
+    PERMISSIONS.forEach((p) => {
+      initial[m][p] = false;
+    });
+  });
+  return initial;
+};
+
 const CreateRoleModal = ({
   onClose,
   defaultValues = null,
@@ -46,9 +65,13 @@ const CreateRoleModal = ({
 }: CreateRoleModalProps) => {
   const [successOpen, setSuccessOpen] = useState(false);
   const [roleName, setRoleName] = useState<string>("");
-  const [modules, setModules] = useState<string[]>([]);
-  const [permissions, setPermissions] = useState<string[]>([]);
   const [status, setStatus] = useState<string>("Active");
+
+  // ✅ NEW — independent states
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [permissionMap, setPermissionMap] = useState(() =>
+    initializePermissions()
+  );
 
   // API state
   const [loading, setLoading] = useState(false);
@@ -56,18 +79,31 @@ const CreateRoleModal = ({
 
   const isEditMode = Boolean(defaultValues && defaultValues.id);
 
-  // ================= PREFILL =================
+  /* ================= PREFILL ================= */
+
   useEffect(() => {
     if (defaultValues) {
       setRoleName(defaultValues.role || "");
-      setModules(defaultValues.modules || []);
-      setPermissions(defaultValues.permissions || []);
       setStatus(defaultValues.status || "Active");
+      setSelectedModules(defaultValues.modules || []);
+
+      const nextMap = initializePermissions();
+      if (defaultValues.permissionsMap) {
+        Object.entries(defaultValues.permissionsMap).forEach(([module, perms]) => {
+          if (nextMap[module]) {
+            nextMap[module].Create = Boolean(perms.Create ?? perms.create);
+            nextMap[module].Edit = Boolean(perms.Edit ?? perms.edit);
+            nextMap[module].Delete = Boolean(perms.Delete ?? perms.delete);
+            nextMap[module].Show = Boolean(perms.Show ?? perms.show);
+          }
+        });
+      }
+      setPermissionMap(nextMap);
     } else {
       setRoleName("");
-      setModules([]);
-      setPermissions([]);
       setStatus("Active");
+      setSelectedModules([]);
+      setPermissionMap(initializePermissions());
     }
   }, [defaultValues]);
 
@@ -76,89 +112,130 @@ const CreateRoleModal = ({
 
     const timer = setTimeout(() => {
       setSuccessOpen(false);
-      onClose(); // close main modal too
-      if (onSuccess) {
-        onSuccess(); // trigger parent refresh
-      }
+      onClose();
+      onSuccess?.();
     }, 2000);
 
     return () => clearTimeout(timer);
   }, [successOpen, onClose, onSuccess]);
 
+  /* ================= TOGGLES ================= */
 
-  // ================= HELPERS =================
-  const toggleItem = (
-    value: string,
-    list: string[],
-    setList: React.Dispatch<React.SetStateAction<string[]>>,
-  ) => {
-    setList((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+  const togglePermission = (module: string, perm: string) => {
+    setPermissionMap((prev) => ({
+      ...prev,
+      [module]: {
+        ...prev[module],
+        [perm]: !prev[module][perm],
+      },
+    }));
+  };
+
+  const toggleModule = (module: string) => {
+    setSelectedModules((prev) =>
+      prev.includes(module)
+        ? prev.filter((m) => m !== module)
+        : [...prev, module]
     );
   };
 
-const handleSubmit = async () => {
-  // Validation
-  if (!roleName.trim()) {
-    setError("Role name is required");
-    return;
-  }
+  const toggleSelectAll = () => {
+    const allSelected = selectedModules.length === MODULES.length;
 
-  if (modules.length === 0) {
-    setError("Please select at least one module");
-    return;
-  }
-
-  if (permissions.length === 0) {
-    setError("Please select at least one permission");
-    return;
-  }
-
-  setLoading(true);
-  setError(null);
-
-  try {
-    // Build permissions object from selected modules and permissions
-    // Structure: { module: { action: boolean } }
-    const permissionsObject: Record<string, Record<string, boolean>> = {};
-
-    modules.forEach(module => {
-      permissionsObject[module] = {};
-      permissions.forEach(permission => {
-        permissionsObject[module][permission] = true;
-      });
-    });
-
-    if (isEditMode && defaultValues?.id) {
-      // Update existing role
-      const updateData: UpdateRoleData = {
-        name: roleName,
-        permissions: permissionsObject,
-        status,
-      };
-
-      await updateRole(defaultValues.id, updateData);
-      CRUDToasts.updated("Role");
+    if (allSelected) {
+      setSelectedModules([]);
+      setPermissionMap(initializePermissions());
     } else {
-      // Create new role
-      const createData: CreateRoleData = {
-        name: roleName,
-        permissions: permissionsObject,
-        status,
-      };
+      setSelectedModules([...MODULES]);
 
-      await createRole(createData);
-      CRUDToasts.created("Role");
+      const updated = initializePermissions();
+      MODULES.forEach((m) => {
+        PERMISSIONS.forEach((p) => {
+          updated[m][p] = true;
+        });
+      });
+
+      setPermissionMap(updated);
+    }
+  };
+
+  /* ================= CHECK HELPERS ================= */
+
+  const isModuleChecked = (module: string) =>
+    selectedModules.includes(module);
+
+  const isAllSelected = selectedModules.length === MODULES.length;
+
+  /* ================= SUBMIT ================= */
+
+  const handleSubmit = async () => {
+    if (!roleName.trim()) {
+      setError("Role name is required");
+      return;
     }
 
-    setSuccessOpen(true);
-  } catch (err: any) {
-    setError(err.message || 'Failed to save role');
-  } finally {
-    setLoading(false);
-  }
-};
+    if (selectedModules.length === 0) {
+      setError("Please select at least one module");
+      return;
+    }
 
+    const hasAnyPermission = Object.values(permissionMap).some((m) =>
+      Object.values(m).some(Boolean)
+    );
+
+    if (!hasAnyPermission) {
+      setError("Please select at least one permission");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // ✅ build payload correctly
+      const permissionsObject: Record<string, Record<string, boolean>> = {};
+
+      selectedModules.forEach((module) => {
+        permissionsObject[module] = permissionMap[module];
+      });
+
+      if (isEditMode && defaultValues?.id) {
+        const updateData: UpdateRoleData = {
+          name: roleName,
+          permissions: permissionsObject,
+          status,
+        };
+
+        const response = await updateRole(defaultValues.id, updateData);
+        if (!response.success) {
+          setError(response.error?.message || "Failed to update role");
+          return;
+        }
+        CRUDToasts.updated("Role");
+      } else {
+        const createData: CreateRoleData = {
+          name: roleName,
+          permissions: permissionsObject,
+          status,
+        };
+
+        const response = await createRole(createData);
+        if (!response.success) {
+          setError(response.error?.message || "Failed to create role");
+          return;
+        }
+        CRUDToasts.created("Role");
+      }
+
+      setSuccessOpen(true);
+    } catch (err: any) {
+      setError(err.message || "Failed to save role");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= UI ================= */
 
   return (
     <>
@@ -166,12 +243,10 @@ const handleSubmit = async () => {
         <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
         <div className="relative w-full max-w-5xl bg-white rounded-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
-          {/* TITLE */}
           <h2 className="text-2xl font-semibold mb-4">
             {isEditMode ? "Edit Role" : "Create New Role"}
           </h2>
 
-          {/* ERROR MESSAGE */}
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-600">{error}</p>
@@ -212,50 +287,60 @@ const handleSubmit = async () => {
             Assign Permissions to Role
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* MODULES */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* MODULE COLUMN */}
             <div>
               <span className="inline-block bg-yellow-100 px-3 py-1 rounded text-sm font-medium mb-3">
                 MODULE
               </span>
 
-              {MODULES.map((item) => (
+              <label className="flex items-center gap-2 mb-4 font-medium">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={toggleSelectAll}
+                />
+                Select All
+              </label>
+
+              {MODULES.map((module) => (
                 <label
-                  key={item}
-                  className="flex items-center gap-2 mb-2 text-sm"
+                  key={module}
+                  className="flex items-center gap-2 mb-4 text-sm"
                 >
                   <input
                     type="checkbox"
-                    checked={modules.includes(item)}
-                    onChange={() => toggleItem(item, modules, setModules)}
+                    checked={isModuleChecked(module)}
+                    onChange={() => toggleModule(module)}
                     disabled={loading}
                   />
-                  {item}
+                  {module}
                 </label>
               ))}
             </div>
 
-            {/* PERMISSIONS */}
+            {/* PERMISSIONS COLUMN */}
             <div>
               <span className="inline-block bg-yellow-100 px-3 py-1 rounded text-sm font-medium mb-3">
                 PERMISSIONS
               </span>
 
-              {PERMISSIONS.map((perm) => (
-                <label
-                  key={perm}
-                  className="flex items-center gap-2 mb-3 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={permissions.includes(perm)}
-                    onChange={() =>
-                      toggleItem(perm, permissions, setPermissions)
-                    }
-                    disabled={loading}
-                  />
-                  {perm}
-                </label>
+              <div className="mb-4 h-[28px]" />
+
+              {MODULES.map((module) => (
+                <div key={module} className="flex gap-8 mb-4 text-sm">
+                  {PERMISSIONS.map((perm) => (
+                    <label key={perm} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={permissionMap[module]?.[perm] || false}
+                        onChange={() => togglePermission(module, perm)}
+                        disabled={loading}
+                      />
+                      {perm}
+                    </label>
+                  ))}
+                </div>
               ))}
             </div>
           </div>
@@ -272,11 +357,11 @@ const handleSubmit = async () => {
 
             <button
               onClick={handleSubmit}
-              className="bg-yellow-400 px-6 py-2 rounded-md font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-yellow-400 px-6 py-2 rounded-md font-medium flex items-center gap-2 disabled:opacity-50"
               disabled={loading}
             >
               {loading && <LoadingSpinner size="sm" />}
-              {loading ? "Saving..." : (isEditMode ? "Update" : "Create")}
+              {loading ? "Saving..." : isEditMode ? "Update" : "Create"}
             </button>
           </div>
         </div>

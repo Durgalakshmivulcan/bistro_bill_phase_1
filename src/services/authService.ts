@@ -9,6 +9,34 @@ import { api } from './api';
 // Type Definitions
 // ============================================
 
+export interface ChangePasswordResponse {
+  message: string;
+}
+
+export const changePassword = async (
+  oldPassword: string,
+  newPassword: string
+): Promise<ApiResponse<ChangePasswordResponse>> => {
+  try {
+    const response = await api.post<ApiResponse<ChangePasswordResponse>>(
+      "/auth/change-password",
+      {
+        oldPassword,
+        newPassword,
+      }
+    );
+
+    return response;
+  } catch (error: any) {
+    return {
+      success: false,
+      error: {
+        code: error.code || "CHANGE_PASSWORD_FAILED",
+        message: error.message || "Failed to change password.",
+      },
+    };
+  }
+};
 export type UserType = 'SuperAdmin' | 'BusinessOwner' | 'Staff';
 
 export interface LoginCredentials {

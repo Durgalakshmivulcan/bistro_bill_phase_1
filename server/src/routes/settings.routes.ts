@@ -41,13 +41,15 @@ router.use(authenticate);
 router.use(requireTenantContext);
 
 // Tax Routes
-router.get('/taxes', requirePermission('taxes', 'read'), getTaxes);
+// Read endpoints are consumed in catalog create/update forms.
+// Keep them accessible for any authenticated tenant user to avoid RBAC blocking dropdowns.
+router.get('/taxes', getTaxes);
 router.post('/taxes', requirePermission('taxes', 'create'), createTax);
 router.put('/taxes/:id', requirePermission('taxes', 'update'), updateTax);
 router.delete('/taxes/:id', requirePermission('taxes', 'delete'), deleteTax);
 
 // Tax Group Routes
-router.get('/tax-groups', requirePermission('taxes', 'read'), getTaxGroups);
+router.get('/tax-groups', getTaxGroups);
 router.post('/tax-groups', requirePermission('taxes', 'create'), createTaxGroup);
 router.put('/tax-groups/:id', requirePermission('taxes', 'update'), updateTaxGroup);
 router.delete('/tax-groups/:id', requirePermission('taxes', 'delete'), deleteTaxGroup);
@@ -79,7 +81,7 @@ router.get('/profile', requirePermission('settings', 'read'), getProfile);
 router.put('/profile', requirePermission('settings', 'update'), imageUpload.single('avatar'), uploadToS3Middleware(), updateProfile);
 
 // Sales Channel Routes
-router.get('/sales-channels', requirePermission('settings', 'read'), getSalesChannels);
+router.get('/sales-channels', getSalesChannels);
 router.put('/sales-channels/:id', requirePermission('settings', 'update'), updateSalesChannel);
 
 // Aggregator Routes

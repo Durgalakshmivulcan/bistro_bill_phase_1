@@ -3,6 +3,10 @@ import { AuthenticatedRequest, ApiResponse, PaginationMeta } from '../types';
 import { prisma } from '../services/db.service';
 import { AuditUserType, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import fs from 'fs/promises';
+import path from 'path';
+
+const BUSINESS_PROFILE_DIR = path.resolve(__dirname, '../../assets/businessprofile');
 
 /**
  * Subscription Plan Response (for BusinessOwner context)
@@ -699,6 +703,93 @@ export async function updateBusinessOwnerSubscription(
  * Update business owner status (active, inactive, suspended)
  * Requires SuperAdmin authentication
  */
+/**
+ * PUT /api/v1/business-owner/profile
+ * Business Owner updates their own profile
+ */
+export async function updateOwnBusinessProfile(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  try {
+    if (!req.user || req.user.userType !== 'BusinessOwner') {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only Business Owner can update this profile',
+        },
+      });
+return;
+    }
+
+    const businessOwnerId = req.user.id;
+    const { ownerName, phone } = req.body;
+
+    const existing = await prisma.businessOwner.findUnique({
+      where: { id: businessOwnerId },
+      select: { id: true, avatar: true },
+    });
+
+    if (!existing) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Business owner not found',
+        },
+      });
+      return ;
+    }
+
+    let avatarPath: string | null = existing.avatar;
+
+    if (req.file) {
+      await fs.mkdir(BUSINESS_PROFILE_DIR, { recursive: true });
+
+      const extension = path.extname(req.file.originalname) || '.png';
+      const fileName = `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}${extension}`;
+
+      const filePath = path.join(BUSINESS_PROFILE_DIR, fileName);
+      await fs.writeFile(filePath, req.file.buffer);
+
+      avatarPath = `/assets/businessprofile/${fileName}`;
+    }
+
+    const updated = await prisma.businessOwner.update({
+      where: { id: businessOwnerId },
+      data: {
+        ownerName,
+        phone,
+        avatar: avatarPath,
+      },
+      select: {
+        id: true,
+        email: true,
+        ownerName: true,
+        phone: true,
+        avatar: true,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: updated,
+      message: 'Profile updated successfully',
+    });
+  } catch (error) {
+    console.error('Error updating own profile:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to update profile',
+      },
+    });
+  }
+}
 export async function updateBusinessOwnerStatus(
   req: AuthenticatedRequest,
   res: Response
@@ -837,6 +928,7 @@ export async function createBusinessOwner(
   const {
     email, password, ownerName, restaurantName, phone,
     businessType, tinGstNumber, country, state, city, zipCode, address, planId,
+    subscriptionStartDate, subscriptionEndDate,
   } = req.body;
 
   try {
@@ -876,6 +968,81 @@ export async function createBusinessOwner(
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    let resolvedSubscriptionStartDate: Date | null = null;
+    let resolvedSubscriptionEndDate: Date | null = null;
+
+    if (subscriptionStartDate) {
+      const parsedStartDate = new Date(subscriptionStartDate);
+      if (Number.isNaN(parsedStartDate.getTime())) {
+        const response: ApiResponse = {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid subscriptionStartDate',
+          },
+        };
+        res.status(400).json(response);
+        return;
+      }
+      resolvedSubscriptionStartDate = parsedStartDate;
+    }
+
+    if (subscriptionEndDate) {
+      const parsedEndDate = new Date(subscriptionEndDate);
+      if (Number.isNaN(parsedEndDate.getTime())) {
+        const response: ApiResponse = {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid subscriptionEndDate',
+          },
+        };
+        res.status(400).json(response);
+        return;
+      }
+      resolvedSubscriptionEndDate = parsedEndDate;
+    }
+
+    // If plan is selected but dates are missing, derive from plan duration.
+    if (planId && (!resolvedSubscriptionStartDate || !resolvedSubscriptionEndDate)) {
+      const selectedPlan = await prisma.subscriptionPlan.findUnique({
+        where: { id: planId },
+        select: { duration: true },
+      });
+
+      if (!selectedPlan) {
+        const response: ApiResponse = {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Subscription plan not found',
+          },
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      if (!resolvedSubscriptionStartDate) {
+        resolvedSubscriptionStartDate = new Date();
+      }
+
+      if (!resolvedSubscriptionEndDate) {
+        const end = new Date(resolvedSubscriptionStartDate);
+        end.setDate(end.getDate() + selectedPlan.duration);
+        resolvedSubscriptionEndDate = end;
+      }
+    }
+
+    let avatarPath: string | null = null;
+    if (req.file) {
+      await fs.mkdir(BUSINESS_PROFILE_DIR, { recursive: true });
+      const extension = path.extname(req.file.originalname) || '.png';
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`;
+      const filePath = path.join(BUSINESS_PROFILE_DIR, fileName);
+      await fs.writeFile(filePath, req.file.buffer);
+      avatarPath = `/assets/businessprofile/${fileName}`;
+    }
+
     // Create business owner
     const businessOwner = await prisma.businessOwner.create({
       data: {
@@ -891,7 +1058,10 @@ export async function createBusinessOwner(
         city: city || null,
         zipCode: zipCode || null,
         address: address || null,
+        avatar: avatarPath,
         planId: planId || null,
+        subscriptionStartDate: resolvedSubscriptionStartDate,
+        subscriptionEndDate: resolvedSubscriptionEndDate,
         status: 'active',
       },
       select: {
@@ -909,6 +1079,8 @@ export async function createBusinessOwner(
         zipCode: true,
         address: true,
         status: true,
+        subscriptionStartDate: true,
+        subscriptionEndDate: true,
         createdAt: true,
         updatedAt: true,
         plan: {
@@ -961,12 +1133,21 @@ export async function updateBusinessOwner(
   const {
     ownerName, restaurantName, phone, email,
     businessType, tinGstNumber, country, state, city, zipCode, address, planId,
+    subscriptionStartDate, subscriptionEndDate,
   } = req.body;
 
   try {
     const existing = await prisma.businessOwner.findUnique({
       where: { id },
-      select: { id: true, email: true, ownerName: true, restaurantName: true },
+      select: {
+        id: true,
+        email: true,
+        ownerName: true,
+        restaurantName: true,
+        avatar: true,
+        subscriptionStartDate: true,
+        subscriptionEndDate: true,
+      },
     });
 
     if (!existing) {
@@ -1006,6 +1187,9 @@ export async function updateBusinessOwner(
       zipCode?: string | null;
       address?: string | null;
       planId?: string | null;
+      subscriptionStartDate?: Date | null;
+      subscriptionEndDate?: Date | null;
+      avatar?: string | null;
     }
     const data: UpdateFields = {};
     if (ownerName !== undefined) data.ownerName = ownerName;
@@ -1019,7 +1203,89 @@ export async function updateBusinessOwner(
     if (city !== undefined) data.city = city || null;
     if (zipCode !== undefined) data.zipCode = zipCode || null;
     if (address !== undefined) data.address = address || null;
-    if (planId !== undefined) data.planId = planId || null;
+    if (planId !== undefined) {
+      data.planId = planId || null;
+
+      if (planId) {
+        const selectedPlan = await prisma.subscriptionPlan.findUnique({
+          where: { id: planId },
+          select: { duration: true },
+        });
+
+        if (!selectedPlan) {
+          const response: ApiResponse = {
+            success: false,
+            error: { code: 'VALIDATION_ERROR', message: 'Subscription plan not found' },
+          };
+          res.status(400).json(response);
+          return;
+        }
+
+        // If UI does not provide dates, derive from selected plan.
+        if (subscriptionStartDate === undefined && subscriptionEndDate === undefined) {
+          const startDate = existing.subscriptionStartDate || new Date();
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + selectedPlan.duration);
+          data.subscriptionStartDate = startDate;
+          data.subscriptionEndDate = endDate;
+        }
+      } else if (subscriptionStartDate === undefined && subscriptionEndDate === undefined) {
+        // Plan removed and dates not explicitly provided: clear both.
+        data.subscriptionStartDate = null;
+        data.subscriptionEndDate = null;
+      }
+    }
+    if (subscriptionStartDate !== undefined) {
+      if (subscriptionStartDate) {
+        const parsedStartDate = new Date(subscriptionStartDate);
+        if (Number.isNaN(parsedStartDate.getTime())) {
+          const response: ApiResponse = {
+            success: false,
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid subscriptionStartDate' },
+          };
+          res.status(400).json(response);
+          return;
+        }
+        data.subscriptionStartDate = parsedStartDate;
+      } else {
+        data.subscriptionStartDate = null;
+      }
+    }
+    if (subscriptionEndDate !== undefined) {
+      if (subscriptionEndDate) {
+        const parsedEndDate = new Date(subscriptionEndDate);
+        if (Number.isNaN(parsedEndDate.getTime())) {
+          const response: ApiResponse = {
+            success: false,
+            error: { code: 'VALIDATION_ERROR', message: 'Invalid subscriptionEndDate' },
+          };
+          res.status(400).json(response);
+          return;
+        }
+        data.subscriptionEndDate = parsedEndDate;
+      } else {
+        data.subscriptionEndDate = null;
+      }
+    }
+
+    if (req.file) {
+      await fs.mkdir(BUSINESS_PROFILE_DIR, { recursive: true });
+      const extension = path.extname(req.file.originalname) || '.png';
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`;
+      const filePath = path.join(BUSINESS_PROFILE_DIR, fileName);
+      await fs.writeFile(filePath, req.file.buffer);
+      data.avatar = `/assets/businessprofile/${fileName}`;
+
+      if (existing.avatar?.startsWith('/assets/businessprofile/')) {
+        const oldFileName = existing.avatar.replace('/assets/businessprofile/', '');
+        const oldFilePath = path.join(BUSINESS_PROFILE_DIR, oldFileName);
+        try {
+          await fs.unlink(oldFilePath);
+        } catch {
+          // Ignore if old file is missing
+        }
+      }
+    }
 
     const updated = await prisma.businessOwner.update({
       where: { id },
@@ -1028,7 +1294,7 @@ export async function updateBusinessOwner(
         id: true, email: true, ownerName: true, restaurantName: true,
         phone: true, businessType: true, tinGstNumber: true, avatar: true,
         country: true, state: true, city: true, zipCode: true, address: true,
-        status: true, createdAt: true, updatedAt: true,
+        status: true, subscriptionStartDate: true, subscriptionEndDate: true, createdAt: true, updatedAt: true,
         plan: { select: { id: true, name: true, price: true, maxBranches: true } },
       },
     });

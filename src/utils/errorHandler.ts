@@ -29,6 +29,16 @@ export function getErrorMessage(error: unknown, fallbackMessage = 'An unexpected
   if (typeof error === 'object' && error !== null) {
     const err = error as any;
 
+    // Axios-style nested backend error (most specific)
+    if (err.response?.data?.error?.message) {
+      return err.response.data.error.message;
+    }
+
+    // Axios-style top-level backend message
+    if (err.response?.data?.message) {
+      return err.response.data.message;
+    }
+
     // API error response structure
     if (err.message) {
       return err.message;
@@ -37,11 +47,6 @@ export function getErrorMessage(error: unknown, fallbackMessage = 'An unexpected
     // Error response with error property
     if (err.error?.message) {
       return err.error.message;
-    }
-
-    // Axios-style error response
-    if (err.response?.data?.message) {
-      return err.response.data.message;
     }
 
     // Network error

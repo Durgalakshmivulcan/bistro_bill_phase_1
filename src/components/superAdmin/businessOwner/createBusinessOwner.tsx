@@ -20,6 +20,8 @@ import activateSuccessImg from "../../../assets/activate-success.png";
 import deactivateSuccessImg from "../../../assets/deactivated.png";
 import activateConfirmImg from "../../../assets/activated.png";
 import deactivateConfirmImg from "../../../assets/deactivated.png";
+import { getSubscriptionPlans, SubscriptionPlan } from "../../../services/subscriptionService";
+
 
 interface Props {
   defaultValues?: any | null;
@@ -51,12 +53,15 @@ export default function CreateBusinessOwner({
   const [businessType, setBusinessType] = useState("Dine-in");
   const [gst, setGst] = useState("");
   const [country, setCountry] = useState("India");
-  const [state, setState] = useState("");
-  const [city, setCity] = useState("");
+  const [state, setState] = useState("Telangana");
+  const [city, setCity] = useState("Hyderabad");
   const [zip, setZip] = useState("");
   const [address, setAddress] = useState("");
-  const [plan, setPlan] = useState("Gold");
+  const [plan, setPlan] = useState("");
   const [password, setPassword] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [existingAvatarUrl, setExistingAvatarUrl] = useState<string | null>(null);
 
   // STATUS
   const [isActive, setIsActive] = useState(true);
@@ -73,7 +78,48 @@ export default function CreateBusinessOwner({
   const [successType, setSuccessType] = useState<SuccessType>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
+const [planOptions, setPlanOptions] = useState<
+  { label: string; value: string }[]
+>([]);
+const [loadingPlans, setLoadingPlans] = useState(false);
+const apiBaseUrl = (process.env.REACT_APP_API_URL || "http://localhost:5001/api/v1")
+  .replace(/\/api\/v1\/?$/, "");
 
+const toAbsoluteAvatarUrl = (avatarPath?: string | null): string | null => {
+  if (!avatarPath) return null;
+  if (/^https?:\/\//i.test(avatarPath)) return avatarPath;
+  return `${apiBaseUrl}${avatarPath.startsWith("/") ? "" : "/"}${avatarPath}`;
+};
+
+useEffect(() => {
+  fetchPlans();
+}, []);
+
+const fetchPlans = async () => {
+  try {
+    setLoadingPlans(true);
+
+    const res = await getSubscriptionPlans();
+
+    if (res.success && res.data?.plans) {
+      // ✅ only active plans
+      const activePlans = res.data.plans.filter(
+        (p: SubscriptionPlan) => p.status === "active"
+      );
+
+      const options = activePlans.map((p: SubscriptionPlan) => ({
+        label: p.name,
+        value: p.id, // OR p.id (recommended — see note below)
+      }));
+
+      setPlanOptions(options);
+    }
+  } catch (err) {
+    console.error("Failed to fetch plans", err);
+  } finally {
+    setLoadingPlans(false);
+  }
+};
   // FETCH EXISTING DATA in edit/view mode
   useEffect(() => {
     if (!id) return;
@@ -89,11 +135,12 @@ export default function CreateBusinessOwner({
           setBusinessType(d.businessType || "Dine-in");
           setGst(d.tinGstNumber || "");
           setCountry(d.country || "India");
-          setState(d.state || "");
-          setCity(d.city || "");
+          setState(d.state || "Telangana");
+          setCity(d.city || "Hyderabad");
           setZip(d.zipCode || "");
           setAddress(d.address || "");
-          setPlan(d.plan?.name || "Gold");
+          setPlan(d.plan?.id || "");
+          setExistingAvatarUrl(toAbsoluteAvatarUrl(d.avatar || null));
           setIsActive(d.status === "active");
         } else {
           setError("Business owner not found");
@@ -102,6 +149,14 @@ export default function CreateBusinessOwner({
       .catch(() => setError("Failed to load business owner"))
       .finally(() => setPageLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreviewUrl) {
+        URL.revokeObjectURL(avatarPreviewUrl);
+      }
+    };
+  }, [avatarPreviewUrl]);
 
   // VALIDATION
   const validate = (): string[] => {
@@ -139,8 +194,9 @@ export default function CreateBusinessOwner({
           state: state || undefined,
           city: city || undefined,
           zipCode: zip || undefined,
+          planId: plan || undefined,
           address,
-        });
+        }, avatarFile || undefined);
         if (res.success) {
           setSuccessType("edit");
           setShowSuccess(true);
@@ -160,8 +216,9 @@ export default function CreateBusinessOwner({
           state: state || undefined,
           city: city || undefined,
           zipCode: zip || undefined,
+          planId: plan || undefined,
           address,
-        });
+        }, avatarFile || undefined);
         if (res.success) {
           setSuccessType("create");
           setShowSuccess(true);
@@ -286,10 +343,18 @@ export default function CreateBusinessOwner({
         {/* PROFILE */}
         <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
           <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-[10px] border-[#8e8d89] flex items-center justify-center text-gray-400 lg:mx-0 md:mx-auto sm:mx-auto">
-            <User
-              size={80}
-              className="md:size-[100px]"
-            />
+            {avatarPreviewUrl || existingAvatarUrl ? (
+              <img
+                src={avatarPreviewUrl || existingAvatarUrl || ""}
+                alt="Business owner avatar"
+                className="w-full h-full object-cover rounded-full"
+              />
+            ) : (
+              <User
+                size={80}
+                className="md:size-[100px]"
+              />
+            )}
           </div>
 
           <input
@@ -298,6 +363,14 @@ export default function CreateBusinessOwner({
             accept="image/png, image/jpeg"
             className="hidden"
             disabled={isViewMode}
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              setAvatarFile(file);
+              if (avatarPreviewUrl) {
+                URL.revokeObjectURL(avatarPreviewUrl);
+              }
+              setAvatarPreviewUrl(file ? URL.createObjectURL(file) : null);
+            }}
           />
 
           <div className="text-center md:text-left">
@@ -324,6 +397,16 @@ export default function CreateBusinessOwner({
 
               <button
                 disabled={isViewMode}
+                onClick={() => {
+                  setAvatarFile(null);
+                  if (avatarPreviewUrl) {
+                    URL.revokeObjectURL(avatarPreviewUrl);
+                  }
+                  setAvatarPreviewUrl(null);
+                  if (fileRef.current) {
+                    fileRef.current.value = "";
+                  }
+                }}
                 className={`border px-4 py-1.5 rounded text-sm ${
                   isViewMode &&
                   "cursor-not-allowed opacity-50"
@@ -427,17 +510,13 @@ export default function CreateBusinessOwner({
           </div>
 
           <Select
-            value={plan}
-            label="Select Plan"
-            required
-            disabled={isViewMode}
-            onChange={setPlan}
-            options={[
-              { label: "Free", value: "Free" },
-              { label: "Gold", value: "Gold" },
-              { label: "Platinum", value: "Platinum" },
-            ]}
-          />
+  value={plan}
+  label="Select Plan"
+  required
+  disabled={isViewMode || loadingPlans}
+  onChange={setPlan}
+  options={planOptions}
+/>
         </div>
 
         {/* LOCATION */}
@@ -459,7 +538,7 @@ export default function CreateBusinessOwner({
             />
 
             <Select
-              value={state || "Telangana"}
+              value={state}
               label="State"
               required
               disabled={isViewMode}
@@ -473,7 +552,7 @@ export default function CreateBusinessOwner({
             />
 
             <Select
-              value={city || "Hyderabad"}
+              value={city}
               label="City"
               required
               disabled={isViewMode}

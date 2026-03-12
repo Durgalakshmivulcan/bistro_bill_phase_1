@@ -1,4 +1,4 @@
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Eye, LogIn } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import Modal from "../../../components/ui/Modal";
 import CreateBranchModal from "../../../components/Branches/CreateBranchModal";
@@ -66,6 +66,19 @@ const BranchesPage = () => {
     setDeleteId(id);
     setShowConfirm(true);
     setOpenMenu(null);
+  };
+
+  const handleView = (branch: BranchResponse) => {
+    // Reuse modal for now; dedicated view page can be wired later.
+    setEditBranch(branch);
+    setOpenModal(true);
+    setOpenMenu(null);
+  };
+
+  const handleLogin = (branch: BranchResponse) => {
+    setOpenMenu(null);
+    setSuccessMessage(`Login to branch "${branch.name}" is not configured yet.`);
+    setShowSuccess(true);
   };
 
   const confirmDelete = async () => {
@@ -210,7 +223,7 @@ const BranchesPage = () => {
 
         {/* FILTERS */}
         {!loading && (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:justify-end lg:items-end">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -233,88 +246,113 @@ const BranchesPage = () => {
         {/* TABLE */}
         {!loading && (
           <div className="w-full overflow-x-auto">
-          <div className="min-w-[900px] rounded-xl border overflow-hidden">
-            <div className="grid grid-cols-6 bg-yellow-400 px-4 py-3 text-sm font-medium">
-              <span>Sl. No.</span>
-              <span>Branch</span>
-              <span>Branch Address</span>
-              <span>Contact Details</span>
-              <span>Status</span>
-              <span className="text-right">Actions</span>
-            </div>
-
-            {filteredBranches.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No branches found. {(searchQuery || statusFilter) && "Try adjusting your filters."}
-              </div>
-            ) : (
-              filteredBranches.map((branch, index) => (
-              <div
-                key={branch.id}
-                className="grid grid-cols-6 px-4 py-4 text-sm border-b items-center even:bg-[#FFF8E7]"
-              >
-                <span>{index + 1}</span>
-
-                <span className="font-medium">{branch.name}</span>
-
-                <span>{branch.address || "N/A"}</span>
-
-                <span className="text-xs">
-                  <p>{branch.email}</p>
-                  <p className="text-gray-500">{branch.phone || "N/A"}</p>
-                </span>
-
-                {/* STATUS */}
-                <span>
-                  <button
-                    onClick={() => toggleStatus(branch.id)}
-                    className={`relative inline-flex h-5 w-10 items-center rounded-full ${
-                      branch.status === "active" ? "bg-green-500" : "bg-gray-300"
-                    }`}
-                  >
-                    <span
-                      className={`h-4 w-4 bg-white rounded-full transition transform ${
-                        branch.status === "active" ? "translate-x-5" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </span>
-
-                {/* ACTIONS */}
-                <div className="flex justify-end relative">
-                  <button
-                    onClick={() =>
-                      setOpenMenu(openMenu === branch.id ? null : branch.id)
-                    }
-                    className="p-2 rounded-md hover:bg-gray-100"
-                  >
-                    <MoreVertical size={16} />
-                  </button>
-
-                  {openMenu === branch.id && (
-                    <div className="absolute right-4 top-10 bg-white border rounded-md shadow-md w-32 z-10">
-                      <button
-                        onClick={() => handleEdit(branch)}
-                        className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
+            <div className="min-w-[900px] rounded-xl border overflow-x-hidden bg-white">
+              <table className="w-full text-sm">
+                <thead className="bg-yellow-400">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Sl. No.</th>
+                    <th className="px-4 py-3 text-left font-medium">Branch</th>
+                    <th className="px-4 py-3 text-left font-medium">Branch Address</th>
+                    <th className="px-4 py-3 text-left font-medium">Contact Details</th>
+                    <th className="px-4 py-3 text-left font-medium">Status</th>
+                    <th className="px-4 py-3 text-right font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredBranches.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-gray-500">
+                        No branches found. {(searchQuery || statusFilter) && "Try adjusting your filters."}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredBranches.map((branch, index) => (
+                      <tr
+                        key={branch.id}
+                        className="border-b last:border-b-0 even:bg-[#FFF8E7]"
                       >
-                        <Pencil size={14} />
-                        Edit
-                      </button>
+                        <td className="px-4 py-4 align-middle">{index + 1}</td>
 
-                      <button
-                        onClick={() => handleDeleteClick(branch.id)}
-                        className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left text-red-600"
-                      >
-                        <Trash2 size={14} />
-                        Delete
-                      </button>
-                    </div>
+                        <td className="px-4 py-4 align-middle font-medium">{branch.name}</td>
+
+                        <td className="px-4 py-4 align-middle">{branch.address || "N/A"}</td>
+
+                        <td className="px-4 py-4 align-middle text-xs">
+                          <p>{branch.email}</p>
+                          <p className="text-gray-500">{branch.phone || "N/A"}</p>
+                        </td>
+
+                        {/* STATUS */}
+                        <td className="px-4 py-4 align-middle">
+                          <button
+                            onClick={() => toggleStatus(branch.id)}
+                            className={`relative inline-flex h-5 w-10 items-center rounded-full ${
+                              branch.status === "active" ? "bg-green-500" : "bg-gray-300"
+                            }`}
+                          >
+                            <span
+                              className={`h-4 w-4 bg-white rounded-full transition transform ${
+                                branch.status === "active" ? "translate-x-5" : "translate-x-1"
+                              }`}
+                            />
+                          </button>
+                        </td>
+
+                        {/* ACTIONS */}
+                        <td className="px-4 py-4 align-middle">
+                          <div className="flex justify-end relative">
+                            <button
+                              onClick={() =>
+                                setOpenMenu(openMenu === branch.id ? null : branch.id)
+                              }
+                              className="p-2 rounded-md hover:bg-gray-100"
+                            >
+                              <MoreVertical size={16} />
+                            </button>
+
+                            {openMenu === branch.id && (
+                              <div className="absolute right-4 top-10 bg-white border rounded-md shadow-md w-32 z-10">
+                                <button
+                                  onClick={() => handleView(branch)}
+                                  className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <Eye size={14} />
+                                  View
+                                </button>
+
+                                <button
+                                  onClick={() => handleLogin(branch)}
+                                  className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <LogIn size={14} />
+                                  Login
+                                </button>
+
+                                <button
+                                  onClick={() => handleEdit(branch)}
+                                  className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <Pencil size={14} />
+                                  Edit
+                                </button>
+
+                                <button
+                                  onClick={() => handleDeleteClick(branch.id)}
+                                  className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left text-red-600"
+                                >
+                                  <Trash2 size={14} />
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   )}
-                </div>
-              </div>
-              ))
-            )}
-          </div>
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

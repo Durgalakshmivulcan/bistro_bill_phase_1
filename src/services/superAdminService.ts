@@ -41,8 +41,19 @@ export interface SuperAdminDashboardStats {
 export const getSuperAdminDashboardStats = async (): Promise<
   ApiResponse<SuperAdminDashboardStats>
 > => {
+  return api.get<ApiResponse<SuperAdminDashboardStats>>('/super-admin/dashboard/stats');
+};
+
+export const getSuperAdminDashboardStatsByDate = async (params?: {
+  startDate?: string;
+  endDate?: string;
+}): Promise<ApiResponse<SuperAdminDashboardStats>> => {
+  const queryParams = new URLSearchParams();
+  if (params?.startDate) queryParams.append('startDate', params.startDate);
+  if (params?.endDate) queryParams.append('endDate', params.endDate);
+  const qs = queryParams.toString();
   return api.get<ApiResponse<SuperAdminDashboardStats>>(
-    '/super-admin/dashboard/stats'
+    `/super-admin/dashboard/stats${qs ? `?${qs}` : ''}`
   );
 };
 
@@ -123,6 +134,8 @@ export interface CreateBusinessOwnerInput {
   zipCode?: string;
   address?: string;
   planId?: string;
+  subscriptionStartDate?: string | null;
+  subscriptionEndDate?: string | null;
 }
 
 export interface UpdateBusinessOwnerInput {
@@ -138,6 +151,8 @@ export interface UpdateBusinessOwnerInput {
   zipCode?: string;
   address?: string;
   planId?: string;
+  subscriptionStartDate?: string | null;
+  subscriptionEndDate?: string | null;
 }
 
 /**
@@ -173,8 +188,21 @@ export const getBusinessOwner = async (
  * Create a new business owner
  */
 export const createBusinessOwnerApi = async (
-  data: CreateBusinessOwnerInput
+  data: CreateBusinessOwnerInput,
+  avatarFile?: File
 ): Promise<ApiResponse> => {
+  if (avatarFile) {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, String(value));
+      }
+    });
+    formData.append('avatar', avatarFile);
+    return api.post<ApiResponse>('/super-admin/business-owners', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
   return api.post<ApiResponse>('/super-admin/business-owners', data);
 };
 
@@ -183,8 +211,21 @@ export const createBusinessOwnerApi = async (
  */
 export const updateBusinessOwnerApi = async (
   id: string,
-  data: UpdateBusinessOwnerInput
+  data: UpdateBusinessOwnerInput,
+  avatarFile?: File
 ): Promise<ApiResponse> => {
+  if (avatarFile) {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, String(value));
+      }
+    });
+    formData.append('avatar', avatarFile);
+    return api.put<ApiResponse>(`/super-admin/business-owners/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
   return api.put<ApiResponse>(`/super-admin/business-owners/${id}`, data);
 };
 
@@ -233,21 +274,26 @@ export interface SuperAdminProfile {
  * Update super admin profile (name, phone, optional avatar file)
  */
 export const updateSuperAdminProfile = async (
-  data: UpdateSuperAdminProfileInput,
-  avatarFile?: File
+  data: { name: string; phone?: string },
+  avatar?: File
 ): Promise<ApiResponse<SuperAdminProfile>> => {
-  if (avatarFile) {
-    const formData = new FormData();
-    if (data.name !== undefined) formData.append('name', data.name);
-    if (data.phone !== undefined) formData.append('phone', data.phone);
-    formData.append('avatar', avatarFile);
-    return api.put<ApiResponse<SuperAdminProfile>>('/super-admin/profile', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-  }
-  return api.put<ApiResponse<SuperAdminProfile>>('/super-admin/profile', data);
-};
 
+  const formData = new FormData();
+  formData.append("name", data.name);
+  formData.append("phone", data.phone || "");
+
+  if (avatar) {
+    formData.append("avatar", avatar);
+  }
+
+  return api.put<ApiResponse<SuperAdminProfile>>(
+    "/super-admin/profile",
+    formData,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    }
+  );
+};
 /**
  * Delete super admin avatar
  */
@@ -309,7 +355,7 @@ export const getSubscriptionOrders = async (
  * Delete a subscription order
  */
 export const deleteSubscriptionOrder = async (
-  id: string
+  id: string | number
 ): Promise<ApiResponse> => {
   return api.delete<ApiResponse>(`/super-admin/orders/${id}`);
 };

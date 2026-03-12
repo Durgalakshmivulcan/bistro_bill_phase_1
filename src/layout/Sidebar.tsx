@@ -48,7 +48,7 @@ const Sidebar: React.FC = () => {
       <nav className="space-y-1">
         {menu.map((item) => {
           // Hide menu items the user doesn't have read permission for
-          if (item.module && !isAdmin && !checkModule(item.module, 'view')) {
+          if (item.module && !isAdmin && !checkModule(item.module, 'read')) {
             return null;
           }
 

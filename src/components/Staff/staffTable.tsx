@@ -8,13 +8,15 @@ import deleteIcon from "../../assets/deleteConformImg.png";
 import deleteSuccessImg from "../../assets/deleteSuccessImg.png";
 import CreateStaffModal from "../Staff/CreateStaffModal";
 import { getStaff, deleteStaff, getRoles, Staff as ApiStaff, Role } from "../../services/staffService";
-import { usePermissions } from "../../hooks/usePermissions";
 import { CRUDToasts } from "../../utils/toast";
 
 // ================= TYPES =================
 export interface Staff {
   id: string;
   name: string;
+  firstName: string;
+  lastName: string;
+  avatar?: string | null;
   userId: string;
   email: string;
   phone: string;
@@ -50,9 +52,18 @@ const StaffTable = ({
 
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const [editStaff, setEditStaff] = useState<Staff | null>(null);
+  const apiBaseUrl = (process.env.REACT_APP_API_URL || "http://localhost:5001/api/v1")
+    .replace(/\/api\/v1\/?$/, "");
 
-  // ================= PERMISSIONS =================
-  const { canUpdate, canDelete } = usePermissions('staff');
+  const toAbsoluteAvatarUrl = (avatarPath?: string | null): string | null => {
+    if (!avatarPath) return null;
+    if (avatarPath.startsWith("/images/")) return avatarPath;
+    if (avatarPath.startsWith("/assets/")) {
+      return `${apiBaseUrl}${avatarPath}`;
+    }
+    if (/^https?:\/\//i.test(avatarPath)) return avatarPath;
+    return `${apiBaseUrl}${avatarPath.startsWith("/") ? "" : "/"}${avatarPath}`;
+  };
 
   // ================= FETCH STAFF DATA =================
   useEffect(() => {
@@ -71,6 +82,9 @@ const StaffTable = ({
         const mappedStaff: Staff[] = response.data.staff.map((apiStaff: ApiStaff) => ({
           id: apiStaff.id,
           name: `${apiStaff.firstName} ${apiStaff.lastName}`,
+          firstName: apiStaff.firstName,
+          lastName: apiStaff.lastName,
+          avatar: apiStaff.avatar,
           userId: apiStaff.id, // Using ID as userId since backend doesn't have separate userId
           email: apiStaff.email,
           phone: apiStaff.phone || "N/A",
@@ -91,7 +105,7 @@ const StaffTable = ({
 
   const fetchRoles = async () => {
     try {
-      const response = await getRoles("Active");
+      const response = await getRoles();
       if (response.success && response.data) {
         setRoles(response.data.roles);
       }
@@ -164,20 +178,34 @@ const StaffTable = ({
   }, [staffData, searchQuery, roleFilter, statusFilter]);
 
   // ================= FILTER OPTIONS =================
-  const roleOptions = useMemo(
-    () => roles.map((role) => ({ label: role.name, value: role.name })),
-    [roles]
-  );
+  const roleOptions = useMemo(() => {
+    const roleNamesFromRoles = roles.map((role) => role.name);
+    const roleNamesFromStaff = staffData.map((staff) => staff.role);
+    const uniqueRoleNames = Array.from(new Set([...roleNamesFromRoles, ...roleNamesFromStaff]))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+
+    return uniqueRoleNames.map((roleName) => ({ label: roleName, value: roleName }));
+  }, [roles, staffData]);
 
   const statusOptions = [
     { label: "Active", value: "active" },
     { label: "Inactive", value: "inactive" },
   ];
 
+  const getRoleBadgeClass = (role: string) => {
+    const normalized = role.trim().toLowerCase();
+    if (normalized === "manager") return "bg-blue-100 text-blue-600";
+    if (normalized === "chief" || normalized === "chef") return "bg-lime-100 text-lime-700";
+    if (normalized === "waiter") return "bg-amber-100 text-amber-700";
+    if (normalized === "cashier") return "bg-violet-100 text-violet-700";
+    return "bg-gray-100 text-gray-600";
+  };
+
   return (
     <>
       {/* ================= FILTERS ================= */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap lg:flex-nowrap gap-3 sm:items-center mb-4 px-4 pt-4">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap lg:flex-nowrap gap-3 lg:justify-end lg:items-end mb-4 px-4 pt-4">
         <FilterDropdown
           label="Filter by Role"
           value={roleFilter}
@@ -228,89 +256,111 @@ const StaffTable = ({
       {/* ================= TABLE ================= */}
       <div className="w-full overflow-x-auto">
         <div className="min-w-[1100px] rounded-xl border bg-white overflow-visible">
-          {/* HEADER */}
-          <div className="grid grid-cols-12 bg-yellow-400 px-4 py-3 text-sm font-medium">
-            <span>Sl. No.</span>
-            <span className="col-span-3">Staff Name & ID</span>
-            <span className="col-span-3">Contact Details</span>
-            <span>Role</span>
-            <span>Status</span>
-            <span className="text-center">Actions</span>
-          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-yellow-400">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium">Sl. No.</th>
+                <th className="px-4 py-3 text-left font-medium">Staff Name & ID</th>
+                <th className="px-4 py-3 text-left font-medium">Contact Details</th>
+                <th className="px-4 py-3 text-left font-medium">Role</th>
+                <th className="px-4 py-3 text-left font-medium">Status</th>
+                <th className="px-4 py-3 text-center font-medium">Actions</th>
+              </tr>
+            </thead>
 
-          {/* LOADING STATE */}
-          {loading && (
-            <div className="px-4 py-8 text-center">
-              <div className="flex justify-center">
-                <LoadingSpinner size="md" message="Loading staff..." />
-              </div>
-            </div>
-          )}
-
-          {/* EMPTY STATE */}
-          {!loading && filteredStaff.length === 0 && (
-            <div className="px-4 py-8 text-center text-gray-500">
-              <p>No staff members found</p>
-              {(searchQuery || roleFilter || statusFilter) && (
-                <p className="text-sm mt-2">Try adjusting your filters</p>
+            <tbody>
+              {/* LOADING STATE */}
+              {loading && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8">
+                    <div className="flex justify-center">
+                      <LoadingSpinner size="md" message="Loading staff..." />
+                    </div>
+                  </td>
+                </tr>
               )}
-            </div>
-          )}
 
-          {/* ROWS */}
-          {!loading && filteredStaff.map((staff, index) => (
-            <div
-              key={staff.id}
-              className="grid grid-cols-12 px-4 py-4 text-sm border-b items-center even:bg-[#FFF8E7]"
-            >
-              <span>{index + 1}</span>
+              {/* EMPTY STATE */}
+              {!loading && filteredStaff.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    <p>No staff members found</p>
+                    {(searchQuery || roleFilter || statusFilter) && (
+                      <p className="text-sm mt-2">Try adjusting your filters</p>
+                    )}
+                  </td>
+                </tr>
+              )}
 
-              {/* NAME + ID */}
-              <div className="col-span-3">
-                <p className="font-medium">{staff.name}</p>
-                <p className="text-xs text-gray-500">{staff.userId}</p>
-              </div>
+              {/* ROWS */}
+              {!loading && filteredStaff.map((staff, index) => (
+                <tr
+                  key={staff.id}
+                  className="border-b last:border-b-0 even:bg-[#FFF8E7]"
+                >
+                  <td className="px-4 py-4 align-middle">{index + 1}</td>
 
-              {/* CONTACT */}
-              <div className="col-span-3">
-                <p className="truncate max-w-[240px]">{staff.email}</p>
-                <p className="text-xs text-gray-500">{staff.phone}</p>
-              </div>
+                  {/* NAME + ID */}
+                  <td className="px-4 py-4 align-middle">
+                    <div className="flex items-center gap-3">
+                      {staff.avatar ? (
+                        <img
+                          src={toAbsoluteAvatarUrl(staff.avatar) || ""}
+                          alt={staff.name}
+                          className="w-9 h-9 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-gray-300 text-gray-700 flex items-center justify-center text-xs font-semibold">
+                          {(staff.firstName?.[0] || "") + (staff.lastName?.[0] || "")}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium leading-4">{staff.name}</p>
+                        <p className="text-xs text-gray-500">{staff.userId}</p>
+                      </div>
+                    </div>
+                  </td>
 
-              {/* ROLE */}
-              <span>{staff.role}</span>
+                  {/* CONTACT */}
+                  <td className="px-4 py-4 align-middle">
+                    <p className="truncate max-w-[240px]">{staff.email}</p>
+                    <p className="text-xs text-gray-500">{staff.phone}</p>
+                  </td>
 
-              {/* STATUS */}
-              <span
-                className={`text-xs px-3 py-1 rounded-full w-fit ${
-                  staff.status === "active"
-                    ? "bg-green-100 text-green-600"
-                    : "bg-red-100 text-red-600"
-                }`}
-              >
-                {staff.status}
-              </span>
+                  {/* ROLE */}
+                  <td className="px-4 py-4 align-middle">
+                    <span className={`text-xs px-3 py-1 rounded-md w-fit ${getRoleBadgeClass(staff.role)}`}>
+                      {staff.role}
+                    </span>
+                  </td>
 
-              {/* ACTIONS */}
-              <div className="flex justify-center">
-                {(canUpdate || canDelete) ? (
-                  <ActionsMenu
-                    actions={
-                      canUpdate && canDelete
-                        ? ["edit", "delete"]
-                        : canUpdate
-                        ? ["edit"]
-                        : ["delete"]
-                    }
-                    onEdit={canUpdate ? () => handleEdit(staff) : undefined}
-                    onDelete={canDelete ? () => handleDeleteClick(staff.id) : undefined}
-                  />
-                ) : (
-                  <span className="text-xs text-gray-400">No actions</span>
-                )}
-              </div>
-            </div>
-          ))}
+                  {/* STATUS */}
+                  <td className="px-4 py-4 align-middle">
+                    <span
+                      className={`text-xs px-3 py-1 rounded-full w-fit ${
+                        staff.status === "active"
+                          ? "bg-green-100 text-green-600"
+                          : "bg-red-100 text-red-600"
+                      }`}
+                    >
+                      {staff.status === "active" ? "Active" : "Inactive"}
+                    </span>
+                  </td>
+
+                  {/* ACTIONS */}
+                  <td className="px-4 py-4 align-middle">
+                    <div className="flex justify-center">
+                      <ActionsMenu
+                        actions={["edit", "delete"]}
+                        onEdit={() => handleEdit(staff)}
+                        onDelete={() => handleDeleteClick(staff.id)}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

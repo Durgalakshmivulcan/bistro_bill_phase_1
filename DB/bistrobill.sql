@@ -822,6 +822,7 @@ CREATE TABLE public."Discount" (
     "businessOwnerId" text NOT NULL,
     code text,
     name text NOT NULL,
+    description text,
     type public."DiscountType" DEFAULT 'Custom'::public."DiscountType" NOT NULL,
     "valueType" public."DiscountValueType" DEFAULT 'Percentage'::public."DiscountValueType" NOT NULL,
     value numeric(10,2) NOT NULL,
@@ -2226,6 +2227,9 @@ COPY public."CustomerGroup" (id, "businessOwnerId", name, status, color, rules, 
 --
 
 COPY public."CustomerReview" (id, "businessOwnerId", "externalReviewId", source, "reviewerName", rating, comment, "replyText", "repliedAt", "publishedAt", "createdAt", "updatedAt") FROM stdin;
+9e8f3cbe-8f4a-4ab8-9fc8-5d41a26931a1	111bd836-595b-4982-bb3d-a24ade82c52a	google-111-0001	google	Ananya Reddy	5	Excellent food and quick service.	Thank you for your feedback!	2026-02-10 12:15:00	2026-02-10 11:45:00	2026-02-10 12:15:00	2026-02-10 12:15:00
+2c9d8d4e-6a34-4b7a-8a2d-9db7b6c9f4a2	7fdfb940-d78a-4609-a441-fd28eb9f9869	zomato-777-0001	zomato	Rohan Mehta	4	Good taste, packaging can be improved.	Thanks, we are improving our packaging.	2026-02-11 10:10:00	2026-02-11 09:40:00	2026-02-11 10:10:00	2026-02-11 10:10:00
+5f6a2cb7-94b3-4f2e-9b6a-c4b25d8d6d83	7fdfb940-d78a-4609-a441-fd28eb9f9869	swiggy-777-0002	swiggy	Sneha Kapoor	3	Delivery was late but food was decent.	We apologize for the delay and will improve.	2026-02-12 19:25:00	2026-02-12 19:00:00	2026-02-12 19:25:00	2026-02-12 19:25:00
 \.
 
 
@@ -2241,16 +2245,16 @@ COPY public."CustomerTag" ("customerId", "tagId") FROM stdin;
 -- Data for Name: Discount; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public."Discount" (id, "businessOwnerId", code, name, type, "valueType", value, "minOrderAmount", "maxDiscount", "startDate", "endDate", "usageLimit", "usedCount", status, "createdAt", "updatedAt") FROM stdin;
-4dc86317-279d-4e53-8f18-21f28a70e968	7fdfb940-d78a-4609-a441-fd28eb9f9869	WELCOME100	First Order	OrderType	Fixed	100.00	\N	\N	2025-03-08 00:00:00	2025-04-08 00:00:00	1000	0	active	2026-02-07 03:29:58.57	2026-02-07 03:29:58.57
-0b671530-bd21-4688-abe3-0131ff423042	7fdfb940-d78a-4609-a441-fd28eb9f9869	PIZZA50	Happy Hour Special	ProductCategory	Fixed	50.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	inactive	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
-c0e82633-f102-4315-a50e-96aebeeaf85b	7fdfb940-d78a-4609-a441-fd28eb9f9869	GRAB75	Exclusive Offer	Custom	Percentage	75.00	\N	200.00	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
-6f864676-741f-4293-a198-2a1211eef64a	7fdfb940-d78a-4609-a441-fd28eb9f9869	PARTY500	Family Feast Deal	OrderType	Fixed	500.00	2000.00	\N	2025-07-23 00:00:00	2025-08-08 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
-c281e122-56f5-437c-931c-ba6df90456e1	7fdfb940-d78a-4609-a441-fd28eb9f9869	BOGO2025	Weekend Brunch	OrderType	BOGO	0.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
-3f7641e8-1ca0-466e-a2f3-d4770e4f4823	111bd836-595b-4982-bb3d-a24ade82c52a	HH50	Happy Hours	OrderType	Percentage	50.00	\N	100.00	2025-03-08 00:00:00	2025-04-08 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
-1df3e01a-039e-4389-8ccb-6f3958148a2f	111bd836-595b-4982-bb3d-a24ade82c52a	HOLIDAY25	Holiday Special	ProductCategory	Fixed	25.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
-5dd29ecd-1f4c-4936-8e90-5de20ce1f0a1	111bd836-595b-4982-bb3d-a24ade82c52a	FEST35	Festival Offers	OrderType	Percentage	35.00	\N	150.00	2025-03-08 00:00:00	2025-04-08 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
-d0681287-b9bd-468a-a189-85ea0f9696c9	111bd836-595b-4982-bb3d-a24ade82c52a	MIDNIGHT15	Mid-Night Cravings	ProductCategory	Percentage	15.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
+COPY public."Discount" (id, "businessOwnerId", code, name, description, type, "valueType", value, "minOrderAmount", "maxDiscount", "startDate", "endDate", "usageLimit", "usedCount", status, "createdAt", "updatedAt") FROM stdin;
+4dc86317-279d-4e53-8f18-21f28a70e968	7fdfb940-d78a-4609-a441-fd28eb9f9869	WELCOME100	First Order	\N	OrderType	Fixed	100.00	\N	\N	2025-03-08 00:00:00	2025-04-08 00:00:00	1000	0	active	2026-02-07 03:29:58.57	2026-02-07 03:29:58.57
+0b671530-bd21-4688-abe3-0131ff423042	7fdfb940-d78a-4609-a441-fd28eb9f9869	PIZZA50	Happy Hour Special	\N	ProductCategory	Fixed	50.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	inactive	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
+c0e82633-f102-4315-a50e-96aebeeaf85b	7fdfb940-d78a-4609-a441-fd28eb9f9869	GRAB75	Exclusive Offer	\N	Custom	Percentage	75.00	\N	200.00	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
+6f864676-741f-4293-a198-2a1211eef64a	7fdfb940-d78a-4609-a441-fd28eb9f9869	PARTY500	Family Feast Deal	\N	OrderType	Fixed	500.00	2000.00	\N	2025-07-23 00:00:00	2025-08-08 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
+c281e122-56f5-437c-931c-ba6df90456e1	7fdfb940-d78a-4609-a441-fd28eb9f9869	BOGO2025	Weekend Brunch	\N	OrderType	BOGO	0.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
+3f7641e8-1ca0-466e-a2f3-d4770e4f4823	111bd836-595b-4982-bb3d-a24ade82c52a	HH50	Happy Hours	\N	OrderType	Percentage	50.00	\N	100.00	2025-03-08 00:00:00	2025-04-08 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
+1df3e01a-039e-4389-8ccb-6f3958148a2f	111bd836-595b-4982-bb3d-a24ade82c52a	HOLIDAY25	Holiday Special	\N	ProductCategory	Fixed	25.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
+5dd29ecd-1f4c-4936-8e90-5de20ce1f0a1	111bd836-595b-4982-bb3d-a24ade82c52a	FEST35	Festival Offers	\N	OrderType	Percentage	35.00	\N	150.00	2025-03-08 00:00:00	2025-04-08 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
+d0681287-b9bd-468a-a189-85ea0f9696c9	111bd836-595b-4982-bb3d-a24ade82c52a	MIDNIGHT15	Mid-Night Cravings	\N	ProductCategory	Percentage	15.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
 \.
 
 
@@ -2275,8 +2279,8 @@ COPY public."DiscountProduct" ("discountId", "productId") FROM stdin;
 --
 
 COPY public."FeedbackForm" (id, "businessOwnerId", title, description, questions, "qrCode", status, "createdAt", "updatedAt") FROM stdin;
-f1111111-1111-1111-1111-111111111111	111bd836-595b-4982-bb3d-a24ade82c52a	Restaurant Feedback	Please share your dining experience	["How was the food?","How was the service?","Would you recommend us?"]	qr-code-url-1	active	2026-02-12 10:00:00	2026-02-12 10:00:00
-f2222222-2222-2222-2222-222222222222	111bd836-595b-4982-bb3d-a24ade82c52a	Service Feedback	Help us improve our service	["Rate cleanliness","Rate staff behavior"]	qr-code-url-2	active	2026-02-12 10:05:00	2026-02-12 10:05:00
+f1111111-1111-1111-1111-111111111111	111bd836-595b-4982-bb3d-a24ade82c52a	Overall Experience Feedback Form	This form is designed to gather your valuable feedback on your dining experience.	[{"id":"q1","type":"rating","text":"Rate our Restaurant Food and Service.","options":["1","2","3","4","5"],"required":true},{"id":"q2","type":"multiple_choice","text":"Was your food served at the right temperature?","options":["Yes","No"],"required":true},{"id":"q3","type":"text","text":"Comments","required":true}]	http://localhost:3000/public/feedback/f1111111-1111-1111-1111-111111111111	active	2026-02-12 10:00:00	2026-02-12 10:00:00
+f2222222-2222-2222-2222-222222222222	111bd836-595b-4982-bb3d-a24ade82c52a	Service Feedback Form	Help us improve our cleanliness and staff service quality.	[{"id":"q1","type":"rating","text":"Rate cleanliness","options":["1","2","3","4","5"],"required":true},{"id":"q2","type":"rating","text":"Rate staff behavior","options":["1","2","3","4","5"],"required":true},{"id":"q3","type":"multiple_choice","text":"Would you visit us again?","options":["Yes","No"],"required":true}]	http://localhost:3000/public/feedback/f2222222-2222-2222-2222-222222222222	active	2026-02-12 10:05:00	2026-02-12 10:05:00
 \.
 
 
@@ -2285,8 +2289,8 @@ f2222222-2222-2222-2222-222222222222	111bd836-595b-4982-bb3d-a24ade82c52a	Servic
 --
 
 COPY public."FeedbackResponse" (id, "feedbackFormId", "customerId", responses, rating, "createdAt") FROM stdin;
-r1111111-1111-1111-1111-111111111111	f1111111-1111-1111-1111-111111111111	4e0a84ae-3429-4681-8015-e8f54e86263d	["Excellent","Very Friendly","Yes"]	5	2026-02-12 11:00:00
-r2222222-2222-2222-2222-222222222222	f2222222-2222-2222-2222-222222222222	4e0a84ae-3429-4681-8015-e8f54e86263d	["Clean","Polite Staff"]	4	2026-02-12 11:10:00
+r1111111-1111-1111-1111-111111111111	f1111111-1111-1111-1111-111111111111	4e0a84ae-3429-4681-8015-e8f54e86263d	{"q1":5,"q2":"Yes","q3":"Food was tasty and service was quick."}	5	2026-02-12 11:00:00
+r2222222-2222-2222-2222-222222222222	f2222222-2222-2222-2222-222222222222	4e0a84ae-3429-4681-8015-e8f54e86263d	{"q1":4,"q2":5,"q3":"Yes"}	4	2026-02-12 11:10:00
 \.
 
 
@@ -2349,6 +2353,10 @@ COPY public."Lead" (id, "restaurantName", "ownerName", email, phone, "businessTy
 --
 
 COPY public."LoyaltyTransaction" (id, "customerId", "branchId", "businessOwnerId", type, points, description, "orderId", "createdAt") FROM stdin;
+17ab1d95-4db9-4f1d-b49e-5c3d70a4bd10	c109960a-4560-4c1c-8c0b-c58c1cbe526d	aa1ce36f-4934-44a1-8f4d-d45f345030a5	111bd836-595b-4982-bb3d-a24ade82c52a	EARN	120	Points earned from dine-in bill	\N	2026-02-10 13:00:00
+40c9f4a9-0d8b-45b7-95bc-8f9819d2d8f2	c109960a-4560-4c1c-8c0b-c58c1cbe526d	aa1ce36f-4934-44a1-8f4d-d45f345030a5	111bd836-595b-4982-bb3d-a24ade82c52a	REDEEM	-50	Points redeemed on checkout	\N	2026-02-11 20:30:00
+8c4d2a73-73d6-4bd8-a2cb-9ad8be0132c7	a619748d-1246-429e-83ec-eda1bb9413d2	d3ee3575-ad4b-41fc-89d1-682a2cbcdf11	7fdfb940-d78a-4609-a441-fd28eb9f9869	EARN	90	Points earned from online order	\N	2026-02-12 14:45:00
+52d3d0ae-7e36-4638-a9d5-0f32489b7d0b	4e0a84ae-3429-4681-8015-e8f54e86263d	d3ee3575-ad4b-41fc-89d1-682a2cbcdf11	7fdfb940-d78a-4609-a441-fd28eb9f9869	EARN	200	VIP bonus points credited	\N	2026-02-13 18:15:00
 \.
 
 
@@ -2357,6 +2365,11 @@ COPY public."LoyaltyTransaction" (id, "customerId", "branchId", "businessOwnerId
 --
 
 COPY public."MeasuringUnit" (id, quantity, unit, symbol, "createdAt") FROM stdin;
+0fb69fd7-b6f9-4bf4-8f08-3fb7ea7e5e65	1	Kilogram	kg	2026-02-07 03:29:58.570
+4f5bc5ea-b0b7-4ef4-b2ec-ae799ebf01cb	1	Gram	g	2026-02-07 03:29:58.570
+fb6b9db9-5c7d-4a6f-8df7-24e8c9b8eb5f	1	Litre	l	2026-02-07 03:29:58.570
+17e46773-e2f8-4a76-a8a8-f4b30d9f1ef2	1	Milli Litre	ml	2026-02-07 03:29:58.570
+84c9d962-2e7b-4a94-a7da-1e69bf6c0d14	1	Piece	pc	2026-02-07 03:29:58.570
 \.
 
 
@@ -2558,6 +2571,9 @@ ca420eda-0a62-48c7-8704-f04d8cca2448	7fdfb940-d78a-4609-a441-fd28eb9f9869	Debit 
 6e1dfa01-14dd-4ebb-9f66-7dd0aaa9ff9b	7fdfb940-d78a-4609-a441-fd28eb9f9869	UPI	UPI	f	active	2026-02-07 03:29:58.569	2026-02-07 03:29:58.569
 77246b77-08dd-48a7-a089-738aff02e3fb	7fdfb940-d78a-4609-a441-fd28eb9f9869	PhonePe	Wallet	f	active	2026-02-07 03:29:58.569	2026-02-07 03:29:58.569
 4017f185-587e-4f5d-900b-ef9a1b6cba79	7fdfb940-d78a-4609-a441-fd28eb9f9869	Paytm	Wallet	f	active	2026-02-07 03:29:58.569	2026-02-07 03:29:58.569
+9a3f1af3-4f12-4e22-92d8-1dff6eddd1a7	111bd836-595b-4982-bb3d-a24ade82c52a	Google Pay	UPI	f	active	2026-02-07 03:29:58.569	2026-02-07 03:29:58.569
+18b7b7c1-8c79-4bcf-bcf2-7b9f08092d53	111bd836-595b-4982-bb3d-a24ade82c52a	Net Banking	Other	f	active	2026-02-07 03:29:58.569	2026-02-07 03:29:58.569
+7ab7e864-d92f-4fa3-b8fc-8a74b4b2f0c8	7fdfb940-d78a-4609-a441-fd28eb9f9869	Amazon Pay	Wallet	f	active	2026-02-07 03:29:58.569	2026-02-07 03:29:58.569
 \.
 
 
@@ -3435,6 +3451,12 @@ COPY public."StockAdjustment" (id, "inventoryProductId", "businessOwnerId", "use
 --
 
 COPY public."SubCategory" (id, "businessOwnerId", "categoryId", name, image, description, status, "sortOrder", "createdAt", "updatedAt") FROM stdin;
+6f1e3a1a-8f4f-4f88-ae28-7f8d12b9d101	111bd836-595b-4982-bb3d-a24ade82c52a	4b92eed7-1093-4464-acb8-39eca4627acd	Soups	/images/subcategories/soups.jpg	Warm and flavorful soup starters	active	1	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+8d0b8e0b-7b29-4ff0-9ed9-98dbf6ee5202	111bd836-595b-4982-bb3d-a24ade82c52a	4b92eed7-1093-4464-acb8-39eca4627acd	Chaats	/images/subcategories/chaats.jpg	Popular street-style chaats	active	2	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+2a1a61b7-7a8a-4c5f-87d4-3b55ebfbc903	111bd836-595b-4982-bb3d-a24ade82c52a	cd7478a2-9e9d-4729-be0e-4d68bddf6e5d	North Indian	/images/subcategories/north-indian.jpg	Rich gravies and tandoor items	active	1	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+9bfb53da-2f08-4b4a-a46d-4379b3c6fd04	111bd836-595b-4982-bb3d-a24ade82c52a	bb9678cb-2ae0-4303-a0f0-78aab1e45c69	Mini Thali	/images/subcategories/mini-thali.jpg	Compact thali meal combinations	active	1	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+7f0f4e47-9ea9-4b8c-9c14-e9de79f13605	7fdfb940-d78a-4609-a441-fd28eb9f9869	b519059a-524c-4437-8307-a039c8a9c4b1	Biryani	/images/subcategories/biryani.jpg	Aromatic biryani selections	active	1	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+c0d41e95-7a35-4b6f-9c92-9a2a8861b006	7fdfb940-d78a-4609-a441-fd28eb9f9869	1e613ee9-1889-43c3-814d-10109d311ca0	Quick Bites	/images/subcategories/quick-bites.jpg	Fast moving snack items	active	1	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
 \.
 
 
@@ -3538,6 +3560,9 @@ COPY public."Tax" (id, "businessOwnerId", name, symbol, percentage, country, sta
 e6a988fe-dcc0-45bf-8df2-0121a856dc4d	111bd836-595b-4982-bb3d-a24ade82c52a	CGST (Central Goods and Services Tax)	CGST	9.00	India	\N	\N	active	2026-02-07 03:29:58.566	2026-02-07 03:29:58.566
 9481cf52-426a-4c73-a004-a6669cd72d4a	7fdfb940-d78a-4609-a441-fd28eb9f9869	SGST (State Goods and Services Tax)	SGST	9.00	India	Telangana	\N	active	2026-02-07 03:29:58.567	2026-02-07 03:29:58.567
 946d2c1c-083c-49e5-b31a-d622ae9887bc	7fdfb940-d78a-4609-a441-fd28eb9f9869	IGST (Integrated Goods and Services Tax)	IGST	18.00	India	\N	\N	active	2026-02-07 03:29:58.567	2026-02-07 03:29:58.567
+b8f84585-d7fd-4b11-92a8-1f63283ac2aa	111bd836-595b-4982-bb3d-a24ade82c52a	SGST (State Goods and Services Tax)	SGST	9.00	India	Telangana	\N	active	2026-02-07 03:29:58.567	2026-02-07 03:29:58.567
+1d0ee4a6-6d4a-4c85-8ba8-82f0d3f694a1	111bd836-595b-4982-bb3d-a24ade82c52a	Service Tax	ST	5.00	India	Telangana	Hyderabad	active	2026-02-07 03:29:58.567	2026-02-07 03:29:58.567
+4c935133-9781-4a3f-b4ab-2d56f75d7c32	7fdfb940-d78a-4609-a441-fd28eb9f9869	CGST (Central Goods and Services Tax)	CGST	9.00	India	\N	\N	active	2026-02-07 03:29:58.567	2026-02-07 03:29:58.567
 \.
 
 
@@ -6899,10 +6924,207 @@ ALTER TABLE ONLY public."_BlogToBlogTag"
 ALTER TABLE ONLY public."_BlogToBlogTag"
     ADD CONSTRAINT "_BlogToBlogTag_B_fkey" FOREIGN KEY ("B") REFERENCES public."BlogTag"(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
+--
+-- Name: Product add dropdown backing columns; Type: COMMENT/DDL PATCH; Schema: public; Owner: -
+--
+
+ALTER TABLE public."Product"
+    ADD COLUMN IF NOT EXISTS "measuringUnit" text,
+    ADD COLUMN IF NOT EXISTS "includesTax" boolean DEFAULT true,
+    ADD COLUMN IF NOT EXISTS "taxId" text,
+    ADD COLUMN IF NOT EXISTS "eligibleForDiscount" boolean DEFAULT true,
+    ADD COLUMN IF NOT EXISTS "discountType" text;
+
+UPDATE public."Product"
+SET
+    "includesTax" = COALESCE("includesTax", true),
+    "eligibleForDiscount" = COALESCE("eligibleForDiscount", true);
+
+--
+-- Name: Catalog dashboard seed data (top/least selling); Type: DATA PATCH; Schema: public; Owner: -
+--
+-- Purpose:
+--  - Creates one completed order for "yesterday" with weighted order items.
+--  - Ensures /reports/products/top and /reports/products/least return data.
+--  - Idempotent: safe to run multiple times.
+
+INSERT INTO public."Order" (
+    "id",
+    "businessOwnerId",
+    "branchId",
+    "orderNumber",
+    "type",
+    "source",
+    "staffId",
+    "subtotal",
+    "discountAmount",
+    "chargesAmount",
+    "taxAmount",
+    "total",
+    "paidAmount",
+    "dueAmount",
+    "paymentStatus",
+    "orderStatus",
+    "createdAt",
+    "updatedAt"
+)
+SELECT
+    '1b1161bd-a79f-4cc6-b2fd-3c06c8d14c01',
+    ctx."businessOwnerId",
+    ctx."branchId",
+    'DASH-YDAY-001',
+    'DineIn',
+    'BistroBill',
+    ctx."staffId",
+    2080.00,
+    0.00,
+    0.00,
+    0.00,
+    2080.00,
+    2080.00,
+    0.00,
+    'Paid',
+    'Completed',
+    date_trunc('day', now() - interval '1 day'),
+    date_trunc('day', now() - interval '1 day')
+FROM (
+    SELECT
+        s."businessOwnerId",
+        s."branchId",
+        s."id" AS "staffId"
+    FROM public."Staff" s
+    WHERE s."status" = 'active'
+    ORDER BY s."createdAt" ASC
+    LIMIT 1
+) ctx
+WHERE EXISTS (
+    SELECT 1
+    FROM public."Product" p
+    WHERE p."businessOwnerId" = ctx."businessOwnerId"
+      AND p."status" = 'active'
+)
+ON CONFLICT ("id") DO NOTHING;
+
+WITH ctx AS (
+    SELECT
+        o."id" AS "orderId",
+        o."businessOwnerId"
+    FROM public."Order" o
+    WHERE o."id" = '1b1161bd-a79f-4cc6-b2fd-3c06c8d14c01'
+),
+ranked_products AS (
+    SELECT
+        p."id",
+        p."name",
+        row_number() OVER (ORDER BY p."createdAt" ASC, p."id" ASC) AS rn
+    FROM public."Product" p
+    JOIN ctx ON ctx."businessOwnerId" = p."businessOwnerId"
+    WHERE p."status" = 'active'
+),
+picked AS (
+    SELECT
+        max(CASE WHEN rn = 1 THEN "id" END) AS p1_id,
+        max(CASE WHEN rn = 1 THEN "name" END) AS p1_name,
+        max(CASE WHEN rn = 2 THEN "id" END) AS p2_id,
+        max(CASE WHEN rn = 2 THEN "name" END) AS p2_name,
+        max(CASE WHEN rn = 3 THEN "id" END) AS p3_id,
+        max(CASE WHEN rn = 3 THEN "name" END) AS p3_name,
+        max(CASE WHEN rn = 4 THEN "id" END) AS p4_id,
+        max(CASE WHEN rn = 4 THEN "name" END) AS p4_name,
+        max(CASE WHEN rn = 5 THEN "id" END) AS p5_id,
+        max(CASE WHEN rn = 5 THEN "name" END) AS p5_name,
+        max(CASE WHEN rn = 6 THEN "id" END) AS p6_id,
+        max(CASE WHEN rn = 6 THEN "name" END) AS p6_name
+    FROM ranked_products
+)
+INSERT INTO public."OrderItem" (
+    "id",
+    "orderId",
+    "productId",
+    "variantId",
+    "name",
+    "quantity",
+    "unitPrice",
+    "totalPrice",
+    "status",
+    "createdAt",
+    "updatedAt"
+)
+SELECT
+    seed."id",
+    ctx."orderId",
+    seed."productId",
+    NULL,
+    seed."name",
+    seed."quantity",
+    seed."unitPrice",
+    seed."totalPrice",
+    'Served',
+    date_trunc('day', now() - interval '1 day'),
+    date_trunc('day', now() - interval '1 day')
+FROM ctx
+JOIN picked ON true
+JOIN (
+    SELECT
+        'ab2e1c43-835e-4a6e-9d73-128f7ae11b01'::uuid AS "id",
+        picked.p1_id AS "productId",
+        COALESCE(picked.p1_name, 'Top Product 1') AS "name",
+        5 AS "quantity",
+        220.00::numeric AS "unitPrice",
+        1100.00::numeric AS "totalPrice"
+    FROM picked
+    UNION ALL
+    SELECT
+        'ab2e1c43-835e-4a6e-9d73-128f7ae11b02'::uuid,
+        picked.p2_id,
+        COALESCE(picked.p2_name, 'Top Product 2'),
+        3,
+        180.00::numeric,
+        540.00::numeric
+    FROM picked
+    UNION ALL
+    SELECT
+        'ab2e1c43-835e-4a6e-9d73-128f7ae11b03'::uuid,
+        picked.p3_id,
+        COALESCE(picked.p3_name, 'Mid Product'),
+        2,
+        120.00::numeric,
+        240.00::numeric
+    FROM picked
+    UNION ALL
+    SELECT
+        'ab2e1c43-835e-4a6e-9d73-128f7ae11b04'::uuid,
+        picked.p4_id,
+        COALESCE(picked.p4_name, 'Low Product 1'),
+        1,
+        90.00::numeric,
+        90.00::numeric
+    FROM picked
+    UNION ALL
+    SELECT
+        'ab2e1c43-835e-4a6e-9d73-128f7ae11b05'::uuid,
+        picked.p5_id,
+        COALESCE(picked.p5_name, 'Low Product 2'),
+        1,
+        60.00::numeric,
+        60.00::numeric
+    FROM picked
+    UNION ALL
+    SELECT
+        'ab2e1c43-835e-4a6e-9d73-128f7ae11b06'::uuid,
+        picked.p6_id,
+        COALESCE(picked.p6_name, 'Least Product'),
+        1,
+        50.00::numeric,
+        50.00::numeric
+    FROM picked
+) seed ON true
+WHERE seed."productId" IS NOT NULL
+ON CONFLICT ("id") DO NOTHING;
+
 
 --
 -- PostgreSQL database dump complete
 --
 
 \unrestrict t4gTCcxnzHvcvaP2uE5BbCjKhCIN0rXmqqB9wn4kVLessWGLb70U9MrgcD8ed4Y
-

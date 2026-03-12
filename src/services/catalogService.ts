@@ -33,12 +33,19 @@ export interface Product {
   name: string;
   sku: string;
   barcode?: string;
+  displayOrder?: number;
   type: 'Regular' | 'Combo' | 'Retail';
   description?: string;
   shortCode?: string;
   hsnCode?: string;
   preparationTime?: number;
   servesCount?: number;
+  measuringUnit?: string;
+  includesTax?: boolean;
+  taxId?: string;
+  eligibleForDiscount?: boolean;
+  discountType?: string;
+  tagId?: string;
   isVeg: boolean;
   status: 'active' | 'inactive';
   categoryId?: string;
@@ -52,7 +59,9 @@ export interface Product {
   variants?: ProductVariant[];
   addons?: ProductAddon[];
   prices?: ProductPrice[];
+  basePrice?: number | null;
   images?: ProductImage[];
+  primaryImage?: string | null;
   tags?: Tag[];
   nutrition?: ProductNutrition;
   allergens?: Allergen[];
@@ -116,6 +125,7 @@ export interface Menu {
   id: string;
   name: string;
   description?: string;
+  image?: string;
   status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
@@ -195,6 +205,7 @@ export interface ProductListParams extends PaginationParams {
   subCategoryId?: string;
   brandId?: string;
   menuId?: string;
+  kitchenId?: string;
   type?: 'Regular' | 'Combo' | 'Retail';
   status?: 'active' | 'inactive';
   search?: string;
@@ -212,11 +223,19 @@ export interface CreateProductData {
   brandId?: string;
   menuId?: string;
   sku?: string;
+  barcode?: string;
   description?: string;
   shortCode?: string;
   hsnCode?: string;
   preparationTime?: number;
   servesCount?: number;
+  displayOrder?: number;
+  measuringUnit?: string;
+  includesTax?: boolean;
+  taxId?: string;
+  eligibleForDiscount?: boolean;
+  discountType?: string;
+  tagId?: string;
   isVeg?: boolean;
   status?: 'active' | 'inactive';
   availabilitySchedule?: ProductAvailabilitySchedule[];
@@ -231,11 +250,19 @@ export interface UpdateProductData {
   brandId?: string | null;
   menuId?: string | null;
   sku?: string | null;
+  barcode?: string | null;
   description?: string | null;
   shortCode?: string | null;
   hsnCode?: string | null;
   preparationTime?: number | null;
   servesCount?: number | null;
+  displayOrder?: number | null;
+  measuringUnit?: string | null;
+  includesTax?: boolean;
+  taxId?: string | null;
+  eligibleForDiscount?: boolean;
+  discountType?: string | null;
+  tagId?: string | null;
   isVeg?: boolean;
   status?: 'active' | 'inactive';
   availabilitySchedule?: ProductAvailabilitySchedule[];
@@ -296,6 +323,66 @@ export interface UpdateTagData {
   status?: 'active' | 'inactive';
 }
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001/api/v1';
+const API_ORIGIN = API_BASE.replace(/\/api\/v1\/?$/, '');
+
+function normalizeImageUrl(image?: string | null): string | undefined {
+  if (!image) return undefined;
+  if (/^https?:\/\//i.test(image)) return image;
+
+  const normalized = image.replace(/\\/g, '/').trim();
+
+  // Handle absolute local filesystem paths from frontend public folder.
+  const publicIndex = normalized.toLowerCase().lastIndexOf('/public/');
+  if (publicIndex !== -1) {
+    const publicRelative = normalized.slice(publicIndex + '/public'.length);
+    return publicRelative.startsWith('/') ? publicRelative : `/${publicRelative}`;
+  }
+
+  // Already frontend-public relative path.
+  if (normalized.startsWith('/images/') || normalized.startsWith('images/')) {
+    return normalized.startsWith('/') ? normalized : `/${normalized}`;
+  }
+
+  // Handle backend static assets paths.
+  if (normalized.startsWith('/assets/') || normalized.startsWith('assets/')) {
+    const assetPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    return `${API_ORIGIN}${assetPath}`;
+  }
+
+  // Handle stored relative catalog path, e.g. "catalog/products/file.jpg".
+  if (normalized.startsWith('catalog/')) {
+    return `${API_ORIGIN}/assets/${normalized}`;
+  }
+
+  // Handle accidental storage of src/assets path.
+  const srcAssetsIndex = normalized.toLowerCase().lastIndexOf('/src/assets/');
+  if (srcAssetsIndex !== -1) {
+    const assetRelative = normalized.slice(srcAssetsIndex + '/src/assets/'.length);
+    return `${API_ORIGIN}/assets/${assetRelative}`;
+  }
+
+  // Handle plain filename fallback to frontend public products folder.
+  if (!normalized.includes('/')) {
+    return `/images/products/${normalized}`;
+  }
+
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
+function normalizeProductImages(product: Product): Product {
+  const normalizedImages = product.images?.map((img) => ({
+    ...img,
+    url: normalizeImageUrl(img.url) || img.url,
+  }));
+
+  return {
+    ...product,
+    images: normalizedImages,
+    primaryImage: normalizeImageUrl(product.primaryImage) || product.primaryImage || null,
+  };
+}
+
 // ============================================
 // Product API Functions
 // ============================================
@@ -304,14 +391,25 @@ export interface UpdateTagData {
  * Get paginated list of products
  */
 export const getProducts = async (params?: ProductListParams): Promise<ApiResponse<{ products: Product[] }> & { pagination?: PaginationMeta }> => {
-  return api.get<ApiResponse<{ products: Product[] }> & { pagination?: PaginationMeta }>('/catalog/products', { params });
+  const response = await api.get<ApiResponse<{ products: Product[] }> & { pagination?: PaginationMeta }>('/catalog/products', { params });
+  if (response.success && response.data?.products) {
+    response.data.products = response.data.products.map((product) => normalizeProductImages(product));
+  }
+  return response;
 };
 
 /**
  * Get single product by ID with full details
  */
 export const getProduct = async (id: string): Promise<ApiResponse<Product>> => {
-  return api.get<ApiResponse<Product>>(`/catalog/products/${id}`);
+  const response = await api.get<ApiResponse<Product | { product: Product }>>(`/catalog/products/${id}`);
+  const rawData = response.data as Product | { product: Product } | undefined;
+  const product = rawData && 'product' in rawData ? rawData.product : rawData;
+
+  return {
+    ...response,
+    data: product ? normalizeProductImages(product) : undefined,
+  };
 };
 
 /**
@@ -430,18 +528,55 @@ export const exportAllProducts = async (
  */
 export const uploadProductImages = async (
   productId: string,
-  files: File[]
+  files: File[],
+  productName?: string
 ): Promise<ApiResponse<ProductImage[]>> => {
-  const formData = new FormData();
-  files.forEach((file) => {
-    formData.append('images', file);
-  });
+  try {
+    const uploaded: ProductImage[] = [];
 
-  return api.post<ApiResponse<ProductImage[]>>(
-    `/catalog/products/${productId}/images`,
-    formData,
-    { headers: { 'Content-Type': 'multipart/form-data' } }
-  );
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      const formData = new FormData();
+      formData.append('image', file);
+      if (productName) {
+        formData.append('productName', productName);
+      }
+      if (index === 0) {
+        formData.append('isPrimary', 'true');
+      }
+      formData.append('sortOrder', String(index));
+
+      const response = await api.post<ApiResponse<{ image: ProductImage }>>(
+        `/catalog/products/${productId}/images`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+
+      if (response.success && response.data?.image) {
+        uploaded.push(response.data.image);
+      } else {
+        return {
+          success: false,
+          error: response.error,
+          message: response.message || 'Failed to upload product image',
+        };
+      }
+    }
+
+    return {
+      success: true,
+      data: uploaded,
+      message: 'Product images uploaded successfully',
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: {
+        code: 'UPLOAD_FAILED',
+        message: error?.message || 'Failed to upload product images',
+      },
+    };
+  }
 };
 
 /**
@@ -489,7 +624,14 @@ export const reorderProductImages = async (
  * Get list of categories
  */
 export const getCategories = async (params?: { status?: 'active' | 'inactive' }): Promise<ApiResponse<{ categories: Category[]; total: number }>> => {
-  return api.get<ApiResponse<{ categories: Category[]; total: number }>>('/catalog/categories', { params });
+  const response = await api.get<ApiResponse<{ categories: Category[]; total: number }>>('/catalog/categories', { params });
+  if (response.success && response.data?.categories) {
+    response.data.categories = response.data.categories.map((category) => ({
+      ...category,
+      image: normalizeImageUrl(category.image),
+    }));
+  }
+  return response;
 };
 
 /**
@@ -554,10 +696,17 @@ export const getSubCategoriesByCategory = async (
   categoryId: string,
   params?: { status?: 'active' | 'inactive' }
 ): Promise<ApiResponse<{ subCategories: SubCategory[]; total: number }>> => {
-  return api.get<ApiResponse<{ subCategories: SubCategory[]; total: number }>>(
+  const response = await api.get<ApiResponse<{ subCategories: SubCategory[]; total: number }>>(
     `/catalog/categories/${categoryId}/subcategories`,
     { params }
   );
+  if (response.success && response.data?.subCategories) {
+    response.data.subCategories = response.data.subCategories.map((subCategory) => ({
+      ...subCategory,
+      image: normalizeImageUrl(subCategory.image),
+    }));
+  }
+  return response;
 };
 
 /**
@@ -652,7 +801,14 @@ export const deleteSubCategory = async (
  * Get list of brands
  */
 export const getBrands = async (params?: { status?: 'active' | 'inactive' }): Promise<ApiResponse<{ brands: Brand[]; total: number }>> => {
-  return api.get<ApiResponse<{ brands: Brand[]; total: number }>>('/catalog/brands', { params });
+  const response = await api.get<ApiResponse<{ brands: Brand[]; total: number }>>('/catalog/brands', { params });
+  if (response.success && response.data?.brands) {
+    response.data.brands = response.data.brands.map((brand) => ({
+      ...brand,
+      image: normalizeImageUrl(brand.image),
+    }));
+  }
+  return response;
 };
 
 /**
@@ -746,14 +902,36 @@ export const deleteTag = async (id: string): Promise<ApiResponse<{ success: bool
  * Get list of menus
  */
 export const getMenus = async (params?: { status?: 'active' | 'inactive' }): Promise<ApiResponse<{ menus: Menu[]; total: number }>> => {
-  return api.get<ApiResponse<{ menus: Menu[]; total: number }>>('/catalog/menus', { params });
+  const response = await api.get<ApiResponse<{ menus: Menu[]; total: number }>>('/catalog/menus', { params });
+  if (response.success && response.data?.menus) {
+    response.data.menus = response.data.menus.map((menu) => ({
+      ...menu,
+      image: normalizeImageUrl(menu.image),
+    }));
+  }
+  return response;
 };
 
 /**
  * Create a new menu
  */
-export const createMenu = async (data: { name: string; description?: string; status?: 'active' | 'inactive' }): Promise<ApiResponse<Menu>> => {
-  return api.post<ApiResponse<Menu>>('/catalog/menus', data);
+export const createMenu = async (
+  data: { name: string; description?: string; status?: 'active' | 'inactive' },
+  imageFile?: File
+): Promise<ApiResponse<Menu>> => {
+  const formData = new FormData();
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined) {
+      formData.append(key, String(value));
+    }
+  });
+  if (imageFile) {
+    formData.append('image', imageFile);
+  }
+
+  return api.post<ApiResponse<Menu>>('/catalog/menus', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 };
 
 /**
@@ -761,9 +939,22 @@ export const createMenu = async (data: { name: string; description?: string; sta
  */
 export const updateMenu = async (
   id: string,
-  data: { name?: string; description?: string; status?: 'active' | 'inactive' }
+  data: { name?: string; description?: string; status?: 'active' | 'inactive' },
+  imageFile?: File
 ): Promise<ApiResponse<Menu>> => {
-  return api.put<ApiResponse<Menu>>(`/catalog/menus/${id}`, data);
+  const formData = new FormData();
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined) {
+      formData.append(key, String(value));
+    }
+  });
+  if (imageFile) {
+    formData.append('image', imageFile);
+  }
+
+  return api.put<ApiResponse<Menu>>(`/catalog/menus/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 };
 
 /**
@@ -856,6 +1047,73 @@ export interface CreateProductPriceData {
   variantId?: string;
   taxGroupId?: string;
 }
+
+export interface CreateProductVariantData {
+  name: string;
+  additionalPrice: number;
+  sku?: string;
+  status?: 'active' | 'inactive';
+}
+
+export interface UpdateProductVariantData {
+  name?: string;
+  additionalPrice?: number;
+  sku?: string | null;
+  status?: 'active' | 'inactive';
+}
+
+export interface CreateProductAddonData {
+  name: string;
+  price: number;
+  status?: 'active' | 'inactive';
+}
+
+export interface UpdateProductAddonData {
+  name?: string;
+  price?: number;
+  status?: 'active' | 'inactive';
+}
+
+/**
+ * List all variants for a product
+ */
+export const listProductVariants = async (productId: string): Promise<ApiResponse<{ variants: ProductVariant[]; total: number }>> => {
+  return api.get<ApiResponse<{ variants: ProductVariant[]; total: number }>>(`/catalog/products/${productId}/variants`);
+};
+
+export const createProductVariant = async (
+  productId: string,
+  data: CreateProductVariantData
+): Promise<ApiResponse<{ variant: ProductVariant }>> => {
+  return api.post<ApiResponse<{ variant: ProductVariant }>>(`/catalog/products/${productId}/variants`, data);
+};
+
+export const updateProductVariant = async (
+  productId: string,
+  variantId: string,
+  data: UpdateProductVariantData
+): Promise<ApiResponse<{ variant: ProductVariant }>> => {
+  return api.put<ApiResponse<{ variant: ProductVariant }>>(`/catalog/products/${productId}/variants/${variantId}`, data);
+};
+
+export const listProductAddons = async (productId: string): Promise<ApiResponse<{ addons: ProductAddon[]; total: number }>> => {
+  return api.get<ApiResponse<{ addons: ProductAddon[]; total: number }>>(`/catalog/products/${productId}/addons`);
+};
+
+export const createProductAddon = async (
+  productId: string,
+  data: CreateProductAddonData
+): Promise<ApiResponse<{ addon: ProductAddon }>> => {
+  return api.post<ApiResponse<{ addon: ProductAddon }>>(`/catalog/products/${productId}/addons`, data);
+};
+
+export const updateProductAddon = async (
+  productId: string,
+  addonId: string,
+  data: UpdateProductAddonData
+): Promise<ApiResponse<{ addon: ProductAddon }>> => {
+  return api.put<ApiResponse<{ addon: ProductAddon }>>(`/catalog/products/${productId}/addons/${addonId}`, data);
+};
 
 /**
  * List all prices for a product

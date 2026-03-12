@@ -6,36 +6,42 @@ import {
   List,
   Pencil,
   Trash2,
+  Eye,
 } from "lucide-react";
 
 import Modal from "../ui/Modal";
 import AddEditMenuModal from "./products/models/AddEditMenuModal";
 import { getMenus, Menu, deleteMenu } from "../../services/catalogService";
 import { showInfoToast } from "../../utils/toast";
+import { getErrorMessage } from "../../utils/errorHandler";
 import { LoadingSpinner, TableSkeleton } from "../Common";
+import Pagination from "../Common/Pagination";
 
 import tickIcon from "../../assets/tick.png";
 import deleteIcon from "../../assets/deleteConformImg.png";
 import successIcon from "../../assets/deleteSuccessImg.png";
 
+type SortKey = "name" | "status";
+
 export default function MenuContent() {
   const [view, setView] = useState<"table" | "grid">("table");
   const [activeItem, setActiveItem] = useState<Menu | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
   const [modal, setModal] = useState<"add" | "edit" | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [showSuccess, setShowSuccess] = useState<"created" | "updated" | null>(
-    null,
-  );
-
+  const [error, setError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState<"created" | "updated" | null>(null);
   const [openDelete, setOpenDelete] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Load menus on mount
   useEffect(() => {
     loadMenus();
   }, []);
@@ -43,12 +49,15 @@ export default function MenuContent() {
   const loadMenus = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await getMenus();
       if (response.success && response.data) {
         setMenus(response.data.menus || []);
+      } else {
+        setError(response.message || response.error?.message || "Failed to load menus");
       }
-    } catch (error) {
-      console.error("Failed to load menus:", error);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to load menus"));
     } finally {
       setLoading(false);
     }
@@ -56,82 +65,123 @@ export default function MenuContent() {
 
   const handleDelete = async () => {
     if (!activeItem) return;
-
     try {
       const response = await deleteMenu(activeItem.id);
       if (response.success) {
         setOpenDelete(false);
         setShowDeleteSuccess(true);
-        // Refresh menus list
         await loadMenus();
-        // Auto-close delete success modal
         setTimeout(() => {
           setShowDeleteSuccess(false);
           setActiveItem(null);
         }, 2000);
+      } else {
+        setError(response.message || response.error?.message || "Failed to delete menu");
       }
-    } catch (error) {
-      console.error("Failed to delete menu:", error);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to delete menu"));
     }
   };
 
   const handleSuccess = async (type: "created" | "updated") => {
     setModal(null);
     setShowSuccess(type);
-    // Refresh menus list
     await loadMenus();
-    // Auto-close success modal
     setTimeout(() => {
       setShowSuccess(null);
       setActiveItem(null);
     }, 2000);
   };
 
-  const filteredMenus = useMemo(() => {
-    return menus.filter((m) => {
+  const filteredAndSorted = useMemo(() => {
+    const filtered = menus.filter((m) => {
       const matchesSearch = !searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = !statusFilter || m.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [menus, searchQuery, statusFilter]);
+
+    return [...filtered].sort((a, b) => {
+      const base = sortKey === "status" ? a.status.localeCompare(b.status) : a.name.localeCompare(b.name);
+      return sortOrder === "asc" ? base : -base;
+    });
+  }, [menus, searchQuery, statusFilter, sortKey, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / itemsPerPage));
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSorted.slice(start, start + itemsPerPage);
+  }, [filteredAndSorted, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const allVisibleSelected =
+    paginatedRows.length > 0 && paginatedRows.every((row) => selected.includes(row.id));
+
+  const toggleAllVisible = () => {
+    if (allVisibleSelected) {
+      setSelected((prev) => prev.filter((id) => !paginatedRows.some((row) => row.id === id)));
+      return;
+    }
+    setSelected((prev) => Array.from(new Set([...prev, ...paginatedRows.map((row) => row.id)])));
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortOrder("asc");
+  };
 
   const handleExport = () => {
-    const headers = ['Name', 'Description', 'Status'];
-    const rows = filteredMenus.map((m) => [m.name, m.description || '', m.status]);
-    const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const headers = ["Name", "Description", "Status"];
+    const rows = filteredAndSorted.map((m) => [m.name, m.description || "", m.status]);
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'menus.csv';
+    a.download = "menus.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
     <div className="space-y-4">
-      {/* ================= HEADER ================= */}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>}
+
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
         <h1 className="text-[32px] font-bold">Menu</h1>
 
         <div className="flex flex-wrap gap-2">
           <div className="relative w-full sm:w-[220px]">
-            <Search
-              size={16}
-              className="absolute right-3 top-3 text-gray-500"
-            />
+            <Search size={16} className="absolute right-3 top-3 text-gray-500" />
             <input
               placeholder="Search here..."
-              className="border rounded-md px-3 pr-8 py-2 text-sm w-full"
+              className="border rounded-md px-3 pr-8 py-2 text-sm w-full bg-gray-50"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
 
-          <button className="bg-yellow-400 px-4 py-2 rounded" onClick={() => showInfoToast('CSV import coming soon')}>Import</button>
-
-          <button className="border px-4 py-2 rounded" onClick={handleExport}>Export</button>
-
+          <button className="border px-4 py-2 rounded" onClick={() => showInfoToast("CSV import coming soon")}>
+            Import
+          </button>
+          <button className="border px-4 py-2 rounded" onClick={handleExport}>
+            Export
+          </button>
           <button
             onClick={() => {
               setActiveItem(null);
@@ -144,24 +194,35 @@ export default function MenuContent() {
         </div>
       </div>
 
-      {/* ================= FILTER + VIEW ================= */}
       <div className="flex flex-wrap justify-end gap-2">
-        <select className="border px-3 py-2 rounded text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select
+          className="border px-3 py-2 rounded text-sm bg-white"
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
           <option value="">Filter by Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
 
-        <button className="bg-yellow-400 px-4 py-2 rounded" onClick={() => { setSearchQuery(""); setStatusFilter(""); }}>Clear</button>
+        <button
+          className="border px-4 py-2 rounded"
+          onClick={() => {
+            setSearchQuery("");
+            setStatusFilter("");
+            setCurrentPage(1);
+          }}
+        >
+          Clear
+        </button>
 
         <div className="flex border rounded overflow-hidden">
-          <button
-            onClick={() => setView("table")}
-            className={`p-2 ${view === "table" ? "bg-yellow-400" : ""}`}
-          >
+          <button onClick={() => setView("table")} className={`p-2 ${view === "table" ? "bg-yellow-400" : ""}`}>
             <List size={16} />
           </button>
-
           <button
             onClick={() => setView("grid")}
             className={`p-2 border-l ${view === "grid" ? "bg-yellow-400" : ""}`}
@@ -171,175 +232,189 @@ export default function MenuContent() {
         </div>
       </div>
 
-      {/* ================= TABLE VIEW ================= */}
       {view === "table" && (
-        <div className="bg-white border rounded-xl overflow-x-auto">
-          <table className="w-full min-w-[800px] text-sm">
-            <thead className="bg-yellow-400">
-              <tr>
-                <th className="p-3">
-                  <input type="checkbox" />
-                </th>
-                <th className="text-left">Menu Name</th>
-                <th>Image</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th className="text-right pr-4">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading ? (
+        <>
+          <div className="bg-white border rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm">
+              <thead className="bg-yellow-400">
                 <tr>
-                  <td colSpan={6} className="p-8">
-                    <TableSkeleton rows={5} />
-                  </td>
+                  <th className="p-3">
+                    <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} />
+                  </th>
+                  <th className="text-left cursor-pointer" onClick={() => handleSort("name")}>
+                    Menu Name
+                  </th>
+                  <th>Image</th>
+                  <th>Description</th>
+                  <th className="cursor-pointer" onClick={() => handleSort("status")}>
+                    Status
+                  </th>
+                  <th className="text-right pr-4">Actions</th>
                 </tr>
-              ) : filteredMenus.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-500">
-                    No menus found
-                  </td>
-                </tr>
-              ) : (
-                filteredMenus.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="p-3">
-                    <input type="checkbox" />
-                  </td>
+              </thead>
 
-                  <td className="font-medium">{item.name}</td>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="p-8">
+                      <TableSkeleton rows={5} />
+                    </td>
+                  </tr>
+                ) : filteredAndSorted.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                      No menus found
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedRows.map((item) => (
+                    <tr key={item.id} className="border-t">
+                      <td className="p-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(item.id)}
+                          onChange={() => toggleSelect(item.id)}
+                        />
+                      </td>
+                      <td className="font-medium">{item.name}</td>
+                      <td>
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} className="w-12 h-12 rounded object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                            No Image
+                          </div>
+                        )}
+                      </td>
+                      <td className="text-gray-500 max-w-[260px] truncate">{item.description || "-"}</td>
+                      <td>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs ${
+                            item.status === "active" ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {item.status === "active" ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="relative text-right pr-4">
+                        <MoreVertical
+                          size={16}
+                          className="cursor-pointer"
+                          onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+                        />
+                        {openMenuId === item.id && (
+                          <div className="absolute right-0 mt-2 w-36 bg-white border rounded shadow z-30">
+                            <button
+                              onClick={() => {
+                                setActiveItem(item);
+                                setModal("edit");
+                                setOpenMenuId(null);
+                              }}
+                              className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
+                            >
+                              <Eye size={14} />
+                              View
+                            </button>
+                            <button
+                              onClick={() => {
+                                setActiveItem(item);
+                                setModal("edit");
+                                setOpenMenuId(null);
+                              }}
+                              className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
+                            >
+                              <Pencil size={14} />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                setActiveItem(item);
+                                setOpenDelete(true);
+                                setOpenMenuId(null);
+                              }}
+                              className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left text-red-600"
+                            >
+                              <Trash2 size={14} />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-                  <td>
-                    <div className="w-12 h-12 rounded bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+          {!loading && filteredAndSorted.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredAndSorted.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(value) => {
+                setItemsPerPage(value);
+                setCurrentPage(1);
+              }}
+              showPageSize
+            />
+          )}
+        </>
+      )}
+
+      {view === "grid" && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {loading ? (
+              <div className="col-span-full p-8">
+                <LoadingSpinner size="lg" message="Loading menus..." />
+              </div>
+            ) : filteredAndSorted.length === 0 ? (
+              <div className="col-span-full p-8 text-center text-gray-500">No menus found</div>
+            ) : (
+              paginatedRows.map((item) => (
+                <div key={item.id} className="bg-white border rounded-xl p-4">
+                  {item.image ? (
+                    <img src={item.image} className="w-full h-32 rounded-lg object-cover" alt={item.name} />
+                  ) : (
+                    <div className="w-full h-32 rounded-lg bg-gray-200 flex items-center justify-center text-gray-500">
                       No Image
                     </div>
-                  </td>
+                  )}
 
-                  <td className="text-gray-500 max-w-[260px] truncate">
-                    {item.description || '-'}
-                  </td>
+                  <h3 className="font-semibold mt-2">{item.name}</h3>
+                  <p className="text-xs text-gray-500 line-clamp-2 mt-1">{item.description || "-"}</p>
+                  <span
+                    className={`inline-block mt-2 px-3 py-1 rounded-full text-xs ${
+                      item.status === "active" ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {item.status === "active" ? "Active" : "Inactive"}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
 
-                  <td>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs ${
-                        item.status === "active"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </td>
-
-                  {/* ACTION MENU */}
-                  <td className="relative text-right pr-4">
-                    <MoreVertical
-                      size={16}
-                      className="cursor-pointer"
-                      onClick={() =>
-                        setOpenMenuId(openMenuId === item.id ? null : item.id)
-                      }
-                    />
-
-                    {openMenuId === item.id && (
-                      <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow z-30">
-                        <button
-                          onClick={() => {
-                            setActiveItem(item);
-                            setModal("edit");
-                            setOpenMenuId(null);
-                          }}
-                          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
-                        >
-                          <Pencil size={14} />
-                          Edit
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setActiveItem(item);
-                            setOpenDelete(true);
-                            setOpenMenuId(null);
-                          }}
-                          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left text-red-600"
-                        >
-                          <Trash2 size={14} />
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* ================= GRID VIEW ================= */}
-      {view === "grid" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {loading ? (
-            <div className="col-span-full p-8">
-              <LoadingSpinner size="lg" message="Loading menus..." />
-            </div>
-          ) : filteredMenus.length === 0 ? (
-            <div className="col-span-full p-8 text-center text-gray-500">
-              No menus found
-            </div>
-          ) : (
-            filteredMenus.map((item) => (
-            <div key={item.id} className="bg-white border rounded-xl p-4">
-              <div className="w-full h-32 rounded-lg bg-gray-200 flex items-center justify-center text-gray-500">
-                No Image
-              </div>
-
-              <h3 className="font-semibold mt-2">{item.name}</h3>
-
-              <p className="text-xs text-gray-500 line-clamp-2 mt-1">
-                {item.description || '-'}
-              </p>
-
-              <span
-                className={`inline-block mt-2 px-3 py-1 rounded-full text-xs ${
-                  item.status === "active"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-red-100 text-red-700"
-                }`}
-              >
-                {item.status}
-              </span>
-
-              {/* GRID ACTIONS */}
-              <div className="flex justify-end gap-3 mt-3">
-                <button
-                  onClick={() => {
-                    setActiveItem(item);
-                    setModal("edit");
-                  }}
-                >
-                  <Pencil size={16} />
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveItem(item);
-                    setOpenDelete(true);
-                  }}
-                  className="text-red-600"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-            ))
+          {!loading && filteredAndSorted.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredAndSorted.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(value) => {
+                setItemsPerPage(value);
+                setCurrentPage(1);
+              }}
+              showPageSize
+            />
           )}
-        </div>
+        </>
       )}
 
-      {/* ================= ADD / EDIT ================= */}
       <AddEditMenuModal
         open={modal === "add" || modal === "edit"}
         data={modal === "edit" ? activeItem : null}
@@ -347,75 +422,41 @@ export default function MenuContent() {
         onSuccess={handleSuccess}
       />
 
-      {/* ================= SUCCESS ================= */}
-      <Modal
-        open={!!showSuccess}
-        onClose={() => setShowSuccess(null)}
-        className="w-[90%] max-w-[420px] p-6"
-      >
+      <Modal open={!!showSuccess} onClose={() => setShowSuccess(null)} className="w-[90%] max-w-[420px] p-6">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">
-            Menu {showSuccess === "created" ? "Created" : "Updated"}
-          </h2>
-
-          <img src={tickIcon} className="w-16 h-16 mx-auto mb-4" />
-
+          <h2 className="text-2xl font-bold mb-4">Menu {showSuccess === "created" ? "Created" : "Updated"}</h2>
+          <img src={tickIcon} className="w-16 h-16 mx-auto mb-4" alt="Success" />
           <p className="text-sm text-gray-600">
-            Menu details {showSuccess === "created" ? "added" : "updated"}{" "}
-            successfully!
+            Menu details {showSuccess === "created" ? "added" : "updated"} successfully!
           </p>
         </div>
       </Modal>
 
-      {/* ================= DELETE CONFIRM ================= */}
-      <Modal
-        open={openDelete}
-        onClose={() => setOpenDelete(false)}
-        className="w-[90%] max-w-[420px] p-6"
-      >
+      <Modal open={openDelete} onClose={() => setOpenDelete(false)} className="w-[90%] max-w-[420px] p-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Delete</h2>
-
-          <img src={deleteIcon} className="w-14 h-14 mx-auto mb-4" />
-
+          <img src={deleteIcon} className="w-14 h-14 mx-auto mb-4" alt="Delete" />
           <p className="text-sm text-gray-600 mb-6">
             This action cannot be undone.
             <br />
             Do you want to proceed with deletion?
           </p>
-
           <div className="flex justify-center gap-3">
-            <button
-              onClick={() => setOpenDelete(false)}
-              className="border px-6 py-2 rounded"
-            >
+            <button onClick={() => setOpenDelete(false)} className="border px-6 py-2 rounded">
               Cancel
             </button>
-
-            <button
-              onClick={handleDelete}
-              className="bg-yellow-400 px-6 py-2 rounded"
-            >
+            <button onClick={handleDelete} className="bg-yellow-400 px-6 py-2 rounded">
               Yes
             </button>
           </div>
         </div>
       </Modal>
 
-      {/* ================= DELETE SUCCESS ================= */}
-      <Modal
-        open={showDeleteSuccess}
-        onClose={() => setShowDeleteSuccess(false)}
-        className="w-[90%] max-w-[420px] p-6"
-      >
+      <Modal open={showDeleteSuccess} onClose={() => setShowDeleteSuccess(false)} className="w-[90%] max-w-[420px] p-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Deleted!</h2>
-
-          <img src={successIcon} className="w-16 h-16 mx-auto mb-4" />
-
-          <p className="text-sm text-gray-600">
-            Menu has been successfully removed.
-          </p>
+          <img src={successIcon} className="w-16 h-16 mx-auto mb-4" alt="Deleted" />
+          <p className="text-sm text-gray-600">Menu has been successfully removed.</p>
         </div>
       </Modal>
     </div>

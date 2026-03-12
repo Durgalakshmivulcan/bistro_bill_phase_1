@@ -276,7 +276,19 @@ export async function createSubCategory(
       }
     }
 
-    // Get image URL from S3 upload if present
+    if (!req.uploadedFile?.url) {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Image is required',
+        },
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Get image URL from upload middleware
     const imageUrl = req.uploadedFile?.url || null;
 
     // Create subcategory

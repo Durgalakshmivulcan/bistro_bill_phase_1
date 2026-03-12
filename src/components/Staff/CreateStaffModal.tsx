@@ -27,6 +27,7 @@ import {
   UpdateStaffData,
   Role
 } from "../../services/staffService";
+import { getBranches, BranchResponse } from "../../services/branchService";
 
 // ================= TYPES =================
 interface CreateStaffModalProps {
@@ -54,6 +55,8 @@ const CreateStaffModal = ({
   const [successOpen, setSuccessOpen] = useState(false);
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [existingAvatarUrl, setExistingAvatarUrl] = useState<string | null>(null);
+  const [avatarRemoved, setAvatarRemoved] = useState(false);
 
   const [formData, setFormData] = useState(emptyForm);
   const [errors, setErrors] = useState<FormErrors>({
@@ -71,22 +74,51 @@ const CreateStaffModal = ({
   const [fetching, setFetching] = useState(false);
   const [apiError, setApiError] = useState<string>("");
   const [roles, setRoles] = useState<Role[]>([]);
+  const [branches, setBranches] = useState<BranchResponse[]>([]);
+  const apiBaseUrl = (process.env.REACT_APP_API_URL || "http://localhost:5001/api/v1")
+    .replace(/\/api\/v1\/?$/, "");
 
   const isEditMode = Boolean(defaultValues);
+
+  const toAbsoluteAvatarUrl = (avatarPath?: string | null): string | null => {
+    if (!avatarPath) return null;
+    if (avatarPath.startsWith("/images/")) return avatarPath;
+    if (avatarPath.startsWith("/assets/")) {
+      return `${apiBaseUrl}${avatarPath}`;
+    }
+    if (/^https?:\/\//i.test(avatarPath)) return avatarPath;
+    return `${apiBaseUrl}${avatarPath.startsWith("/") ? "" : "/"}${avatarPath}`;
+  };
 
   // ================= FETCH ROLES =================
   useEffect(() => {
     fetchRoles();
+    fetchBranches();
   }, []);
 
   const fetchRoles = async () => {
     try {
-      const response = await getRoles("Active");
+      const response = await getRoles();
       if (response.success && response.data) {
-        setRoles(response.data.roles);
+        setRoles(
+          response.data.roles.filter(
+            (role) => String(role.status).toLowerCase() === "active"
+          )
+        );
       }
     } catch (err) {
       console.error("Error fetching roles:", err);
+    }
+  };
+
+  const fetchBranches = async () => {
+    try {
+      const response = await getBranches();
+      if (response.success && response.data) {
+        setBranches(response.data.branches);
+      }
+    } catch (err) {
+      console.error("Error fetching branches:", err);
     }
   };
 
@@ -98,6 +130,8 @@ const CreateStaffModal = ({
       setFormData(emptyForm);
       setProfileImage(null);
       setPreviewUrl(null);
+      setExistingAvatarUrl(null);
+      setAvatarRemoved(false);
     }
   }, [defaultValues]);
 
@@ -119,6 +153,8 @@ const CreateStaffModal = ({
           role: staff.roleId || "",
           offlineAccess: false,
         });
+        setExistingAvatarUrl(toAbsoluteAvatarUrl(staff.avatar));
+        setAvatarRemoved(false);
       } else {
         setApiError(response.error?.message || "Failed to fetch staff details");
       }
@@ -133,7 +169,6 @@ const CreateStaffModal = ({
   // ================= IMAGE PREVIEW CLEANUP =================
   useEffect(() => {
     if (!profileImage) {
-      setPreviewUrl(null);
       return;
     }
 
@@ -238,6 +273,15 @@ const CreateStaffModal = ({
     setApiError("");
 
     try {
+      const avatarData = profileImage
+        ? await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ""));
+            reader.onerror = () => reject(new Error("Failed to read image"));
+            reader.readAsDataURL(profileImage);
+          })
+        : undefined;
+
       if (isEditMode && defaultValues?.id) {
         // Update existing staff
         const updateData: UpdateStaffData = {
@@ -252,6 +296,11 @@ const CreateStaffModal = ({
         // Only include password if it's provided
         if (formData.password) {
           updateData.password = formData.password;
+        }
+        if (avatarData) {
+          updateData.avatar = avatarData;
+        } else if (avatarRemoved) {
+          updateData.avatar = "";
         }
 
         const response = await updateStaff(defaultValues.id, updateData);
@@ -278,6 +327,9 @@ const CreateStaffModal = ({
           branchId: formData.branch,
           roleId: formData.role,
         };
+        if (avatarData) {
+          createData.avatar = avatarData;
+        }
 
         const response = await createStaff(createData);
 
@@ -313,6 +365,9 @@ const CreateStaffModal = ({
 
   const handleRemoveImage = () => {
     setProfileImage(null);
+    setPreviewUrl(null);
+    setExistingAvatarUrl(null);
+    setAvatarRemoved(true);
   };
 
   return (
@@ -343,8 +398,14 @@ const CreateStaffModal = ({
                   alt="Preview"
                   className="h-full w-full object-cover"
                 />
+              ) : existingAvatarUrl ? (
+                <img
+                  src={existingAvatarUrl}
+                  alt="Staff"
+                  className="h-full w-full object-cover"
+                />
               ) : (
-                "👤"
+                "User"
               )}
             </div>
 
@@ -364,9 +425,10 @@ const CreateStaffModal = ({
                   hidePreview
                   buttonLabel="Upload"
                   accept="image/png, image/jpeg"
-                  onChange={(file: File | null) =>
-                    setProfileImage(file)
-                  }
+                  onChange={(file: File | null) => {
+                    setProfileImage(file);
+                    setAvatarRemoved(false);
+                  }}
                   buttonClass="bg-yellow-400 hover:bg-yellow-500 text-black font-medium px-6 py-2 rounded-md whitespace-nowrap"
                 />
 
@@ -471,14 +533,22 @@ const CreateStaffModal = ({
                 </div>
 
                 <div>
-                  <Input
-                    label="Branch ID *"
-                    placeholder="Branch ID"
+                  <Select
+                    label="Branch *"
                     value={formData.branch}
-                    onChange={(value) =>
-                      handleChange("branch", value)
-                    }
-                    onBlur={() => handleBlur("branch")}
+                    onChange={(value) => {
+                      handleChange("branch", value);
+                      if (touched.branch) {
+                        handleBlur("branch");
+                      }
+                    }}
+                    options={[
+                      { label: "Select Branch", value: "" },
+                      ...branches.map((branch) => ({
+                        label: branch.name,
+                        value: branch.id,
+                      })),
+                    ]}
                     disabled={loading}
                   />
                   {touched.branch && <FormError message={errors.branch} />}
@@ -575,3 +645,4 @@ const CreateStaffModal = ({
 };
 
 export default CreateStaffModal;
+

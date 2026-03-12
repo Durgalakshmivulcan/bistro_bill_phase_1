@@ -51,13 +51,14 @@ export default function CreateAdvertisement() {
   const loadBranches = async () => {
     try {
       setLoadingBranches(true);
-      const response = await getBranches({ status: 'Active' });
+      const response = await getBranches({ status: 'active' });
       if (response.success && response.data) {
         const options = response.data.branches.map(branch => ({
           label: branch.name,
           value: branch.id,
         }));
         setBranchOptions(options);
+        setSelectedBranches((prev) => (prev.length ? prev : (options[0] ? [options[0].value] : [])));
       }
     } catch (err) {
       console.error('Error loading branches:', err);
@@ -66,9 +67,28 @@ export default function CreateAdvertisement() {
     }
   };
 
+  useEffect(() => {
+    if (!branchOptions.length) {
+      setSelectedBranches([]);
+      return;
+    }
+    const validSelections = selectedBranches.filter((id) =>
+      branchOptions.some((option) => option.value === id)
+    );
+    if (!validSelections.length) {
+      setSelectedBranches([branchOptions[0].value]);
+    } else if (validSelections.length !== selectedBranches.length) {
+      setSelectedBranches(validSelections);
+    }
+  }, [branchOptions, selectedBranches]);
+
   const handleSave = async () => {
     if (!form.title) {
       alert('Please fill in the title');
+      return;
+    }
+    if (!selectedBranches.length) {
+      alert('Please select at least one branch');
       return;
     }
 
@@ -171,6 +191,8 @@ export default function CreateAdvertisement() {
         <Textarea
           label="Description"
           placeholder="Type Here..."
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
       </div>
 

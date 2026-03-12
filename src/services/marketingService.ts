@@ -5,7 +5,7 @@ import { ApiResponse, SearchParams } from '../types/api';
 // TYPES - Discount
 // ============================================
 
-export type DiscountType = 'OrderLevel' | 'ProductCategory';
+export type DiscountType = 'OrderType' | 'ProductCategory' | 'Custom';
 export type DiscountValueType = 'Percentage' | 'Fixed' | 'BOGO';
 export type DiscountStatus = 'active' | 'inactive';
 
@@ -23,6 +23,7 @@ export interface Discount {
   id: string;
   code: string;
   name: string;
+  description: string | null;
   type: DiscountType;
   valueType: DiscountValueType;
   value: number; // Decimal from Prisma converted to number
@@ -44,6 +45,7 @@ export interface Discount {
 export interface CreateDiscountData {
   code?: string; // auto-generated if not provided
   name: string;
+  description?: string;
   type: DiscountType;
   valueType: DiscountValueType;
   value: number;
@@ -60,6 +62,7 @@ export interface CreateDiscountData {
 export interface UpdateDiscountData {
   code?: string;
   name?: string;
+  description?: string;
   type?: DiscountType;
   valueType?: DiscountValueType;
   value?: number;
@@ -222,6 +225,25 @@ export interface FeedbackResponsesParams {
   endDate?: string; // ISO date
 }
 
+export interface PublicFeedbackForm {
+  id: string;
+  title: string;
+  description: string | null;
+  questions: FeedbackQuestion[];
+  status: FeedbackFormStatus;
+}
+
+export interface SubmitPublicFeedbackData {
+  responses: Record<string, any>;
+  rating?: number;
+  customerId?: string;
+  customer?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
+}
+
 // ============================================
 // API FUNCTIONS - Discount
 // ============================================
@@ -240,8 +262,32 @@ export const getDiscounts = async (params?: DiscountSearchParams): Promise<ApiRe
  * GET /api/v1/marketing/discounts/:id
  */
 export const getDiscountById = async (id: string): Promise<ApiResponse<Discount>> => {
-  const response = await api.get<ApiResponse<Discount>>(`/marketing/discounts/${id}`);
-  return response;
+  // Backend currently exposes list/update/delete endpoints for discounts,
+  // but not a dedicated GET by ID route. Fetch list and resolve client-side.
+  const response = await getDiscounts();
+
+  if (!response.success || !response.data) {
+    return {
+      success: false,
+      error: response.error || { code: 'FETCH_FAILED', message: 'Failed to fetch discounts' },
+      message: response.message,
+    };
+  }
+
+  const discount = response.data.find((item) => item.id === id);
+  if (!discount) {
+    return {
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Discount not found' },
+      message: 'Discount not found',
+    };
+  }
+
+  return {
+    success: true,
+    data: discount,
+    message: 'Discount fetched successfully',
+  };
 };
 
 /**
@@ -424,5 +470,26 @@ export const getFeedbackResponses = async (params: FeedbackResponsesParams): Pro
   if (endDate) queryParams.endDate = endDate;
 
   const response = await api.get<ApiResponse<FeedbackResponse[]>>(`/marketing/feedback-forms/${formId}/responses`, { params: queryParams });
+  return response;
+};
+
+/**
+ * Get a public feedback form by id (for QR/mobile flow)
+ * GET /api/v1/public/feedback/:formId
+ */
+export const getPublicFeedbackForm = async (formId: string): Promise<ApiResponse<PublicFeedbackForm>> => {
+  const response = await api.get<ApiResponse<PublicFeedbackForm>>(`/public/feedback/${formId}`);
+  return response;
+};
+
+/**
+ * Submit feedback response from public/mobile flow
+ * POST /api/v1/public/feedback/:formId
+ */
+export const submitPublicFeedbackResponse = async (
+  formId: string,
+  data: SubmitPublicFeedbackData
+): Promise<ApiResponse<any>> => {
+  const response = await api.post<ApiResponse<any>>(`/public/feedback/${formId}`, data);
   return response;
 };

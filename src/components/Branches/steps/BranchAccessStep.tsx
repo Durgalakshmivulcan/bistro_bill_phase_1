@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Checkbox from "../../form/Checkbox";
 import Select from "../../form/Select";
 import { BranchFormData } from "../CreateBranchModal";
+import { getStaff, type Staff as StaffMember } from "../../../services/staffService";
 
 type Props = {
   data: BranchFormData;
@@ -23,12 +24,52 @@ const initialAccess: AccessItem[] = [
 
 export default function AccessStep({ data, onChange }: Props) {
   const [accessList, setAccessList] = useState(initialAccess);
+  const [managers, setManagers] = useState<StaffMember[]>([]);
+  const [loadingManagers, setLoadingManagers] = useState(false);
+  const [managerError, setManagerError] = useState<string | null>(null);
 
   const [options, setOptions] = useState({
     multipleKitchens: true,
     tableReservation: true,
     qrOrdering: true,
   });
+
+  useEffect(() => {
+    const loadManagers = async () => {
+      setLoadingManagers(true);
+      setManagerError(null);
+      try {
+        const response = await getStaff();
+        if (response.success && response.data) {
+          const managerStaff = response.data.staff.filter(
+            (staff) =>
+              staff.roleName?.toLowerCase() === "manager" &&
+              staff.status?.toLowerCase() === "active"
+          );
+          setManagers(managerStaff);
+        } else {
+          setManagerError(response.error?.message || "Failed to load managers");
+        }
+      } catch (err) {
+        setManagerError(err instanceof Error ? err.message : "Failed to load managers");
+      } finally {
+        setLoadingManagers(false);
+      }
+    };
+
+    loadManagers();
+  }, []);
+
+  const managerOptions = useMemo(
+    () =>
+      managers.map((staff) => ({
+        label: `${staff.firstName} ${staff.lastName}`.trim(),
+        value: staff.id,
+      })),
+    [managers]
+  );
+
+  const selectedManagerStaffId = data.accessSettings?.managerStaffId || "";
 
   const updateMode = (index: number, mode: "manage" | "predefined") => {
     const updated = [...accessList];
@@ -113,12 +154,28 @@ export default function AccessStep({ data, onChange }: Props) {
         <Select
           label="Assign Branch Manager"
           required
-          options={[
-            { label: "Charles Ben", value: "Charles Ben" },
-            { label: "John Doe", value: "John Doe" },
-            { label: "Sarah Smith", value: "Sarah Smith" },
-          ]}
+          value={selectedManagerStaffId}
+          disabled={loadingManagers}
+          options={managerOptions}
+          onChange={(value) => {
+            const selectedManager = managers.find((staff) => staff.id === value);
+            onChange({
+              accessSettings: {
+                ...(data.accessSettings || {}),
+                managerStaffId: value,
+                managerName: selectedManager
+                  ? `${selectedManager.firstName} ${selectedManager.lastName}`.trim()
+                  : "",
+              },
+            });
+          }}
         />
+        {loadingManagers && (
+          <p className="mt-1 text-xs text-gray-500">Loading managers...</p>
+        )}
+        {managerError && (
+          <p className="mt-1 text-xs text-red-600">{managerError}</p>
+        )}
       </div>
     </div>
   );

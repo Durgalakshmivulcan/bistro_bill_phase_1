@@ -7,6 +7,7 @@ import {
 } from "../data/subscriptionCreatePlanData";
 import { createSubscriptionPlan } from "../services/settingsService";
 import successIcon from "../assets/tick.png";
+import Select from "../components/form/Select";
 
 function parseDuration(label: string): number {
   switch (label) {
@@ -105,7 +106,7 @@ const CreatePlanPage = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Gold"
-                className="w-full border rounded-md px-4 py-2"
+                className="w-full border rounded-md px-4 py-2 bg-bb-bg"
               />
             </div>
 
@@ -115,37 +116,37 @@ const CreatePlanPage = () => {
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="₹7,182"
-                className="w-full border rounded-md px-4 py-2"
+                className="w-full border rounded-md px-4 py-2 bg-bb-bg"
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium">Plan Duration</label>
-              <select
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="w-full border rounded-md px-4 py-2"
-              >
-                <option value="">Select the Plan Duration</option>
-                {planDurations.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-            </div>
+  <label className="text-sm font-medium">Plan Duration</label>
+
+  <Select
+    value={duration || "Select the Plan Duration"}
+    onChange={(val) => setDuration(val)}
+    options={[
+      { label: "Select the Plan Duration", value: "Select the Plan Duration" },
+      ...planDurations.map((d) => ({ label: d, value: d })),
+    ]}
+  />
+</div>
+
 
             <div>
-              <label className="text-sm font-medium">Trial Period</label>
-              <select
-                value={trialPeriod}
-                onChange={(e) => setTrialPeriod(e.target.value)}
-                className="w-full border rounded-md px-4 py-2"
-              >
-                <option value="">Select Trial Period</option>
-                {trialPeriods.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
+  <label className="text-sm font-medium">Trial Period</label>
+
+  <Select
+    value={trialPeriod || "Select Trial Period"}
+    onChange={(val) => setTrialPeriod(val)}
+    options={[
+      { label: "Select Trial Period", value: "Select Trial Period" },
+      ...trialPeriods.map((p) => ({ label: p, value: p })),
+    ]}
+  />
+</div>
+
           </div>
 
           {/* Description */}
@@ -156,7 +157,7 @@ const CreatePlanPage = () => {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Input Text"
-              className="w-full border rounded-md px-4 py-2 resize-none"
+              className="w-full border rounded-md px-4 py-2 resize-none bg-bb-bg"
             />
           </div>
 

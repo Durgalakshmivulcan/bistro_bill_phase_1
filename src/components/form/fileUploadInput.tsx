@@ -17,6 +17,8 @@ export default function FileUploadInput({
   required = false,
   placeholder = "Upload file",
   onChange,
+  accept,
+  disabled = false,
 }: FileUploadInputProps) {
   return (
     <div className="space-y-1">
@@ -26,13 +28,17 @@ export default function FileUploadInput({
       </label>
 
       {/* CUSTOM FILE INPUT */}
-      <label className="flex items-center gap-2 cursor-pointer border rounded-md px-3 py-2 bg-bb-bg text-sm text-bb-textSoft hover:border-yellow-400 transition">
+      <label className={`flex items-center gap-2 border rounded-md px-3 py-2 bg-bb-bg text-sm text-bb-textSoft transition ${
+        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-yellow-400"
+      }`}>
         <Upload size={16} />
         <span>{placeholder}</span>
 
         <input
           type="file"
           className="hidden"
+          accept={accept}
+          disabled={disabled}
           onChange={(e) => onChange?.(e.target.files?.[0] || null)}
         />
       </label>

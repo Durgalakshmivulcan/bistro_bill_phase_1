@@ -17,6 +17,7 @@ import PasswordChanged from "./pages/PasswordChanged";
 import BusinessOwnerLogin from "./pages/BusinessOwnerLogin";
 import SelectUser from "./pages/SelectUserLogin";
 import UserLogin from "./pages/UserLogin";
+import PublicFeedbackPage from "./pages/PublicFeedbackPage";
 
 // import MyAccountPage from "./pages/SideBarPage";
 import BODashboard from "./pages/BusinessOwnerDashboard";
@@ -166,6 +167,9 @@ import DueOrderActivity from "./components/order-activity/DueOrderActivity";
 import PointOfSaleLayout from "./layout/PointOfSaleLayout";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFailure from "./pages/PaymentFailure";
+import SuperAdminManageResourcesLayout from "./pages/superAdminStaffManagementLayout";
+import SuperAdminStaffTable from "./components/superAdmin/staffManagement/staff/staffList";
+import SuperAdminRolesPermissionsPage from "./components/superAdmin/staffManagement/rolesandPermissions/rolesPermissionsList";
 
 // Lazy load analytics report components
 const SalesSummary = lazy(() => import("./components/AnalyticsReports/saleSummary/salesSummary"));
@@ -269,6 +273,7 @@ export default function App() {
       <Route path="/user-login" element={<UserLogin />} />
       <Route path="/payment/success/:orderId" element={<PaymentSuccess />} />
       <Route path="/payment/failure/:orderId" element={<PaymentFailure />} />
+      <Route path="/public/feedback/:formId" element={<PublicFeedbackPage />} />
       <Route path="website" element={<WebsiteLayout />} />
       <Route path="/websitefeatures" element={<CompleteRestaurantFeatures />} />
       <Route path="/websiteblog" element={<BlogPage />} />
@@ -460,6 +465,10 @@ export default function App() {
         </Route>
 
         <Route path="branches" element={<BranchesPage />} />
+      </Route>
+      <Route path="/superadmin-staff-management" element={<SuperAdminManageResourcesLayout />}>
+        <Route index element={<SuperAdminStaffTable />} />
+        <Route path="roles-and-permissions" element={<SuperAdminRolesPermissionsPage />} />
       </Route>
 
       <Route element={<SubscriptionPlansLayout />}>

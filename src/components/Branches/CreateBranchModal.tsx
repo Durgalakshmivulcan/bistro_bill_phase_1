@@ -11,6 +11,7 @@ import FloorAreaStep from "./steps/FloorAreaStep";
 import {
   createBranch,
   updateBranch,
+  getBranches,
   updateBusinessHours,
   createKitchen,
   createFloor,
@@ -42,6 +43,7 @@ type Props = {
 export interface BranchFormData {
   // Branch Details
   name: string;
+  code?: string;
   email: string;
   phone: string;
   address: string;
@@ -78,6 +80,11 @@ interface CreationSummary {
   errors: string[];
 }
 
+const toApiStatus = (status: unknown): "active" | "inactive" => {
+  if (status === "active" || status === true) return "active";
+  return "inactive";
+};
+
 export default function CreateBranchModal({ defaultValues, onClose, onSave }: Props) {
   const [step, setStep] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -98,6 +105,7 @@ export default function CreateBranchModal({ defaultValues, onClose, onSave }: Pr
     if (defaultValues) {
       setFormData({
         name: defaultValues.name,
+        code: defaultValues.code || "",
         email: defaultValues.email || "",
         phone: defaultValues.phone || "",
         address: defaultValues.address || "",
@@ -107,6 +115,34 @@ export default function CreateBranchModal({ defaultValues, onClose, onSave }: Pr
         zipCode: defaultValues.zipCode || "",
       });
     }
+  }, [defaultValues]);
+
+  useEffect(() => {
+    const setNextBranchCode = async () => {
+      if (defaultValues) return;
+
+      try {
+        const response = await getBranches();
+        if (!response.success || !response.data) return;
+
+        const maxCode = response.data.branches.reduce((max, branch) => {
+          const currentCode = branch.code?.trim();
+          if (!currentCode || !/^\d{4}$/.test(currentCode)) return max;
+
+          const numericCode = parseInt(currentCode, 10);
+          return Number.isNaN(numericCode) ? max : Math.max(max, numericCode);
+        }, 0);
+
+        const nextCode = maxCode + 1;
+        if (nextCode <= 9999) {
+          setFormData((prev) => ({ ...prev, code: String(nextCode).padStart(4, "0") }));
+        }
+      } catch {
+        // Keep UI resilient; backend will still assign code on save.
+      }
+    };
+
+    setNextBranchCode();
   }, [defaultValues]);
 
   const updateFormData = (data: Partial<BranchFormData>) => {
@@ -198,7 +234,7 @@ export default function CreateBranchModal({ defaultValues, onClose, onSave }: Pr
                 branchId,
                 name: (kitchen as any).name,
                 description: (kitchen as any).category || undefined,
-                status: (kitchen as any).status ? "active" : "inactive",
+                status: toApiStatus((kitchen as any).status),
               });
               summary.kitchens.created++;
             } catch (err: any) {
@@ -219,7 +255,7 @@ export default function CreateBranchModal({ defaultValues, onClose, onSave }: Pr
                 branchId,
                 name: floor.name,
                 floorNumber: i + 1,
-                status: floor.status ? "active" : "inactive",
+                status: toApiStatus(floor.status),
               });
               if (floorResponse.success && floorResponse.data) {
                 floorIdMap[floor.name] = floorResponse.data.floor.id;
@@ -248,7 +284,7 @@ export default function CreateBranchModal({ defaultValues, onClose, onSave }: Pr
                 floorId,
                 tableNumber: t.name,
                 capacity: t.capacity || 1,
-                status: t.status ? "active" : "inactive",
+                status: toApiStatus(t.status),
               });
               summary.tables.created++;
             } catch (err: any) {
@@ -269,7 +305,7 @@ export default function CreateBranchModal({ defaultValues, onClose, onSave }: Pr
                 name: room.name,
                 roomNumber: `R${i + 1}`,
                 capacity: 1,
-                status: room.status ? "active" : "inactive",
+                status: toApiStatus(room.status),
               });
               summary.rooms.created++;
             } catch (err: any) {

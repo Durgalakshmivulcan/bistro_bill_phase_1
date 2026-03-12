@@ -3,8 +3,10 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
+import { promises as fs } from 'fs';
 import { ApiResponse, ApiError } from './types';
-import { connectDatabase, isDatabaseHealthy } from './services/db.service';
+import { connectDatabase, ensureProductCatalogColumns, isDatabaseHealthy } from './services/db.service';
 // import { cacheService } from './services/cache.service'; // Uncomment when Redis is configured
 import { initializeWebSocket } from './websocket/websocket.server';
 import authRoutes from './routes/auth.routes';
@@ -27,12 +29,16 @@ import reservationRoutes from './routes/reservation.routes';
 import loyaltyRoutes from './routes/loyalty.routes';
 import reviewRoutes from './routes/review.routes';
 import integrationRoutes from './routes/integration.routes';
+import businessOwnerRoutes from "./routes/businessOwner.routes";
+
 
 // Load environment variables
 dotenv.config();
 
 const app: Express = express();
 const PORT = process.env.PORT || 5000;
+const FRONTEND_ASSETS_DIR = path.resolve(process.cwd(), 'src/assets');
+const LEGACY_ASSETS_DIR = path.resolve(__dirname, '../../src/assets');
 
 // Middleware
 app.use(helmet());
@@ -42,6 +48,13 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('x-bistro-server', 'workspace-d-bistro-bill');
+  next();
+});
+app.use('/assets', express.static(FRONTEND_ASSETS_DIR));
+app.use('/assets', express.static(LEGACY_ASSETS_DIR));
+app.use('/assets', express.static(path.join(__dirname, '../assets')));
 
 // Health check endpoint
 app.get('/health', async (_req: Request, res: Response) => {
@@ -93,7 +106,7 @@ app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/integrations', integrationRoutes);
 app.use('/api/v1/webhooks', onlineOrderRoutes.webhookRouter);
 app.use('/api/v1/pos', onlineOrderRoutes.managementRouter);
-
+app.use("/api/v1/business-owner", businessOwnerRoutes);
 // 404 handler
 app.use((_req: Request, res: Response) => {
   const response: ApiResponse = {
@@ -131,8 +144,19 @@ const httpServer = http.createServer(app);
 // Start server
 async function startServer() {
   try {
+    // Ensure local catalog upload directories exist.
+    await Promise.all([
+      fs.mkdir(path.resolve(FRONTEND_ASSETS_DIR, 'catalog/category'), { recursive: true }),
+      fs.mkdir(path.resolve(FRONTEND_ASSETS_DIR, 'catalog/subcategory'), { recursive: true }),
+      fs.mkdir(path.resolve(FRONTEND_ASSETS_DIR, 'catalog/brand'), { recursive: true }),
+      fs.mkdir(path.resolve(FRONTEND_ASSETS_DIR, 'catalog/menu'), { recursive: true }),
+      fs.mkdir(path.resolve(FRONTEND_ASSETS_DIR, 'catalog/tags'), { recursive: true }),
+      fs.mkdir(path.resolve(FRONTEND_ASSETS_DIR, 'catalog/products'), { recursive: true }),
+    ]);
+
     // Connect to database
     await connectDatabase();
+    await ensureProductCatalogColumns();
 
     // Connect to Redis cache (optional - app continues without cache if Redis unavailable)
     // Temporarily disabled - uncomment when Redis is available

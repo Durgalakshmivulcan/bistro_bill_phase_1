@@ -35,14 +35,20 @@ const Input = ({
 
       <div className="relative">
         <input
-          type={isPassword && !showPassword ? "password" : "text"}
+          type={
+            isPassword
+              ? showPassword
+                ? "text"
+                : "password"
+              : type
+          }
           value={value}
           disabled={disabled}
           placeholder={placeholder || `Enter ${label}`}
           onChange={(e) => onChange?.(e.target.value)}
           className={`w-full border rounded-md px-3 py-2 pr-10 bg-bb-bg text-sm
-            ${disabled ? "opacity-60 cursor-not-allowed" : ""}
-          `}
+    ${disabled ? "opacity-60 cursor-not-allowed" : ""}
+  `}
           {...rest}
         />
 

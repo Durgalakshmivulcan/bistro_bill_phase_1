@@ -369,6 +369,124 @@ export const initiateRefund = async (req: AuthenticatedRequest, res: Response): 
 };
 
 /**
+ * GET /api/v1/payments
+ * List online payments for the business owner with optional filters
+ */
+export const listPayments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.user!.businessOwnerId;
+
+    if (!tenantId) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'MISSING_TENANT_CONTEXT',
+          message: 'Tenant context is required',
+        },
+      } as ApiResponse);
+      return;
+    }
+
+    const {
+      status,
+      startDate,
+      endDate,
+      search,
+      page = '1',
+      limit = '20',
+    } = req.query;
+
+    const parsedPage = Math.max(1, parseInt(String(page), 10) || 1);
+    const parsedLimit = Math.max(1, Math.min(100, parseInt(String(limit), 10) || 20));
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    const where: Record<string, unknown> = {
+      order: {
+        branch: {
+          businessOwnerId: tenantId,
+        },
+      },
+    };
+
+    if (status) {
+      where.status = status as OnlinePaymentStatus;
+    }
+
+    if (startDate || endDate) {
+      const createdAt: Record<string, Date> = {};
+      if (startDate) {
+        const from = new Date(String(startDate));
+        if (!Number.isNaN(from.getTime())) {
+          createdAt.gte = from;
+        }
+      }
+      if (endDate) {
+        const to = new Date(String(endDate));
+        if (!Number.isNaN(to.getTime())) {
+          to.setHours(23, 59, 59, 999);
+          createdAt.lte = to;
+        }
+      }
+      if (Object.keys(createdAt).length > 0) {
+        where.createdAt = createdAt;
+      }
+    }
+
+    const searchText = String(search || '').trim();
+    if (searchText) {
+      where.OR = [
+        { id: { contains: searchText, mode: 'insensitive' } },
+        { gatewayTransactionId: { contains: searchText, mode: 'insensitive' } },
+        { gatewayOrderId: { contains: searchText, mode: 'insensitive' } },
+        { paymentMethod: { contains: searchText, mode: 'insensitive' } },
+        {
+          order: {
+            orderNumber: { contains: searchText, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
+
+    const [payments, total] = await Promise.all([
+      prisma.onlinePayment.findMany({
+        where,
+        include: {
+          order: {
+            select: {
+              id: true,
+              orderNumber: true,
+              total: true,
+            },
+          },
+          refunds: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parsedLimit,
+      }),
+      prisma.onlinePayment.count({ where }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        payments,
+        total,
+      },
+    } as ApiResponse);
+  } catch (error) {
+    console.error('Error listing payments:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'PAYMENT_LIST_ERROR',
+        message: 'Failed to fetch payments',
+      },
+    } as ApiResponse);
+  }
+};
+
+/**
  * GET /api/v1/payments/order/:orderId
  * Get payment details by Order ID
  */
@@ -1673,7 +1791,10 @@ export const listAutoPaySubscriptions = async (req: AuthenticatedRequest, res: R
 
     res.status(200).json({
       success: true,
-      data: subscriptions,
+      data: {
+        subscriptions,
+        total: subscriptions.length,
+      },
     } as ApiResponse);
   } catch (error) {
     console.error('Error listing subscriptions:', error);

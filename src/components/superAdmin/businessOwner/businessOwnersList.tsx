@@ -10,6 +10,7 @@ import {
   deleteBusinessOwnerApi,
   BusinessOwnerListItem,
 } from "../../../services/superAdminService";
+import { Pagination } from "../../Common";
 
 export interface BusinessOwner {
   id: string;
@@ -166,7 +167,7 @@ export default function BusinessOwnersList() {
                 setSearchTerm(e.target.value);
                 setPage(1);
               }}
-              className="w-full border rounded-md px-3 pr-10 py-2 text-sm"
+              className="w-full border rounded-md bg-bb-bg px-3 pr-10 py-2 text-sm"
             />
           </div>
 
@@ -453,6 +454,9 @@ export default function BusinessOwnersList() {
           })
         }
       />
+      <div className="flex justify-end mt-6">
+          <Pagination />
+        </div>
     </div>
   );
 }

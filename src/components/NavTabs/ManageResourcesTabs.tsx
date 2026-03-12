@@ -30,7 +30,7 @@ const ManageResourcesTabs = () => {
           }`
         }
       >
-        Branch’s
+        Branchs
       </NavLink>
 
     </div>

@@ -6,16 +6,16 @@ interface Props {
 
 const TableTabs = ({ active, tabs, onChange }: Props) => {
   return (
-    <div className="flex gap-2 mb-3">
+    <div className="flex gap-3 mb-3">
       {tabs.map((tab) => (
         <button
           key={tab}
           onClick={() => onChange(tab)}
-          className={`px-3 py-1 rounded-md text-xs font-medium transition
+          className={`p-1.5  rounded-t-md text-[10px] leading-none font-medium transition
             ${
               active === tab
                 ? "bg-black text-white"
-                : "bg-bb-surfaceSoft text-bb-textSoft"
+                : "bg-transparent text-[#6B7280] hover:text-[#111827]"
             }`}
         >
           {tab}

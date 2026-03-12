@@ -6,15 +6,24 @@ import {
   List,
   Pencil,
   Trash2,
+  Eye,
 } from "lucide-react";
-import { Category, getCategories, deleteCategory } from "../../services/catalogService";
-import { showSuccessToast, showInfoToast } from "../../utils/toast";
+import {
+  Category,
+  getCategories,
+  deleteCategory,
+} from "../../services/catalogService";
+import { showInfoToast } from "../../utils/toast";
+import { getErrorMessage } from "../../utils/errorHandler";
 import AddEditCategoryModal from "../../components/Catalog/products/models/AddEditCategoryModal";
 import CategorySuccessModal from "./products/models/CategorySuccessModal";
 import Modal from "../ui/Modal";
 import LoadingSpinner from "../Common/LoadingSpinner";
+import Pagination from "../Common/Pagination";
 import deleteIcon from "../../assets/deleteConformImg.png";
 import successIcon from "../../assets/deleteSuccessImg.png";
+
+type SortKey = "name" | "status";
 
 export default function CategoryContent() {
   const [view, setView] = useState<"table" | "grid">("table");
@@ -31,6 +40,10 @@ export default function CategoryContent() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchCategories();
@@ -44,10 +57,10 @@ export default function CategoryContent() {
       if (response.success && response.data) {
         setCategories(response.data.categories || []);
       } else {
-        setError(response.message || "Failed to fetch categories");
+        setError(response.message || response.error?.message || "Failed to fetch categories");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch categories");
+      setError(getErrorMessage(err, "Failed to fetch categories"));
     } finally {
       setLoading(false);
     }
@@ -55,97 +68,127 @@ export default function CategoryContent() {
 
   const handleDeleteCategory = async () => {
     if (!activeItem) return;
-
     try {
       const response = await deleteCategory(activeItem.id);
       if (response.success) {
         setOpenDelete(false);
         setShowDeleteSuccess(true);
-        // Refresh categories list
         await fetchCategories();
-        // Auto-close success modal after 2 seconds
         setTimeout(() => setShowDeleteSuccess(false), 2000);
       } else {
-        setError(response.message || "Failed to delete category");
+        setError(response.message || response.error?.message || "Failed to delete category");
         setOpenDelete(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete category");
+      setError(getErrorMessage(err, "Failed to delete category"));
       setOpenDelete(false);
     }
   };
 
   const toggleSelect = (id: string) => {
-    setSelected((p) =>
-      p.includes(id) ? p.filter((i) => i !== id) : [...p, id],
-    );
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const handleModalSuccess = () => {
     setModal(null);
     setShowSuccess(true);
-    // Refresh categories list
     fetchCategories();
-    // Auto-close success modal after 2 seconds
     setTimeout(() => setShowSuccess(false), 2000);
   };
 
-  const filteredCategories = useMemo(() => {
-    return categories.filter((cat) => {
+  const filteredAndSorted = useMemo(() => {
+    const filtered = categories.filter((cat) => {
       const matchesSearch = !searchQuery || cat.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = !statusFilter || cat.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [categories, searchQuery, statusFilter]);
+
+    return [...filtered].sort((a, b) => {
+      const base = sortKey === "status" ? a.status.localeCompare(b.status) : a.name.localeCompare(b.name);
+      return sortOrder === "asc" ? base : -base;
+    });
+  }, [categories, searchQuery, statusFilter, sortKey, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / itemsPerPage));
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSorted.slice(start, start + itemsPerPage);
+  }, [filteredAndSorted, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const allVisibleSelected =
+    paginatedRows.length > 0 && paginatedRows.every((row) => selected.includes(row.id));
+
+  const toggleAllVisible = () => {
+    if (allVisibleSelected) {
+      setSelected((prev) => prev.filter((id) => !paginatedRows.some((row) => row.id === id)));
+      return;
+    }
+    setSelected((prev) => Array.from(new Set([...prev, ...paginatedRows.map((row) => row.id)])));
+  };
 
   const handleExport = () => {
-    const headers = ['Name', 'Description', 'Status'];
-    const rows = filteredCategories.map((c) => [c.name, c.description || '', c.status]);
-    const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const headers = ["Name", "Description", "Status"];
+    const rows = filteredAndSorted.map((c) => [c.name, c.description || "", c.status]);
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'categories.csv';
+    a.download = "categories.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = () => {
-    showInfoToast('CSV import coming soon');
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortOrder("asc");
   };
 
-  const handleClear = () => {
+  const clearFilters = () => {
     setSearchQuery("");
     setStatusFilter("");
+    setCurrentPage(1);
   };
 
   return (
     <div className="space-y-4">
-      {/* ERROR MESSAGE */}
       {error && (
-        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
+        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded">{error}</div>
       )}
 
-      {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3">
         <h1 className="text-[28px] lg:text-[32px] font-bold">Category</h1>
 
         <div className="flex flex-wrap gap-2">
           <div className="relative">
-            <Search size={16} className="absolute right-3 top-3" />
+            <Search size={16} className="absolute right-3 top-3 text-gray-500" />
             <input
               placeholder="Search here..."
-              className="border rounded-md px-3 pr-8 py-2 text-sm w-[220px]"
+              className="border rounded-md px-3 pr-8 py-2 text-sm w-[220px] bg-gray-50"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
 
-          <button className="bg-yellow-400 px-4 py-2 rounded" onClick={handleImport}>Import</button>
-          <button className="border px-4 py-2 rounded" onClick={handleExport}>Export</button>
+          <button className="border px-4 py-2 rounded" onClick={() => showInfoToast("CSV import coming soon")}>
+            Import
+          </button>
+          <button className="border px-4 py-2 rounded" onClick={handleExport}>
+            Export
+          </button>
           <button
             onClick={() => {
               setActiveItem(null);
@@ -158,25 +201,26 @@ export default function CategoryContent() {
         </div>
       </div>
 
-      {/* FILTER + VIEW */}
       <div className="flex flex-wrap justify-end gap-2">
         <select
-          className="border px-3 py-2 rounded text-sm"
+          className="border px-3 py-2 rounded text-sm bg-white"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setCurrentPage(1);
+          }}
         >
           <option value="">Filter by Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
 
-        <button className="bg-yellow-400 px-4 py-2 rounded" onClick={handleClear}>Clear</button>
+        <button className="border px-4 py-2 rounded" onClick={clearFilters}>
+          Clear
+        </button>
 
         <div className="flex border rounded">
-          <button
-            onClick={() => setView("table")}
-            className={`p-2 ${view === "table" ? "bg-yellow-400" : ""}`}
-          >
+          <button onClick={() => setView("table")} className={`p-2 ${view === "table" ? "bg-yellow-400" : ""}`}>
             <List size={16} />
           </button>
           <button
@@ -188,142 +232,158 @@ export default function CategoryContent() {
         </div>
       </div>
 
-      {/* LOADING STATE */}
       {loading && (
         <div className="flex justify-center py-12">
           <LoadingSpinner size="lg" message="Loading categories..." />
         </div>
       )}
 
-      {/* EMPTY STATE */}
-      {!loading && filteredCategories.length === 0 && !error && (
-        <div className="text-center py-8 text-gray-500">
-          <p>No categories found</p>
-          <button
-            onClick={() => {
-              setActiveItem(null);
-              setModal("add");
-            }}
-            className="mt-4 bg-yellow-400 px-6 py-2 rounded"
-          >
-            Add Your First Category
-          </button>
-        </div>
+      {!loading && filteredAndSorted.length === 0 && !error && (
+        <div className="text-center py-8 text-gray-500">No categories found</div>
       )}
 
-      {/* TABLE VIEW */}
-      {!loading && view === "table" && filteredCategories.length > 0 && (
-        <div className="bg-white border rounded-xl overflow-x-auto">
-          <table className="w-full min-w-[700px] text-sm">
-            <thead className="bg-yellow-400">
-              <tr>
-                <th className="p-3"></th>
-                <th className="text-left">Categories</th>
-                <th>Image</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th className="text-right pr-4">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredCategories.map((cat) => (
-                <tr key={cat.id} className="border-t">
-                  <td className="p-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(cat.id)}
-                      onChange={() => toggleSelect(cat.id)}
-                    />
-                  </td>
-
-                  <td>{cat.name}</td>
-
-                  <td>
-                    <img
-                      src={cat.image || "/placeholder.jpg"}
-                      className="w-12 h-12 rounded object-cover"
-                      alt={cat.name}
-                    />
-                  </td>
-
-                  <td className="max-w-[260px] truncate">{cat.description || "—"}</td>
-
-                  <td>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs ${
-                        cat.status === "active"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {cat.status === "active" ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-
-                  {/* ACTION MENU */}
-                  <td className="relative text-right pr-4">
-                    <MoreVertical
-                      size={16}
-                      className="cursor-pointer"
-                      onClick={() =>
-                        setOpenMenuId(openMenuId === cat.id ? null : cat.id)
-                      }
-                    />
-
-                    {openMenuId === cat.id && (
-                      <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow z-20">
-                        <button
-                          onClick={() => {
-                            setActiveItem(cat);
-                            setModal("edit");
-                            setOpenMenuId(null);
-                          }}
-                          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
-                        >
-                          <Pencil size={14} /> Edit
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setActiveItem(cat);
-                            setOpenDelete(true);
-                            setOpenMenuId(null);
-                          }}
-                          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
-                        >
-                          <Trash2 size={14} /> Delete
-                        </button>
-                      </div>
-                    )}
-                  </td>
+      {!loading && view === "table" && filteredAndSorted.length > 0 && (
+        <>
+          <div className="bg-white border rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[800px] text-sm">
+              <thead className="bg-yellow-400">
+                <tr>
+                  <th className="p-3">
+                    <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} />
+                  </th>
+                  <th className="text-left cursor-pointer" onClick={() => handleSort("name")}>
+                    Categories
+                  </th>
+                  <th>Image</th>
+                  <th>Description</th>
+                  <th className="cursor-pointer" onClick={() => handleSort("status")}>
+                    Status
+                  </th>
+                  <th className="text-right pr-4">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+
+              <tbody>
+                {paginatedRows.map((cat) => (
+                  <tr key={cat.id} className="border-t">
+                    <td className="p-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(cat.id)}
+                        onChange={() => toggleSelect(cat.id)}
+                      />
+                    </td>
+                    <td>{cat.name}</td>
+                    <td>
+                      <img
+                        src={cat.image || "/placeholder.jpg"}
+                        className="w-12 h-12 rounded object-cover"
+                        alt={cat.name}
+                      />
+                    </td>
+                    <td className="max-w-[260px] truncate">{cat.description || "-"}</td>
+                    <td>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs ${
+                          cat.status === "active" ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {cat.status === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="relative text-right pr-4">
+                      <MoreVertical
+                        size={16}
+                        className="cursor-pointer"
+                        onClick={() => setOpenMenuId(openMenuId === cat.id ? null : cat.id)}
+                      />
+                      {openMenuId === cat.id && (
+                        <div className="absolute right-0 mt-2 w-36 bg-white border rounded shadow z-20">
+                          <button
+                            onClick={() => {
+                              setActiveItem(cat);
+                              setModal("edit");
+                              setOpenMenuId(null);
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
+                          >
+                            <Eye size={14} /> View
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveItem(cat);
+                              setModal("edit");
+                              setOpenMenuId(null);
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
+                          >
+                            <Pencil size={14} /> Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveItem(cat);
+                              setOpenDelete(true);
+                              setOpenMenuId(null);
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 w-full text-left"
+                          >
+                            <Trash2 size={14} /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredAndSorted.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(value) => {
+              setItemsPerPage(value);
+              setCurrentPage(1);
+            }}
+            showPageSize
+          />
+        </>
       )}
 
-      {/* GRID VIEW */}
-      {!loading && view === "grid" && filteredCategories.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredCategories.map((cat) => (
-            <div key={cat.id} className="bg-white border rounded-xl p-4">
-              <img
-                src={cat.image || "/placeholder.jpg"}
-                className="w-full h-32 object-cover rounded-lg"
-                alt={cat.name}
-              />
-              <h3 className="font-semibold mt-2">{cat.name}</h3>
-              <p className="text-xs text-gray-500 line-clamp-2">
-                {cat.description || "—"}
-              </p>
-            </div>
-          ))}
-        </div>
+      {!loading && view === "grid" && filteredAndSorted.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paginatedRows.map((cat) => (
+              <div key={cat.id} className="bg-white border rounded-xl p-4">
+                <img
+                  src={cat.image || "/placeholder.jpg"}
+                  className="w-full h-32 object-cover rounded-lg"
+                  alt={cat.name}
+                />
+                <h3 className="font-semibold mt-2">{cat.name}</h3>
+                <p className="text-xs text-gray-500 line-clamp-2">{cat.description || "-"}</p>
+              </div>
+            ))}
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredAndSorted.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(value) => {
+              setItemsPerPage(value);
+              setCurrentPage(1);
+            }}
+            showPageSize
+          />
+        </>
       )}
 
-      {/* MODALS */}
       <AddEditCategoryModal
         open={modal === "add" || modal === "edit"}
         data={modal === "edit" ? activeItem : null}
@@ -331,66 +391,32 @@ export default function CategoryContent() {
         onSuccess={handleModalSuccess}
       />
 
-      <CategorySuccessModal
-        open={showSuccess}
-        onClose={() => setShowSuccess(false)}
-      />
+      <CategorySuccessModal open={showSuccess} onClose={() => setShowSuccess(false)} />
 
-      {/* DELETE CONFIRM MODAL */}
-      <Modal
-        open={openDelete}
-        onClose={() => setOpenDelete(false)}
-        className="w-[420px] p-6"
-      >
+      <Modal open={openDelete} onClose={() => setOpenDelete(false)} className="w-[420px] p-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Delete</h2>
-
-          <img
-            src={deleteIcon}
-            alt="Delete"
-            className="w-14 h-14 mx-auto mb-4"
-          />
-
+          <img src={deleteIcon} alt="Delete" className="w-14 h-14 mx-auto mb-4" />
           <p className="text-sm text-gray-600 mb-6">
             This action cannot be undone. <br />
             Do you want to proceed with deletion?
           </p>
-
           <div className="flex justify-center gap-4">
-            <button
-              onClick={() => setOpenDelete(false)}
-              className="border px-6 py-2 rounded"
-            >
+            <button onClick={() => setOpenDelete(false)} className="border px-6 py-2 rounded">
               Cancel
             </button>
-
-            <button
-              onClick={handleDeleteCategory}
-              className="bg-yellow-400 px-6 py-2 rounded"
-            >
+            <button onClick={handleDeleteCategory} className="bg-yellow-400 px-6 py-2 rounded">
               Yes
             </button>
           </div>
         </div>
       </Modal>
-      {/* DELETE SUCCESS MODAL */}
-      <Modal
-        open={showDeleteSuccess}
-        onClose={() => setShowDeleteSuccess(false)}
-        className="w-[420px] p-6"
-      >
+
+      <Modal open={showDeleteSuccess} onClose={() => setShowDeleteSuccess(false)} className="w-[420px] p-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Deleted!</h2>
-
-          <img
-            src={successIcon}
-            alt="Success"
-            className="w-16 h-16 mx-auto mb-4"
-          />
-
-          <p className="text-sm text-gray-600">
-            Category has been successfully removed.
-          </p>
+          <img src={successIcon} alt="Success" className="w-16 h-16 mx-auto mb-4" />
+          <p className="text-sm text-gray-600">Category has been successfully removed.</p>
         </div>
       </Modal>
     </div>

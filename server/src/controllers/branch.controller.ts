@@ -2,7 +2,6 @@ import { Response } from 'express';
 import { AuthenticatedRequest, ApiResponse } from '../types';
 import { prisma } from '../services/db.service';
 import { Prisma, Branch, BusinessHours } from '@prisma/client';
-import crypto from 'crypto';
 
 /**
  * Business Hours Info Interface
@@ -199,17 +198,31 @@ export async function listBranches(
 }
 
 /**
- * Generate a unique branch code in format BR-XXXX
- * @returns A random 4-character uppercase alphanumeric code with BR- prefix
+ * Generate next branch code in numeric format: 0001 -> 9999
  */
-function generateBranchCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  const randomBytes = crypto.randomBytes(4);
-  for (let i = 0; i < 4; i++) {
-    code += chars[randomBytes[i] % chars.length];
+async function generateNextBranchCode(businessOwnerId: string): Promise<string | null> {
+  const branches = await prisma.branch.findMany({
+    where: { businessOwnerId },
+    select: { code: true },
+  });
+
+  let maxCode = 0;
+  for (const branch of branches) {
+    const currentCode = branch.code?.trim();
+    if (!currentCode || !/^\d{4}$/.test(currentCode)) continue;
+
+    const numeric = parseInt(currentCode, 10);
+    if (numeric > maxCode) {
+      maxCode = numeric;
+    }
   }
-  return `BR-${code}`;
+
+  const nextCode = maxCode + 1;
+  if (nextCode > 9999) {
+    return null;
+  }
+
+  return String(nextCode).padStart(4, '0');
 }
 
 /**
@@ -319,35 +332,14 @@ export async function createBranch(
       }
     }
 
-    // Generate unique branch code
-    let branchCode = generateBranchCode();
-    let codeIsUnique = false;
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    while (!codeIsUnique && attempts < maxAttempts) {
-      const existingBranch = await prisma.branch.findUnique({
-        where: {
-          businessOwnerId_code: {
-            businessOwnerId: tenantId,
-            code: branchCode,
-          },
-        },
-      });
-      if (!existingBranch) {
-        codeIsUnique = true;
-      } else {
-        branchCode = generateBranchCode();
-        attempts++;
-      }
-    }
-
-    if (!codeIsUnique) {
+    // Generate next sequential branch code (0001-9999)
+    const branchCode = await generateNextBranchCode(tenantId);
+    if (!branchCode) {
       const response: ApiResponse = {
         success: false,
         error: {
           code: 'CODE_GENERATION_FAILED',
-          message: 'Failed to generate a unique branch code. Please try again.',
+          message: 'Branch code limit reached. Maximum allowed is 9999.',
         },
       };
       res.status(500).json(response);

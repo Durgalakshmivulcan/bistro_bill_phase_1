@@ -8,6 +8,7 @@ interface InputFieldProps {
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   rightIcon?: React.ReactNode;
   disabled?: boolean;
+  error?: string; // already correct
 }
 
 const InputField: React.FC<InputFieldProps> = ({
@@ -18,6 +19,7 @@ const InputField: React.FC<InputFieldProps> = ({
   onChange,
   rightIcon,
   disabled = false,
+  error, // ✅ YOU FORGOT THIS
 }) => {
   return (
     <div className="flex flex-col gap-1">
@@ -32,12 +34,11 @@ const InputField: React.FC<InputFieldProps> = ({
           value={value}
           onChange={onChange}
           disabled={disabled}
-          className="
+          className={`
             w-full
             h-11
             rounded-lg
             border
-            border-gray-200
             px-4
             pr-10
             text-sm
@@ -45,18 +46,31 @@ const InputField: React.FC<InputFieldProps> = ({
             placeholder-gray-400
             focus:outline-none
             focus:ring-1
-            focus:ring-yellow-400
+            transition
             disabled:opacity-50
             disabled:cursor-not-allowed
             disabled:bg-gray-50
-          "
+            ${
+              error
+                ? "border-red-500 focus:ring-red-500"
+                : "border-gray-300 focus:ring-yellow-400"
+            }
+          `}
         />
+
         {rightIcon && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer">
             {rightIcon}
           </div>
         )}
       </div>
+
+      {/* ✅ Error text directly inside component (cleaner) */}
+      {error && (
+        <p className="text-xs text-red-500 mt-1">
+          {error}
+        </p>
+      )}
     </div>
   );
 };

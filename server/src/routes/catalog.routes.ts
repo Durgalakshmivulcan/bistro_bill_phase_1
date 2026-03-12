@@ -46,7 +46,7 @@ import { authenticate } from '../middleware/auth.middleware';
 import { tenantMiddleware } from '../middleware/tenant.middleware';
 import { requirePermission } from '../middleware/rbac.middleware';
 import { branchScopeMiddleware } from '../middleware/branchScope.middleware';
-import { imageUpload, csvUpload, uploadToS3Middleware, handleUploadError } from '../middleware/upload.middleware';
+import { imageUpload, csvUpload, uploadToLocalAssetsMiddleware, handleUploadError } from '../middleware/upload.middleware';
 
 const router = Router();
 
@@ -93,7 +93,7 @@ router.post(
   requirePermission('catalog', 'create'),
   imageUpload.single('image'),
   handleUploadError,
-  uploadToS3Middleware('categories'),
+  uploadToLocalAssetsMiddleware('category'),
   createCategory
 );
 
@@ -113,7 +113,7 @@ router.put(
   requirePermission('catalog', 'update'),
   imageUpload.single('image'),
   handleUploadError,
-  uploadToS3Middleware('categories'),
+  uploadToLocalAssetsMiddleware('category'),
   updateCategory
 );
 
@@ -172,7 +172,7 @@ router.post(
   requirePermission('catalog', 'create'),
   imageUpload.single('image'),
   handleUploadError,
-  uploadToS3Middleware('subcategories'),
+  uploadToLocalAssetsMiddleware('subcategory'),
   createSubCategory
 );
 
@@ -192,7 +192,7 @@ router.put(
   requirePermission('catalog', 'update'),
   imageUpload.single('image'),
   handleUploadError,
-  uploadToS3Middleware('subcategories'),
+  uploadToLocalAssetsMiddleware('subcategory'),
   updateSubCategory
 );
 
@@ -249,7 +249,7 @@ router.post(
   requirePermission('catalog', 'create'),
   imageUpload.single('image'),
   handleUploadError,
-  uploadToS3Middleware('brands'),
+  uploadToLocalAssetsMiddleware('brand'),
   createBrand
 );
 
@@ -269,7 +269,7 @@ router.put(
   requirePermission('catalog', 'update'),
   imageUpload.single('image'),
   handleUploadError,
-  uploadToS3Middleware('brands'),
+  uploadToLocalAssetsMiddleware('brand'),
   updateBrand
 );
 
@@ -323,6 +323,9 @@ router.post(
   authenticate,
   tenantMiddleware,
   requirePermission('catalog', 'create'),
+  imageUpload.single('image'),
+  handleUploadError,
+  uploadToLocalAssetsMiddleware('menu'),
   createMenu
 );
 
@@ -339,6 +342,9 @@ router.put(
   authenticate,
   tenantMiddleware,
   requirePermission('catalog', 'update'),
+  imageUpload.single('image'),
+  handleUploadError,
+  uploadToLocalAssetsMiddleware('menu'),
   updateMenu
 );
 
@@ -939,7 +945,7 @@ router.post(
   requirePermission('catalog', 'create'),
   imageUpload.single('image'),
   handleUploadError,
-  uploadToS3Middleware('products'),
+  uploadToLocalAssetsMiddleware('products'),
   createProductImage
 );
 

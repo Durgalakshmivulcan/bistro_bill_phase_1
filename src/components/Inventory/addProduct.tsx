@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import DataSaveModal from "./datasavemodule";
 import { useLocation, useParams } from "react-router-dom";
+import { getBrands, Brand } from "../../services/catalogService";
+import { adjustStock } from "../../services/inventoryService";
 import {
   createInventoryProduct,
   updateInventoryProduct,
@@ -29,9 +31,16 @@ export default function AddInventoryProduct() {
   const isView = location.pathname.includes("viewproduct");
   const isEdit = location.pathname.includes("editproduct");
   const isAdd = location.pathname.includes("addproduct");
-
+const [brands, setBrands] = useState<Brand[]>([]);
+const [brandsLoading, setBrandsLoading] = useState(false);
   // Form state
-  const [formData, setFormData] = useState<Partial<CreateInventoryProductData>>({
+  const [formData, setFormData] =
+  useState<
+    Partial<CreateInventoryProductData> & {
+      brandId?: string;
+      skuCode?: string;
+    }
+  >({
     name: '',
     unit: '',
     branchId: '',
@@ -63,12 +72,34 @@ export default function AddInventoryProduct() {
   const [adjustmentHistoryLoading, setAdjustmentHistoryLoading] = useState(false);
   const [adjustmentHistoryError, setAdjustmentHistoryError] = useState<string>('');
   const [undoingId, setUndoingId] = useState<string | null>(null);
-
+const [showAssignStock, setShowAssignStock] = useState(false);
+const [assignBranchId, setAssignBranchId] = useState("");
+const [assignPoNumber, setAssignPoNumber] = useState("");
+const [assignQuantity, setAssignQuantity] = useState("");
   // Load branches on mount
+  useEffect(() => {
+  const fetchBrands = async () => {
+    try {
+      setBrandsLoading(true);
+
+      const response = await getBrands({ status: "active" });
+
+      if (response.success && response.data) {
+        setBrands(response.data.brands);
+      }
+    } catch (err) {
+      console.error("Failed to load brands:", err);
+    } finally {
+      setBrandsLoading(false);
+    }
+  };
+
+  fetchBrands();
+}, []);
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const response = await getBranches({ status: "Active" });
+        const response = await getBranches({ status: "active" });
         if (response.success && response.data) {
           setBranches(response.data.branches);
         }
@@ -231,8 +262,8 @@ export default function AddInventoryProduct() {
 
   const handleSave = async () => {
     // Validation
-    if (!formData.name || !formData.unit || !formData.branchId) {
-      setError('Please fill in all required fields (Name, Unit, Branch)');
+    if (!formData.name || !formData.unit || !formData.brandId) {
+      setError('Please fill in all required fields (Name, Unit, Brand)');
       return;
     }
 
@@ -297,143 +328,193 @@ export default function AddInventoryProduct() {
       <div className="bg-bb-bg p-6 rounded-xl space-y-6 border border-coloredborder">
         <h2 className="font-semibold text-yellow-600">Product Details</h2>
 
-        {/* ================= ROW 1 : IMAGE ================= */}
-        <div className="w-full lg:w-1/4">
-          <label className="font-bold">Product Image</label>
-          <div className="border-2 border-dashed rounded-lg p-6 text-center text-sm flex flex-col justify-center h-full">
-            {imagePreview && (
-              <img src={imagePreview} alt="Preview" className="w-full h-32 object-cover mb-2 rounded" />
-            )}
-            <input
-              type="file"
-              id="image-upload"
-              accept="image/jpeg,image/png,image/jpg"
-              onChange={handleImageChange}
-              className="hidden"
-              disabled={isView}
-            />
-            <label
-              htmlFor="image-upload"
-              className={`bg-yellow-400 px-4 py-1.5 rounded text-sm font-medium mb-2 cursor-pointer inline-block ${
-                isView ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {imagePreview ? 'Change Image' : 'Upload Image'}
-            </label>
-            <p className="text-xs text-gray-500">
-              (The recommended image size should be between 400x260 and 600x300 pixels, and the format must be JPG or PNG.)
-            </p>
-          </div>
-        </div>
+        {/* <div className="flex flex-col lg:flex-row gap-6"> */}
 
-        {/* ================= ROW 2 : FORM FIELDS ================= */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-          <Input
-            label="Product Name"
-            required
-            name="name"
-            value={formData.name || ''}
-            onChange={(value) => setFormData(prev => ({ ...prev, name: value }))}
-            disabled={isView}
-          />
+  {/* LEFT — IMAGE CARD */}
+  <div className="w-full lg:w-[260px]">
+    <label className="font-semibold block mb-2">Product Image</label>
 
-          <Select
-            label="Branch"
-            required
-            value={formData.branchId || ''}
-            onChange={(value) => setFormData(prev => ({ ...prev, branchId: value }))}
-            options={[
-              { label: "Select Branch", value: "" },
-              ...branches.map(branch => ({ label: branch.name, value: branch.id }))
-            ]}
-            disabled={isView}
-          />
+    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center min-h-[220px] flex flex-col justify-center items-center bg-black/5">
 
-          <Select
-            label="Measuring Unit"
-            required
-            value={formData.unit || ''}
-            onChange={(value) => setFormData(prev => ({ ...prev, unit: value }))}
-            options={[
-              { label: "Select Measuring Unit", value: "" },
-              { label: "Kg", value: "Kg" },
-              { label: "Litre", value: "Litre" },
-              { label: "Pieces", value: "Pieces" },
-              { label: "Grams", value: "Grams" },
-              { label: "Ml", value: "Ml" },
-            ]}
-            disabled={isView}
-          />
+      {imagePreview && (
+        <img
+          src={imagePreview}
+          alt="Preview"
+          className="w-32 h-32 object-cover mb-3 rounded"
+        />
+      )}
 
-          <Select
-            label="Supplier Name"
-            value={formData.supplierId || ''}
-            onChange={(value) => setFormData(prev => ({ ...prev, supplierId: value }))}
-            options={[
-              {
-                label: suppliersLoading
-                  ? "Loading suppliers..."
-                  : suppliers.length === 0
-                    ? "No suppliers available"
-                    : "Select Supplier (Optional)",
-                value: ""
-              },
-              ...suppliers.map(supplier => ({
-                label: supplier.name,
-                value: supplier.id
-              }))
-            ]}
-            disabled={isView || suppliersLoading}
-          />
+      <input
+        type="file"
+        id="image-upload"
+        accept="image/jpeg,image/png,image/jpg"
+        onChange={handleImageChange}
+        className="hidden"
+        disabled={isView}
+      />
 
-          <Input
-            label="Total Stock"
-            type="number"
-            name="inStock"
-            value={String(formData.inStock || 0)}
-            onChange={(value) => setFormData(prev => ({ ...prev, inStock: parseFloat(value) || 0 }))}
-            disabled={isView}
-          />
+      <label
+        htmlFor="image-upload"
+        className={`bg-yellow-400 px-5 py-2 rounded font-medium cursor-pointer ${
+          isView ? "opacity-50 cursor-not-allowed" : ""
+        }`}
+      >
+        Upload Image
+      </label>
 
-          <Input
-            label="Restock Alert"
-            required
-            type="number"
-            name="restockAlert"
-            value={String(formData.restockAlert || 0)}
-            onChange={(value) => setFormData(prev => ({ ...prev, restockAlert: parseFloat(value) || 0 }))}
-            disabled={isView}
-          />
+      <p className="text-xs text-gray-500 mt-3 max-w-[200px]">
+        (The recommended image size should be between 400x260 and
+        600x300 pixels, and the format must be JPG or PNG.)
+      </p>
+    </div>
+  </div>
 
-          <Input
-            label="Cost Price"
-            type="number"
-            name="costPrice"
-            value={String(formData.costPrice || 0)}
-            onChange={(value) => setFormData(prev => ({ ...prev, costPrice: parseFloat(value) || 0 }))}
-            disabled={isView}
-          />
+  {/* RIGHT — FORM GRID */}
+  <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
 
-          <Input
-            label="Selling Price"
-            required
-            type="number"
-            name="sellingPrice"
-            value={String(formData.sellingPrice || 0)}
-            onChange={(value) => setFormData(prev => ({ ...prev, sellingPrice: parseFloat(value) || 0 }))}
-            disabled={isView}
-          />
+    <Input
+      label="Product Name"
+      required
+      name="name"
+      value={formData.name || ""}
+      onChange={(value) =>
+        setFormData((prev) => ({ ...prev, name: value }))
+      }
+      disabled={isView}
+    />
 
-          <Input
-            label="Expiry Date"
-            type="date"
-            name="expiryDate"
-            value={formData.expiryDate || ''}
-            onChange={(value) => setFormData(prev => ({ ...prev, expiryDate: value }))}
-            disabled={isView}
-          />
-        </div>
-      </div>
+    <Input
+      label="SKU Code"
+      name="skuCode"
+      value={(formData as any).skuCode || ""}
+      onChange={(value) =>
+        setFormData((prev) => ({ ...prev, skuCode: value }))
+      }
+      disabled={isView}
+    />
+
+    <Select
+  label="Brand"
+  required
+  value={(formData as any).brandId || ""}
+  onChange={(value) =>
+    setFormData((prev) => ({ ...prev, brandId: value }))
+  }
+  options={[
+    {
+      label: brandsLoading
+        ? "Loading brands..."
+        : brands.length === 0
+        ? "No brands available"
+        : "Select Brand",
+      value: "",
+    },
+    ...brands.map((brand) => ({
+      label: brand.name,
+      value: brand.id,
+    })),
+  ]}
+  disabled={isView || brandsLoading}
+/>
+
+    <Input
+      label="Measuring Unit"
+      required
+      name="unit"
+      value={formData.unit || ""}
+      onChange={(value) =>
+        setFormData((prev) => ({ ...prev, unit: value }))
+      }
+      disabled={isView}
+    />
+
+    <Select
+      label="Supplier Name"
+      required
+      value={formData.supplierId || ""}
+      onChange={(value) =>
+        setFormData((prev) => ({ ...prev, supplierId: value }))
+      }
+      options={[
+        { label: "Select the Supplier", value: "" },
+        ...suppliers.map((s) => ({ label: s.name, value: s.id })),
+      ]}
+      disabled={isView}
+    />
+
+    <Input
+      label="Total Stock"
+      required
+      type="number"
+      name="inStock"
+      value={String(formData.inStock || 0)}
+      onChange={(value) =>
+        setFormData((prev) => ({
+          ...prev,
+          inStock: parseFloat(value) || 0,
+        }))
+      }
+      disabled={isView}
+    />
+
+    <Input
+      label="Restock Alert"
+      required
+      type="number"
+      name="restockAlert"
+      value={String(formData.restockAlert || 0)}
+      onChange={(value) =>
+        setFormData((prev) => ({
+          ...prev,
+          restockAlert: parseFloat(value) || 0,
+        }))
+      }
+      disabled={isView}
+    />
+
+    <Input
+      label="Cost Price"
+      required
+      type="number"
+      name="costPrice"
+      value={String(formData.costPrice || 0)}
+      onChange={(value) =>
+        setFormData((prev) => ({
+          ...prev,
+          costPrice: parseFloat(value) || 0,
+        }))
+      }
+      disabled={isView}
+    />
+
+    <Input
+      label="Selling Price"
+      required
+      type="number"
+      name="sellingPrice"
+      value={String(formData.sellingPrice || 0)}
+      onChange={(value) =>
+        setFormData((prev) => ({
+          ...prev,
+          sellingPrice: parseFloat(value) || 0,
+        }))
+      }
+      disabled={isView}
+    />
+
+    <Input
+      label="Expiry Date"
+      required
+      type="date"
+      name="expiryDate"
+      value={formData.expiryDate || ""}
+      onChange={(value) =>
+        setFormData((prev) => ({ ...prev, expiryDate: value }))
+      }
+      disabled={isView}
+    />
+  </div>
+</div>
 
 
       {/* ================= AUTO-REORDER SETTINGS ================= */}
@@ -518,13 +599,111 @@ export default function AddInventoryProduct() {
       </div>
 
       {/* ================= STOCK DETAILS ================= */}
-      {(isEdit || isView) && (
+      {(
         <div className="bg-bb-bg p-6 rounded-xl space-y-4 border border-coloredborder">
           <h2 className="font-semibold text-yellow-600">Stock Details</h2>
           <div className="border border-coloredborder p-3">
-            <button className="w-full border px-4 py-2 rounded text-sm border border-black">
-              + Assign Stock
-            </button>
+            <button
+  disabled={!id}
+  onClick={() => {
+    if (!id) {
+      showSuccessToast("Please save product first");
+      return;
+    }
+    setShowAssignStock((prev) => !prev);
+  }}
+  className={`w-full border px-4 py-2 rounded text-sm border border-black ${
+    !id ? "opacity-50 cursor-not-allowed" : ""
+  }`}
+>
+  + Assign Stock
+</button>{showAssignStock && (
+  <div className="border border-coloredborder rounded-lg p-4 mt-3">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      {/* Branch */}
+     <Select
+  label="Branch"
+  required
+  value={formData.branchId || ""}
+  onChange={(value) =>
+    setFormData((prev) => ({ ...prev, branchId: value }))
+  }
+  options={[
+    { label: "Select Branch", value: "" },
+    ...branches.map((branch) => ({
+      label: branch.name,
+      value: branch.id,
+    })),
+  ]}
+  disabled={isView}
+/>
+
+      {/* PO Invoice */}
+      <Input
+        label="PO Invoice Number"
+        value={assignPoNumber}
+        onChange={setAssignPoNumber}
+        placeholder="Select PO Invoice Number"
+      />
+
+      {/* Quantity */}
+      <Input
+        label="Assign Quantity"
+        type="number"
+        value={assignQuantity}
+        onChange={setAssignQuantity}
+        placeholder="Enter Quantity"
+      />
+    </div>
+
+    {/* Action buttons */}
+    <div className="flex justify-end gap-2 mt-4">
+      <button
+        onClick={() => setShowAssignStock(false)}
+        className="border px-4 py-2 rounded"
+      >
+        Cancel
+      </button>
+
+      <button
+        onClick={async () => {
+  if (!id) {
+    showSuccessToast("Please save product first");
+    return;
+  }
+
+  if (!assignBranchId || !assignQuantity) {
+    showSuccessToast("Please fill required fields");
+    return;
+  }
+
+  try {
+    await adjustStock(id, {
+  adjustment: Number(assignQuantity),
+  reason: `Stock assigned via PO ${assignPoNumber || "-"}`,
+});
+
+    showSuccessToast("Stock assigned successfully");
+
+    setShowAssignStock(false);
+    setAssignBranchId("");
+    setAssignPoNumber("");
+    setAssignQuantity("");
+
+    await loadStockHistory();
+    await loadProductData();
+  } catch (err) {
+    console.error("Assign stock failed:", err);
+  }
+}}
+        className="bg-yellow-400 px-4 py-2 rounded font-medium"
+      >
+        Save
+      </button>
+    </div>
+  </div>
+)}
           </div>
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full text-sm">

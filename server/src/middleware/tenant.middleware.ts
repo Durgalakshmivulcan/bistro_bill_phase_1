@@ -17,6 +17,25 @@ export function tenantMiddleware(
   res: Response,
   next: NextFunction
 ): void {
+  const resolveTenantOverride = (): string | undefined => {
+    const queryTenantId =
+      (req.query.tenantId as string | undefined) ||
+      (req.query.boId as string | undefined) ||
+      (req.query.businessOwnerId as string | undefined);
+
+    const bodyTenantId =
+      req.body?.tenantId ||
+      req.body?.boId ||
+      req.body?.businessOwnerId;
+
+    const headerTenantId =
+      (req.headers['x-tenant-id'] as string | undefined) ||
+      (req.headers['x-bo-id'] as string | undefined) ||
+      (req.headers['x-business-owner-id'] as string | undefined);
+
+    return queryTenantId || bodyTenantId || headerTenantId;
+  };
+
   // Check if user is authenticated
   if (!req.user) {
     const response: ApiResponse = {
@@ -30,9 +49,13 @@ export function tenantMiddleware(
     return;
   }
 
-  // SuperAdmin bypasses tenant check - they can access all tenants
+  // SuperAdmin can optionally impersonate a tenant via query/body/header override.
+  // If not provided, tenantId remains undefined.
   if (req.user.userType === 'SuperAdmin') {
-    // tenantId remains undefined for SuperAdmin
+    const overrideTenantId = resolveTenantOverride();
+    if (overrideTenantId) {
+      req.tenantId = overrideTenantId;
+    }
     next();
     return;
   }
@@ -116,11 +139,20 @@ export function allowTenantOverride(
 
   // Only SuperAdmin can override tenant
   if (req.user?.userType === 'SuperAdmin') {
-    // Check for tenantId in query or body
-    const tenantIdFromQuery = req.query.tenantId as string | undefined;
-    const tenantIdFromBody = req.body?.tenantId as string | undefined;
+    const tenantIdFromQuery =
+      (req.query.tenantId as string | undefined) ||
+      (req.query.boId as string | undefined) ||
+      (req.query.businessOwnerId as string | undefined);
+    const tenantIdFromBody =
+      req.body?.tenantId ||
+      req.body?.boId ||
+      req.body?.businessOwnerId;
+    const tenantIdFromHeader =
+      (req.headers['x-tenant-id'] as string | undefined) ||
+      (req.headers['x-bo-id'] as string | undefined) ||
+      (req.headers['x-business-owner-id'] as string | undefined);
 
-    const overrideTenantId = tenantIdFromQuery || tenantIdFromBody;
+    const overrideTenantId = tenantIdFromQuery || tenantIdFromBody || tenantIdFromHeader;
 
     if (overrideTenantId) {
       req.tenantId = overrideTenantId;

@@ -3,6 +3,7 @@ import { Search, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getFeedbackForms, FeedbackForm } from "../../services/marketingService";
 import LoadingSpinner from "../Common/LoadingSpinner";
+import Pagination from "../Common/Pagination";
 
 export default function FeedbackResponsesList() {
   const navigate = useNavigate();
@@ -11,6 +12,8 @@ export default function FeedbackResponsesList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchFeedbackForms();
@@ -29,7 +32,13 @@ export default function FeedbackResponsesList() {
         )
       );
     }
+    setCurrentPage(1);
   }, [searchQuery, feedbackForms]);
+
+  const totalItems = filteredForms.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedForms = filteredForms.slice(startIndex, startIndex + itemsPerPage);
 
   const fetchFeedbackForms = async () => {
     try {
@@ -108,7 +117,7 @@ export default function FeedbackResponsesList() {
           </thead>
 
           <tbody>
-            {filteredForms.length === 0 ? (
+            {paginatedForms.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
                   {searchQuery
@@ -117,7 +126,7 @@ export default function FeedbackResponsesList() {
                 </td>
               </tr>
             ) : (
-              filteredForms.map((item, i) => (
+              paginatedForms.map((item, i) => (
                 <tr
                   key={item.id}
                   className={i % 2 === 0 ? "bg-white" : "bg-[#FFF9ED]"}
@@ -143,6 +152,14 @@ export default function FeedbackResponsesList() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={setItemsPerPage}
+      />
     </div>
   );
 }

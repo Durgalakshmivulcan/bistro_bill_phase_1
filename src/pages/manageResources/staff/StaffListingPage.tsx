@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Search } from "lucide-react";
 import CreateStaffModal from "../../../components/Staff/CreateStaffModal";
 import StaffTable from "../../../components/Staff/staffTable";
+import Pagination from "../../../components/Common/Pagination";
 
 const StaffListingPage = () => {
   const [openCreateStaff, setOpenCreateStaff] = useState(false);
@@ -65,7 +66,7 @@ const StaffListingPage = () => {
           </div>
         </div>
 
-        <div className="w-full rounded-lg border bg-white overflow-x-auto">
+        <div className="w-full bg-white overflow-x-auto">
           <div className="min-w-[900px]">
             <StaffTable
               key={refreshKey}

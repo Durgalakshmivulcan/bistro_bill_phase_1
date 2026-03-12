@@ -27,7 +27,7 @@ interface BrandListResponse {
 }
 
 /**
- * GET /api/v1/catalog/brands
+ * GET /api/v1/catalog/
  * List all brands for the authenticated tenant
  * Requires tenant middleware
  */
@@ -188,7 +188,19 @@ export async function createBrand(
       }
     }
 
-    // Get image URL from S3 upload middleware if image was uploaded
+    if (!req.uploadedFile?.url) {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Image is required',
+        },
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Get image URL from upload middleware
     const imageUrl = req.uploadedFile?.url || null;
 
     // Create brand

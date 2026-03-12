@@ -26,7 +26,7 @@ const NetRevenueByPaymentMode = ({ startDate, endDate, branchId }: NetRevenueByP
       } else {
         setError(response.error?.message || "Failed to load payment data");
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while loading payment data");
     } finally {
       setLoading(false);
@@ -37,18 +37,12 @@ const NetRevenueByPaymentMode = ({ startDate, endDate, branchId }: NetRevenueByP
     fetchPaymentData();
   }, [startDate, endDate, branchId]);
 
-  if (loading) {
-    return (
-      <TableCard title="Net Revenue" subtitle="By Payment Mode">
-        <TableSkeleton rows={6} />
-      </TableCard>
-    );
-  }
+  return (
+    <TableCard title="Net Revenue" subtitle="By Payment Mode">
+      {loading && <TableSkeleton rows={6} />}
 
-  if (error) {
-    return (
-      <TableCard title="Net Revenue" subtitle="By Payment Mode">
-        <div className="py-4">
+      {!loading && error && (
+        <div className="py-3">
           <ErrorDisplay
             message={error}
             variant="card"
@@ -56,41 +50,37 @@ const NetRevenueByPaymentMode = ({ startDate, endDate, branchId }: NetRevenueByP
             onRetry={fetchPaymentData}
           />
         </div>
-      </TableCard>
-    );
-  }
+      )}
 
-  if (payments.length === 0) {
-    return (
-      <TableCard title="Net Revenue" subtitle="By Payment Mode">
-        <div className="py-8 text-center text-bb-textSoft">
-          No payment data available for the selected period
-        </div>
-      </TableCard>
-    );
-  }
-
-  return (
-    <TableCard title="Net Revenue" subtitle="By Payment Mode">
-      <table className="w-full text-sm border border-bb-border rounded-lg overflow-hidden">
-        <thead className="bg-bb-primary text-black">
-          <tr>
-            <th className="px-3 py-2 text-left font-medium">Payment Mode</th>
-            <th className="px-3 py-2 text-center font-medium">% Revenue</th>
-            <th className="px-3 py-2 text-right font-medium">Total Revenue</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {payments.map((payment) => (
-            <tr key={payment.paymentMethod}>
-              <td className="px-3 py-2">{payment.paymentMethod}</td>
-              <td className="px-3 py-2 text-center">{payment.percentage.toFixed(1)}%</td>
-              <td className="px-3 py-2 text-right">₹ {payment.revenue.toLocaleString("en-IN")}</td>
+      {!loading && !error && (
+        <table className="w-full text-sm border border-[#E5E7EB] rounded-md overflow-hidden">
+          <thead className="bg-[#F5C628] text-black">
+            <tr>
+              <th className="px-3 py-2 text-left text-[12px] font-medium">Payment Mode</th>
+              <th className="px-3 py-2 text-center text-[12px] font-medium">% Revenue</th>
+              <th className="px-3 py-2 text-right text-[12px] font-medium">Total Revenue</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+
+          <tbody>
+            {payments.length > 0 ? (
+              payments.map((payment, index) => (
+                <tr key={payment.paymentMethod} className={`${index % 2 === 0 ? "bg-[#F7F7F7]" : "bg-[#F6F0E1]"} border-t border-[#E5E7EB]`}>
+                  <td className="px-3 py-2 text-[12px] text-[#374151]">{payment.paymentMethod}</td>
+                  <td className="px-3 py-2 text-center text-[12px] text-[#374151]">{payment.percentage.toFixed(1)}%</td>
+                  <td className="px-3 py-2 text-right text-[12px] text-[#374151]">{"\u20B9"} {payment.revenue.toLocaleString("en-IN")}</td>
+                </tr>
+              ))
+            ) : (
+              <tr className="bg-[#F7F7F7] border-t border-[#E5E7EB]">
+                <td colSpan={3} className="px-3 py-6 text-center text-[12px] text-bb-textSoft">
+                  No payment data available for the selected period
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
     </TableCard>
   );
 };

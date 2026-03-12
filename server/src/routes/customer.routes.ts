@@ -60,31 +60,6 @@ router.post('/import', authenticate, tenantMiddleware, requirePermission('custom
 router.post('/', authenticate, tenantMiddleware, requirePermission('customers', 'create'), createCustomer);
 
 /**
- * GET /api/v1/customers/:id
- * Get customer details with order history
- * Includes recent orders (last 10), total spent, visit count
- */
-router.get('/:id', authenticate, tenantMiddleware, requirePermission('customers', 'read'), getCustomerDetail);
-
-/**
- * PUT /api/v1/customers/:id
- * Update an existing customer
- * All fields optional except ID
- */
-router.put('/:id', authenticate, tenantMiddleware, requirePermission('customers', 'update'), updateCustomer);
-
-/**
- * DELETE /api/v1/customers/:id
- * Delete a customer
- * Prevents deletion if customer has orders
- */
-router.delete('/:id', authenticate, tenantMiddleware, requirePermission('customers', 'delete'), deleteCustomer);
-
-// ============================================
-// Customer Group Routes
-// ============================================
-
-/**
  * GET /api/v1/customers/groups
  * List all customer groups for tenant
  * Include customer count per group
@@ -123,5 +98,30 @@ router.put('/groups/:id', authenticate, tenantMiddleware, requirePermission('cus
  * Nullifies customer references before deletion
  */
 router.delete('/groups/:id', authenticate, tenantMiddleware, requirePermission('customers', 'delete'), deleteCustomerGroup);
+
+// ============================================
+// Customer ID Routes (keep after /groups paths)
+// ============================================
+
+/**
+ * GET /api/v1/customers/:id
+ * Get customer details with order history
+ * Includes recent orders (last 10), total spent, visit count
+ */
+router.get('/:id', authenticate, tenantMiddleware, requirePermission('customers', 'read'), getCustomerDetail);
+
+/**
+ * PUT /api/v1/customers/:id
+ * Update an existing customer
+ * All fields optional except ID
+ */
+router.put('/:id', authenticate, tenantMiddleware, requirePermission('customers', 'update'), updateCustomer);
+
+/**
+ * DELETE /api/v1/customers/:id
+ * Delete a customer
+ * Prevents deletion if customer has orders
+ */
+router.delete('/:id', authenticate, tenantMiddleware, requirePermission('customers', 'delete'), deleteCustomer);
 
 export default router;

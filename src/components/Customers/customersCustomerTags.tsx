@@ -188,12 +188,12 @@ export default function CustomersTagManagement() {
 
         <div className="flex items-center gap-4">
           <div className="relative w-64">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               placeholder="Search tags..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="text-black w-full border rounded-md pl-10 pr-10 py-2 text-sm bg-white"
+              className="text-black w-full border rounded-md pl-10 pr-10 py-2 text-sm bg-bb-bg"
             />
             {searchQuery && (
               <button

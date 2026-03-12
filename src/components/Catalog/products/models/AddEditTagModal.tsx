@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Modal from "../../../ui/Modal";
 import { Tag, createTag, updateTag } from "../../../../services/catalogService";
+import { getErrorMessage } from "../../../../utils/errorHandler";
 
 interface Props {
   open: boolean;
@@ -16,21 +17,17 @@ export default function AddEditTagModal({
   onSuccess,
 }: Props) {
   const [name, setName] = useState("");
-  const [color, setColor] = useState("#000000");
-  const [status, setStatus] = useState<"active" | "inactive">("active");
+  const [status, setStatus] = useState<"" | "active" | "inactive">("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* PREFILL */
   useEffect(() => {
     if (data) {
       setName(data.name);
-      setColor(data.color);
       setStatus(data.status);
     } else {
       setName("");
-      setColor("#000000");
-      setStatus("active");
+      setStatus("");
     }
     setError(null);
   }, [data, open]);
@@ -38,9 +35,12 @@ export default function AddEditTagModal({
   if (!open) return null;
 
   const handleSave = async () => {
-    // Validation
     if (!name.trim()) {
       setError("Tag name is required");
+      return;
+    }
+    if (!status) {
+      setError("Please select status");
       return;
     }
 
@@ -48,44 +48,34 @@ export default function AddEditTagModal({
       setSaving(true);
       setError(null);
 
-      if (data) {
-        // Update existing tag
-        const response = await updateTag(data.id, { name, color, status });
-        if (response.success) {
-          onSuccess("updated");
-        } else {
-          setError(response.message || "Failed to update tag");
-        }
-      } else {
-        // Create new tag
-        const response = await createTag({ name, color, status });
-        if (response.success) {
-          onSuccess("created");
-        } else {
-          setError(response.message || "Failed to create tag");
-        }
+      const payload = { name: name.trim(), status };
+      const response = data
+        ? await updateTag(data.id, payload)
+        : await createTag({ ...payload, color: "#000000" });
+
+      if (response.success) {
+        onSuccess(data ? "updated" : "created");
+        return;
       }
+
+      setError(response.message || response.error?.message || "Failed to save tag");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save tag");
+      setError(getErrorMessage(err, "Failed to save tag"));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} className="w-[500px] p-8">
-      <h2 className="text-2xl font-bold mb-6">
-        {data ? "Edit Tag" : "Add Tag"}
-      </h2>
+    <Modal open={open} onClose={onClose} className="w-[500px] p-8 max-w-[95vw]">
+      <h2 className="text-2xl font-bold mb-6">{data ? "Edit Tag" : "Add Tag"}</h2>
 
-      {/* ERROR MESSAGE */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
 
-      {/* FORM */}
       <div className="space-y-4">
         <div>
           <label className="text-sm font-medium">
@@ -93,9 +83,7 @@ export default function AddEditTagModal({
           </label>
           <input
             value={name}
-            onChange={(e) =>
-              setName(e.target.value)
-            }
+            onChange={(e) => setName(e.target.value)}
             placeholder="Enter Tag Name"
             className="w-full border rounded px-3 py-2 mt-1"
             disabled={saving}
@@ -103,61 +91,25 @@ export default function AddEditTagModal({
         </div>
 
         <div>
-          <label className="text-sm font-medium">
-            Color
-          </label>
-          <input
-            type="color"
-            value={color}
-            onChange={(e) =>
-              setColor(e.target.value)
-            }
-            className="w-full border rounded px-3 py-2 mt-1 h-12"
-            disabled={saving}
-          />
-        </div>
-
-        <div>
-          <label className="text-sm font-medium">
-            Status
-          </label>
+          <label className="text-sm font-medium">Status</label>
           <select
             value={status}
-            onChange={(e) =>
-              setStatus(
-                e.target.value as
-                  | "active"
-                  | "inactive"
-              )
-            }
-            className="w-full border rounded px-3 py-2 mt-1"
+            onChange={(e) => setStatus(e.target.value as "" | "active" | "inactive")}
+            className="w-full border rounded px-3 py-2 mt-1 bg-white"
             disabled={saving}
           >
-            <option value="active">
-              Active
-            </option>
-            <option value="inactive">
-              Inactive
-            </option>
+            <option value="">Select Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
           </select>
         </div>
       </div>
 
-      {/* ACTIONS */}
       <div className="flex justify-end gap-3 mt-8">
-        <button
-          onClick={onClose}
-          className="border px-6 py-2 rounded"
-          disabled={saving}
-        >
+        <button onClick={onClose} className="border px-6 py-2 rounded" disabled={saving}>
           Cancel
         </button>
-
-        <button
-          onClick={handleSave}
-          className="bg-yellow-400 px-6 py-2 rounded"
-          disabled={saving}
-        >
+        <button onClick={handleSave} className="bg-yellow-400 px-6 py-2 rounded" disabled={saving}>
           {saving ? "Saving..." : "Save"}
         </button>
       </div>

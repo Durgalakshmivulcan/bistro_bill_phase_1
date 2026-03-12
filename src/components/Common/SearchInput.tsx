@@ -1,42 +1,33 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search } from 'lucide-react';
+import { useState, useEffect, useCallback } from "react";
+import { Search } from "lucide-react";
 
 interface SearchInputProps {
   placeholder?: string;
   onSearch: (query: string) => void;
   debounceMs?: number;
   className?: string;
+  value?: string; // ⭐ NEW (controlled support)
   defaultValue?: string;
 }
 
-/**
- * SearchInput component with debounced onChange
- *
- * Features:
- * - Debounced search to avoid excessive API calls
- * - Customizable debounce delay
- * - Search icon indicator
- * - Controlled input with local state
- *
- * @example
- * ```tsx
- * <SearchInput
- *   placeholder="Search products..."
- *   onSearch={(query) => fetchProducts(query)}
- *   debounceMs={500}
- * />
- * ```
- */
 export default function SearchInput({
   placeholder = "Search here...",
   onSearch,
   debounceMs = 300,
   className = "",
-  defaultValue = ""
+  value,
+  defaultValue = "",
 }: SearchInputProps) {
-  const [query, setQuery] = useState(defaultValue);
+  const [query, setQuery] = useState(value ?? defaultValue);
 
-  // Debounced search effect
+  // ⭐ Sync when parent controls value
+  useEffect(() => {
+    if (value !== undefined) {
+      setQuery(value);
+    }
+  }, [value]);
+
+  // ⭐ Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       onSearch(query);
@@ -45,9 +36,12 @@ export default function SearchInput({
     return () => clearTimeout(timer);
   }, [query, debounceMs, onSearch]);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.target.value);
-  }, []);
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setQuery(e.target.value);
+    },
+    []
+  );
 
   return (
     <div className={`relative ${className}`}>
@@ -56,11 +50,11 @@ export default function SearchInput({
         value={query}
         onChange={handleChange}
         placeholder={placeholder}
-        className="w-full border border-grey rounded-md px-3 pr-10 py-2 text-sm bg-bb-bg placeholder:text-gray-500"
+        className="w-full border border-gray-300 rounded-md px-3 pr-10 py-2 text-sm bg-bb-bg placeholder:text-gray-500"
       />
       <Search
         size={16}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-black"
       />
     </div>
   );

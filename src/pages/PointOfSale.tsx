@@ -97,7 +97,7 @@ const BistroBillPOS = () => {
               <input
                 type="text"
                 placeholder="Search by Name, SKU, or Barcode, Tag, Brand"
-                className="w-full bg-white border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-bb-bg border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div className="flex gap-2 bg-white border border-gray-300 rounded-lg p-1">

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { superAdminLogin, businessOwnerRegister, businessOwnerLogin, staffLogin, refreshAccessToken, forgotPassword, resetPassword, getCurrentUser } from '../controllers/auth.controller';
+import { superAdminLogin, businessOwnerRegister, businessOwnerLogin, staffLogin, refreshAccessToken, forgotPassword, resetPassword, getCurrentUser, changePassword } from '../controllers/auth.controller';
 import { getMyMenuVisibility } from '../controllers/menuVisibility.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
@@ -86,5 +86,10 @@ router.get('/me', authenticate, getCurrentUser);
  * @returns { visibleMenuKeys: string[] }
  */
 router.get('/menu-visibility', authenticate, getMyMenuVisibility);
+router.post(
+  '/change-password',
+  authenticate, // 🔴 IMPORTANT
+  changePassword
+);
 
 export default router;

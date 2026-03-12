@@ -329,7 +329,7 @@ export async function getBranches(
 ): Promise<ApiResponse<BranchListResponse>> {
   const queryParams = new URLSearchParams();
 
-  if (params?.status) queryParams.append('status', params.status);
+  if (params?.status) queryParams.append('status', params.status.toLowerCase());
 
   const query = queryParams.toString();
   const url = `/resources/branches${query ? `?${query}` : ''}`;

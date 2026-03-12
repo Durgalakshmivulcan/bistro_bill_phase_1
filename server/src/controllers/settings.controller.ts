@@ -1738,6 +1738,25 @@ export const getSalesChannels = async (req: AuthenticatedRequest, res: Response)
       });
     }
 
+    const defaultChannelNames = [
+      'DineIn',
+      'TakeAway',
+      'Delivery',
+      'Subscription',
+      'Catering',
+      'Bistro',
+    ];
+
+    // Ensure each tenant has baseline channels available across the app.
+    await prisma.salesChannel.createMany({
+      data: defaultChannelNames.map((name) => ({
+        businessOwnerId: tenantId,
+        name,
+        enabled: true,
+      })),
+      skipDuplicates: true,
+    });
+
     const channels = await prisma.salesChannel.findMany({
       where: {
         businessOwnerId: tenantId,
@@ -1847,6 +1866,18 @@ export const getAggregators = async (req: AuthenticatedRequest, res: Response) =
         },
       });
     }
+
+    const defaultAggregatorNames = ['Swiggy', 'Zomato', 'UberEats', 'Bistro'];
+
+    // Ensure aggregator options exist so channel selector can render useful defaults.
+    await prisma.aggregator.createMany({
+      data: defaultAggregatorNames.map((name) => ({
+        businessOwnerId: tenantId,
+        name,
+        isConnected: false,
+      })),
+      skipDuplicates: true,
+    });
 
     const aggregators = await prisma.aggregator.findMany({
       where: {

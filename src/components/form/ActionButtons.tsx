@@ -137,7 +137,7 @@ export default function ActionsMenu({
               onClick={() => closeAndRun(onFavourite)}
               className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100 w-full"
             >
-              <Star size={14} /> Favourite
+              <Star size={14} /> Favorite
             </button>
           )}
 

@@ -16,7 +16,6 @@ const BranchRankingTable: React.FC<BranchRankingTableProps> = ({ startDate, endD
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch branch performance when filters change
   useEffect(() => {
     fetchBranchPerformance();
   }, [startDate, endDate]);
@@ -33,24 +32,18 @@ const BranchRankingTable: React.FC<BranchRankingTableProps> = ({ startDate, endD
       } else {
         setError(response.error?.message || "Failed to load branch performance data");
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred while loading branch performance data");
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculate total revenue for percentage calculation
   const totalRevenue = branches.reduce((sum, branch) => sum + branch.revenue, 0);
 
-  // Sort branches based on active tab
   const sortedBranches = [...branches].sort((a, b) => {
-    if (tab === "Top Performing Branch") {
-      return b.revenue - a.revenue; // DESC
-    } else {
-      return a.revenue - b.revenue; // ASC
-    }
+    if (tab === "Top Performing Branch") return b.revenue - a.revenue;
+    return a.revenue - b.revenue;
   });
 
   return (
@@ -61,12 +54,10 @@ const BranchRankingTable: React.FC<BranchRankingTableProps> = ({ startDate, endD
         onChange={setTab}
       />
 
-      {/* Loading State - Skeleton */}
-      {loading && <TableSkeleton rows={5} />}
+      {loading && <TableSkeleton rows={6} />}
 
-      {/* Error State */}
       {!loading && error && (
-        <div className="py-4">
+        <div className="py-3">
           <ErrorDisplay
             message={error}
             onRetry={fetchBranchPerformance}
@@ -76,44 +67,40 @@ const BranchRankingTable: React.FC<BranchRankingTableProps> = ({ startDate, endD
         </div>
       )}
 
-      {/* Empty State */}
-      {!loading && !error && branches.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-bb-textSoft text-sm">
-            No branch data available for the selected period
-          </p>
-        </div>
-      )}
-
-      {/* Data Display */}
-      {!loading && !error && branches.length > 0 && (
-        <table className="w-full text-sm border rounded-lg overflow-hidden">
-          <thead className="bg-bb-primary text-black">
+      {!loading && !error && (
+        <table className="w-full text-sm border border-[#E5E7EB] rounded-md overflow-hidden">
+          <thead className="bg-[#F5C628] text-black">
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Branch Name</th>
-              <th className="px-3 py-2 text-center font-medium">Sales Qty</th>
-              <th className="px-3 py-2 text-center font-medium">% Revenue</th>
-              <th className="px-3 py-2 text-right font-medium">Total Revenue</th>
+              <th className="px-3 py-2 text-left text-[12px] font-medium">Branch Name</th>
+              <th className="px-3 py-2 text-center text-[12px] font-medium">Sales Qty</th>
+              <th className="px-3 py-2 text-center text-[12px] font-medium">% Revenue</th>
+              <th className="px-3 py-2 text-right text-[12px] font-medium">Total Revenue</th>
             </tr>
           </thead>
 
           <tbody>
-            {sortedBranches.map((branch) => {
-              const percentage = totalRevenue > 0
-                ? ((branch.revenue / totalRevenue) * 100).toFixed(1)
-                : "0";
+            {sortedBranches.length > 0 ? (
+              sortedBranches.map((branch, index) => {
+                const percentage = totalRevenue > 0
+                  ? ((branch.revenue / totalRevenue) * 100).toFixed(1)
+                  : "0";
 
-              return (
-                <tr key={branch.branchId}>
-                  <td className="px-3 py-2">{branch.branchName}</td>
-                  <td className="px-3 py-2 text-center">{branch.orderCount}</td>
-                  <td className="px-3 py-2 text-center">{percentage}%</td>
-                  <td className="px-3 py-2 text-right">
-                    ₹ {branch.revenue.toLocaleString("en-IN")}
-                  </td>
-                </tr>
-              );
-            })}
+                return (
+                  <tr key={branch.branchId} className={`${index % 2 === 0 ? "bg-[#F7F7F7]" : "bg-[#F6F0E1]"} border-t border-[#E5E7EB]`}>
+                    <td className="px-3 py-2 text-[12px] text-[#374151]">{branch.branchName}</td>
+                    <td className="px-3 py-2 text-center text-[12px] text-[#374151]">{branch.orderCount}</td>
+                    <td className="px-3 py-2 text-center text-[12px] text-[#374151]">{percentage}%</td>
+                    <td className="px-3 py-2 text-right text-[12px] text-[#374151]">{"\u20B9"} {branch.revenue.toLocaleString("en-IN")}</td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr className="bg-[#F7F7F7] border-t border-[#E5E7EB]">
+                <td colSpan={4} className="px-3 py-6 text-center text-[12px] text-bb-textSoft">
+                  No branch data available for the selected period
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       )}

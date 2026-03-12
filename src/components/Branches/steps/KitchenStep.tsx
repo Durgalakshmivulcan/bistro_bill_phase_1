@@ -1,10 +1,12 @@
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "../../../components/ui/Modal";
 import deleteIcon from "../../../assets/deleteConformImg.png";
 import successIcon from "../../../assets/deleteSuccessImg.png";
 import { BranchFormData } from "../CreateBranchModal";
 import CreateKitchenModal, { Kitchen } from "./CreateKitchenModal";
+import { getStaff } from "../../../services/staffService";
+import { getCategories } from "../../../services/catalogService";
 
 type Props = {
   data: BranchFormData;
@@ -18,7 +20,7 @@ const initialKitchens: Kitchen[] = [
     staff: "Salman Khan",
     printers: "Printer 1, Printer 2",
     category: "South Indian",
-    status: false,
+    status: "inactive",
   },
   {
     id: 2,
@@ -26,7 +28,7 @@ const initialKitchens: Kitchen[] = [
     staff: "Aman",
     printers: "Printer 3",
     category: "North Indian",
-    status: true,
+    status: "active",
   },
 ];
 
@@ -51,9 +53,55 @@ export default function KitchenStep({ data, onChange }: Props) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const [showSuccess, setShowSuccess] = useState(false);
+  const [staffOptions, setStaffOptions] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadDropdowns = async () => {
+      try {
+        const [staffResponse, categoriesResponse] = await Promise.all([
+          getStaff({ page: 1, limit: 100 }),
+          getCategories({ status: "active" }),
+        ]);
+
+        if (staffResponse.success && staffResponse.data) {
+          const options = staffResponse.data.staff
+            .map((staff) => `${staff.firstName} ${staff.lastName}`.trim())
+            .filter(Boolean);
+          setStaffOptions(Array.from(new Set(options)));
+        }
+
+        if (categoriesResponse.success && categoriesResponse.data) {
+          const options = categoriesResponse.data.categories.map((category) => category.name);
+          setCategoryOptions(Array.from(new Set(options)));
+        }
+      } catch {
+        setStaffOptions([]);
+        setCategoryOptions([]);
+      }
+    };
+
+    loadDropdowns();
+  }, []);
+
+  const printerOptions = useMemo(() => {
+    const printers = kitchens
+      .flatMap((kitchen) => kitchen.printers.split(","))
+      .map((printer) => printer.trim())
+      .filter(Boolean);
+
+    return Array.from(new Set(printers.length ? printers : ["Printer 1", "Printer 2", "Printer 3"]));
+  }, [kitchens]);
 
   const toggleStatus = (id: number) => {
-    const updated = kitchens.map((k) => (k.id === id ? { ...k, status: !k.status } : k));
+    const updated = kitchens.map((k) =>
+      k.id === id
+        ? {
+            ...k,
+            status: (k.status === "active" ? "inactive" : "active") as "active" | "inactive",
+          }
+        : k
+    );
     syncKitchens(updated);
   };
 
@@ -126,12 +174,12 @@ export default function KitchenStep({ data, onChange }: Props) {
                     <button
                       onClick={() => toggleStatus(kitchen.id!)}
                       className={`relative inline-flex h-5 w-10 rounded-full ${
-                        kitchen.status ? "bg-green-500" : "bg-gray-300"
+                        kitchen.status === "active" ? "bg-green-500" : "bg-gray-300"
                       }`}
                     >
                       <span
                         className={`h-4 w-4 bg-white rounded-full transform transition ${
-                          kitchen.status ? "translate-x-5" : "translate-x-1"
+                          kitchen.status === "active" ? "translate-x-5" : "translate-x-1"
                         }`}
                       />
                     </button>
@@ -180,6 +228,9 @@ export default function KitchenStep({ data, onChange }: Props) {
       {openModal && (
         <CreateKitchenModal
           defaultValues={editKitchen}
+          staffOptions={staffOptions}
+          categoryOptions={categoryOptions}
+          printerOptions={printerOptions}
           onClose={() => {
             setOpenModal(false);
             setEditKitchen(null);

@@ -4,7 +4,7 @@ import ActionsMenu from "../../../components/form/ActionButtons";
 import Modal from "../../../components/ui/Modal";
 import deleteIcon from "../../../assets/deleteConformImg.png";
 import deleteSuccessImg from "../../../assets/deleteSuccessImg.png";
-import { SearchInput, LoadingSpinner, ErrorDisplay } from "../../../components/Common";
+import { SearchInput, LoadingSpinner, ErrorDisplay, Pagination } from "../../../components/Common";
 import { getRoles, deleteRole, type RoleResponse } from "../../../services/staffService";
 
 export interface Role {
@@ -181,7 +181,7 @@ const RolesPermissionsPage = () => {
         )}
 
         {/* FILTERS */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:items-end lg:justify-end">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -203,60 +203,77 @@ const RolesPermissionsPage = () => {
         {/* TABLE */}
         <div className="w-full overflow-x-auto">
           <div className="min-w-[800px] rounded-xl border overflow-hidden bg-white">
-            <div className="grid grid-cols-5 bg-yellow-400 px-4 py-3 text-sm font-medium">
-              <span>Sl. No.</span>
-              <span>Role</span>
-              <span>Status</span>
-              <span>Number of Staff</span>
-              <span className="text-right">Actions</span>
-            </div>
+            <table className="w-full text-sm">
+              <thead className="bg-yellow-400">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Sl. No.</th>
+                  <th className="px-4 py-3 text-left font-medium">Role</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-left font-medium">Number of Staff</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8">
+                      <LoadingSpinner />
+                    </td>
+                  </tr>
+                ) : filteredRoles.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-gray-500">
+                      No roles found. {(searchQuery || statusFilter) && "Try adjusting your filters."}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRoles.map((role, index) => (
+                    <tr
+                      key={role.id}
+                      className="border-b last:border-b-0 even:bg-[#FFF8E7]"
+                    >
+                      <td className="px-4 py-4 font-medium align-middle">{index + 1}</td>
 
-            {loading ? (
-              <div className="text-center py-8">
-                <LoadingSpinner />
-              </div>
-            ) : filteredRoles.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No roles found. {(searchQuery || statusFilter) && "Try adjusting your filters."}
-              </div>
-            ) : (
-              filteredRoles.map((role, index) => (
-              <div
-                key={role.id}
-                className="grid grid-cols-5 px-4 py-4 text-sm border-b items-center even:bg-[#FFF8E7]"
-              >
-                <span className="font-medium">{index + 1}</span>
+                      <td className="px-4 py-4 align-middle">
+                        <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-600 w-fit inline-block">
+                          {role.role}
+                        </span>
+                      </td>
 
-                <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-600 w-fit">
-                  {role.role}
-                </span>
+                      <td className="px-4 py-4 align-middle">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs w-fit inline-block ${
+                            role.status === "Active"
+                              ? "bg-green-100 text-green-600"
+                              : "bg-red-100 text-red-600"
+                          }`}
+                        >
+                          {role.status}
+                        </span>
+                      </td>
 
-                <span
-                  className={`px-2 py-1 rounded-full text-xs w-fit ${
-                    role.status === "Active"
-                      ? "bg-green-100 text-green-600"
-                      : "bg-red-100 text-red-600"
-                  }`}
-                >
-                  {role.status}
-                </span>
+                      <td className="px-4 py-4 font-medium align-middle">{role.staffCount}</td>
 
-                <span className="font-medium">{role.staffCount}</span>
-
-                <div className="flex justify-end">
-                  <ActionsMenu
-                    actions={["edit", "delete"]}
-                    onEdit={() => handleEdit(role)}
-                    onDelete={() => handleDelete(role.id)}
-                  />
-                </div>
-              </div>
-              ))
-            )}
+                      <td className="px-4 py-4 align-middle">
+                        <div className="flex justify-end">
+                          <ActionsMenu
+                            actions={["edit", "delete"]}
+                            onEdit={() => handleEdit(role)}
+                            onDelete={() => handleDelete(role.id)}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
-
+<div className="flex justify-end mt-6">
+        <Pagination />
+      </div>
       {/* CREATE / EDIT MODAL */}
       {openRoleModal && (
         <CreateRoleModal

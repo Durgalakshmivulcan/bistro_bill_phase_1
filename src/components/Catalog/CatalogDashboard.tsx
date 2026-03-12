@@ -7,13 +7,40 @@ import { getTopProducts, getLeastProducts, TopProduct } from "../../services/rep
 import {
   getProducts,
   getCategories,
+  getAllSubCategories,
   getBrands,
   getTags,
   getMenus,
 } from "../../services/catalogService";
 import { handleError } from "../../utils/errorHandler";
+import totalProducts from "../../assets/catalogdashboard/totalproducts.png";
+import totalRegular from "../../assets/catalogdashboard/totalregularproducts.png";
+import totalCombo from "../../assets/catalogdashboard/totalcomboproducts.png";
+import totalRetail from "../../assets/catalogdashboard/totalretailproducts.png";
+import totalCategories from "../../assets/catalogdashboard/totalcategories.png";
+import totalSubcategories from "../../assets/catalogdashboard/totalsubcategories.png";
+import totalBrands from "../../assets/catalogdashboard/totalbrands.png";
+import totalTags from "../../assets/catalogdashboard/totaltags.png";
+import totalMenus from "../../assets/catalogdashboard/totalmenu.png";
 
 const CatalogDashboard = () => {
+  const periodOptions = [
+    { label: "Yesterday", value: "Yesterday" },
+    { label: "Last Week", value: "Last Week" },
+    { label: "Last Month", value: "Last Month" },
+    { label: "Last 3 Months", value: "Last 3 Months" },
+    { label: "Last 6 Months", value: "Last 6 Months" },
+  ];
+
+  const topLimitOptions = [
+    { label: "Top 10 Products", value: "Top 10 Products" },
+    { label: "Top 5 Products", value: "Top 5 Products" },
+  ];
+
+  const leastLimitOptions = [
+    { label: "Last 10 Products", value: "Last 10 Products" },
+    { label: "Last 5 Products", value: "Last 5 Products" },
+  ];
   // Loading and error states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +52,7 @@ const CatalogDashboard = () => {
     totalCombo: 0,
     totalRetail: 0,
     totalCategories: 0,
+    totalSubcategories: 0,
     totalBrands: 0,
     totalTags: 0,
     totalMenus: 0,
@@ -44,6 +72,17 @@ const CatalogDashboard = () => {
   const [leastPeriod, setLeastPeriod] = useState("Yesterday");
   const [leastLimit, setLeastLimit] = useState(10);
 
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const getTopSubtitle = () => `${topPeriod}'s Top ${topLimit} Selling Products`;
+  const getLeastSubtitle = () =>
+    `${leastPeriod}'s Least ${leastLimit} Selling Products`;
+
   // Helper to get date range based on period
   const getDateRange = (period: string) => {
     const today = new Date();
@@ -56,26 +95,42 @@ const CatalogDashboard = () => {
     const lastMonthStart = new Date(today);
     lastMonthStart.setDate(today.getDate() - 30);
 
+    const lastThreeMonthsStart = new Date(today);
+    lastThreeMonthsStart.setDate(today.getDate() - 90);
+
+    const lastSixMonthsStart = new Date(today);
+    lastSixMonthsStart.setDate(today.getDate() - 180);
+
     switch (period) {
       case "Yesterday":
         return {
-          startDate: yesterday.toISOString().split("T")[0],
-          endDate: yesterday.toISOString().split("T")[0],
+          startDate: formatLocalDate(yesterday),
+          endDate: formatLocalDate(yesterday),
         };
       case "Last Week":
         return {
-          startDate: lastWeekStart.toISOString().split("T")[0],
-          endDate: today.toISOString().split("T")[0],
+          startDate: formatLocalDate(lastWeekStart),
+          endDate: formatLocalDate(today),
         };
       case "Last Month":
         return {
-          startDate: lastMonthStart.toISOString().split("T")[0],
-          endDate: today.toISOString().split("T")[0],
+          startDate: formatLocalDate(lastMonthStart),
+          endDate: formatLocalDate(today),
+        };
+      case "Last 3 Months":
+        return {
+          startDate: formatLocalDate(lastThreeMonthsStart),
+          endDate: formatLocalDate(today),
+        };
+      case "Last 6 Months":
+        return {
+          startDate: formatLocalDate(lastSixMonthsStart),
+          endDate: formatLocalDate(today),
         };
       default:
         return {
-          startDate: yesterday.toISOString().split("T")[0],
-          endDate: yesterday.toISOString().split("T")[0],
+          startDate: formatLocalDate(yesterday),
+          endDate: formatLocalDate(yesterday),
         };
     }
   };
@@ -83,10 +138,11 @@ const CatalogDashboard = () => {
   // Load catalog summary data
   const loadSummaryData = async () => {
     try {
-      const [productsRes, categoriesRes, brandsRes, tagsRes, menusRes] =
+      const [productsRes, categoriesRes, subcategoriesRes, brandsRes, tagsRes, menusRes] =
         await Promise.all([
           getProducts({ status: "active" }),
           getCategories({ status: "active" }),
+          getAllSubCategories({ status: "active" }),
           getBrands({ status: "active" }),
           getTags({ status: "active" }),
           getMenus({ status: "active" }),
@@ -97,6 +153,8 @@ const CatalogDashboard = () => {
         productsRes.data &&
         categoriesRes.success &&
         categoriesRes.data &&
+        subcategoriesRes.success &&
+        subcategoriesRes.data &&
         brandsRes.success &&
         brandsRes.data &&
         tagsRes.success &&
@@ -115,6 +173,7 @@ const CatalogDashboard = () => {
           totalCombo: comboCount,
           totalRetail: retailCount,
           totalCategories: categoriesRes.data.total,
+          totalSubcategories: subcategoriesRes.data.total,
           totalBrands: brandsRes.data.total,
           totalTags: tagsRes.data.total,
           totalMenus: menusRes.data.total,
@@ -240,31 +299,48 @@ const CatalogDashboard = () => {
     {
       title: "Total Products",
       value: summaryData.totalProducts,
-      icon: "📦",
+      icon: totalProducts,
     },
     {
       title: "Total Regular Products",
       value: summaryData.totalRegular,
-      icon: "📄",
+      icon: totalRegular,
     },
     {
       title: "Total Combo Products",
       value: summaryData.totalCombo,
-      icon: "🍱",
+      icon: totalCombo,
     },
     {
       title: "Total Retail Products",
       value: summaryData.totalRetail,
-      icon: "🏪",
+      icon: totalRetail,
     },
     {
       title: "Total Categories",
       value: summaryData.totalCategories,
-      icon: "🏷️",
+      icon: totalCategories,
     },
-    { title: "Total Brands", value: summaryData.totalBrands, icon: "🏷️" },
-    { title: "Total Tags", value: summaryData.totalTags, icon: "🔖" },
-    { title: "Total Menu", value: summaryData.totalMenus, icon: "📋" },
+    {
+      title: "Total Sub-Categories",
+      value: summaryData.totalSubcategories,
+      icon: totalSubcategories,
+    },
+    {
+      title: "Total Menu",
+      value: summaryData.totalMenus,
+      icon: totalMenus,
+    },
+    {
+      title: "Total Brands",
+      value: summaryData.totalBrands,
+      icon: totalBrands,
+    },
+    {
+      title: "Total Tags",
+      value: summaryData.totalTags,
+      icon: totalTags,
+    },
   ];
 
   return (
@@ -296,7 +372,7 @@ const CatalogDashboard = () => {
             </h2>
 
             <h5 className="text-xs text-gray-600 mt-1">
-              Yesterday’s Top 10 Selling Products
+              {getTopSubtitle()}
             </h5>
           </div>
 
@@ -305,11 +381,7 @@ const CatalogDashboard = () => {
               <Select
                 value={topPeriod}
                 onChange={setTopPeriod}
-                options={[
-                  { label: "Yesterday", value: "Yesterday" },
-                  { label: "Last Week", value: "Last Week" },
-                  { label: "Last Month", value: "Last Month" },
-                ]}
+                options={periodOptions}
               />
             </div>
 
@@ -319,23 +391,20 @@ const CatalogDashboard = () => {
                 onChange={(value: string) =>
                   setTopLimit(value === "Top 10 Products" ? 10 : 5)
                 }
-                options={[
-                  { label: "Top 10 Products", value: "Top 10 Products" },
-                  { label: "Top 5 Products", value: "Top 5 Products" },
-                ]}
+                options={topLimitOptions}
               />
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {topSellingProducts.length > 0 ? (
             topSellingProducts.map((item, index) => (
               <ProductCard
                 key={`top-${item.product.id}`}
                 id={index}
                 name={item.product.name}
-                price={item.revenue / item.quantitySold}
+                price={item.quantitySold > 0 ? item.revenue / item.quantitySold : 0}
                 image={item.product.imageUrl || "/images/placeholder-product.jpg"}
               />
             ))
@@ -356,7 +425,7 @@ const CatalogDashboard = () => {
             </h2>
 
             <h5 className="text-xs text-gray-600 mt-1">
-              Yesterday’s Bottom 10 Selling Products
+              {getLeastSubtitle()}
             </h5>
           </div>
 
@@ -365,11 +434,7 @@ const CatalogDashboard = () => {
               <Select
                 value={leastPeriod}
                 onChange={setLeastPeriod}
-                options={[
-                  { label: "Yesterday", value: "Yesterday" },
-                  { label: "Last Week", value: "Last Week" },
-                  { label: "Last Month", value: "Last Month" },
-                ]}
+                options={periodOptions}
               />
             </div>
 
@@ -381,23 +446,20 @@ const CatalogDashboard = () => {
                 onChange={(value: string) =>
                   setLeastLimit(value === "Last 10 Products" ? 10 : 5)
                 }
-                options={[
-                  { label: "Last 10 Products", value: "Last 10 Products" },
-                  { label: "Last 5 Products", value: "Last 5 Products" },
-                ]}
+                options={leastLimitOptions}
               />
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {leastSellingProducts.length > 0 ? (
             leastSellingProducts.map((item, index) => (
               <ProductCard
                 key={`least-${item.product.id}`}
                 id={index}
                 name={item.product.name}
-                price={item.revenue / item.quantitySold}
+                price={item.quantitySold > 0 ? item.revenue / item.quantitySold : 0}
                 image={item.product.imageUrl || "/images/placeholder-product.jpg"}
               />
             ))
@@ -416,3 +478,4 @@ const CatalogDashboard = () => {
 };
 
 export default CatalogDashboard;
+

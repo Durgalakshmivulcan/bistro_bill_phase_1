@@ -3,6 +3,7 @@ import { Eye, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Modal from "../../components/ui/Modal";
 import { deleteBlogApi, Blog } from "../../services/blogService";
+import { getBlogImage, removeBlogImage } from "../../utils/blogImageStore";
 
 // Images
 import deleteConfirmImg from "../../assets/deleteConformImg.png";
@@ -39,6 +40,7 @@ const BlogsTable = ({ blogs, onDeleted }: BlogsTableProps) => {
       setDeleting(false);
 
       if (response.success) {
+        removeBlogImage(selectedBlog);
         setShowConfirm(false);
         setShowSuccess(true);
         onDeleted?.();
@@ -122,9 +124,9 @@ const BlogsTable = ({ blogs, onDeleted }: BlogsTableProps) => {
                 </td>
 
                 <td className="px-4 py-3">
-                  {blog.featuredImage ? (
+                  {getBlogImage(blog.id) || blog.featuredImage ? (
                     <img
-                      src={blog.featuredImage}
+                      src={getBlogImage(blog.id) || (blog.featuredImage as string)}
                       alt={blog.featuredImageAlt || blog.title}
                       className="w-16 h-12 object-cover rounded"
                     />

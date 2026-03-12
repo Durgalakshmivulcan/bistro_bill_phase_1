@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import Modal from "../../../ui/Modal";
-import { Category, createCategory, updateCategory } from "../../../../services/catalogService";
+import {
+  Category,
+  createCategory,
+  updateCategory,
+} from "../../../../services/catalogService";
+import { getErrorMessage } from "../../../../utils/errorHandler";
 
 interface Props {
   open: boolean;
@@ -19,7 +24,7 @@ export default function AddEditCategoryModal({
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<"active" | "inactive">("active");
+  const [status, setStatus] = useState<"" | "active" | "inactive">("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -35,7 +40,7 @@ export default function AddEditCategoryModal({
     } else {
       setName("");
       setDescription("");
-      setStatus("active");
+      setStatus("");
       setImagePreview(null);
       setImageFile(null);
     }
@@ -45,14 +50,20 @@ export default function AddEditCategoryModal({
   const handleImageSelect = (file?: File) => {
     if (!file) return;
     setImageFile(file);
-    const previewUrl = URL.createObjectURL(file);
-    setImagePreview(previewUrl);
+    setImagePreview(URL.createObjectURL(file));
   };
 
   const handleSave = async () => {
-    // Basic validation
     if (!name.trim()) {
       setError("Category name is required");
+      return;
+    }
+    if (!status) {
+      setError("Please select status");
+      return;
+    }
+    if (!data && !imageFile) {
+      setError("Category image is required");
       return;
     }
 
@@ -60,67 +71,41 @@ export default function AddEditCategoryModal({
     setError(null);
 
     try {
-      if (data) {
-        // Edit mode - update category
-        const response = await updateCategory(
-          data.id,
-          {
-            name: name.trim(),
-            description: description.trim() || undefined,
-            status,
-          },
-          imageFile || undefined
-        );
+      const payload = {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        status,
+      };
 
-        if (response.success) {
-          onSuccess();
-        } else {
-          setError(response.message || "Failed to update category");
-        }
-      } else {
-        // Add mode - create category
-        const response = await createCategory(
-          {
-            name: name.trim(),
-            description: description.trim() || undefined,
-            status,
-          },
-          imageFile || undefined
-        );
+      const response = data
+        ? await updateCategory(data.id, payload, imageFile || undefined)
+        : await createCategory(payload, imageFile || undefined);
 
-        if (response.success) {
-          onSuccess();
-        } else {
-          setError(response.message || "Failed to create category");
-        }
+      if (response.success) {
+        onSuccess();
+        return;
       }
+
+      setError(response.message || response.error?.message || "Failed to save category");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(getErrorMessage(err, "An unexpected error occurred"));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      className="w-[760px] p-6"
-    >
-      <h2 className="text-2xl font-bold mb-6">
-        {data ? "Edit Category" : "Add Category"}
-      </h2>
+    <Modal open={open} onClose={onClose} className="w-[760px] p-6 max-w-[95vw]">
+      <h2 className="text-2xl font-bold mb-6">{data ? "Edit Category" : "Add Category"}</h2>
 
-      {/* ERROR MESSAGE */}
       {error && (
         <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
 
-      <div className="flex gap-6">
-        {/* IMAGE UPLOAD */}
-        <div className="w-[240px]">
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="w-full lg:w-[240px]">
           <label className="text-sm font-medium">
             Category Image<span className="text-red-500">*</span>
           </label>
@@ -132,19 +117,16 @@ export default function AddEditCategoryModal({
             {imagePreview ? (
               <img
                 src={imagePreview}
-                alt="Preview"
+                alt="Category"
                 className="w-full h-[140px] object-cover rounded"
               />
             ) : (
               <>
-                <button
-                  type="button"
-                  className="bg-yellow-400 px-4 py-2 rounded text-sm"
-                >
+                <button type="button" className="bg-yellow-400 px-4 py-2 rounded text-sm">
                   Upload Image
                 </button>
                 <p className="text-xs text-gray-500 mt-2">
-                  (400×260 – 600×300 JPG / PNG)
+                  Recommended size: 400x260 to 600x300 (JPG/PNG)
                 </p>
               </>
             )}
@@ -155,19 +137,14 @@ export default function AddEditCategoryModal({
             type="file"
             hidden
             accept="image/png,image/jpeg"
-            onChange={(e) =>
-              handleImageSelect(e.target.files?.[0])
-            }
+            onChange={(e) => handleImageSelect(e.target.files?.[0])}
           />
         </div>
 
-        {/* FORM */}
         <div className="flex-1 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium">
-                Category Name
-              </label>
+              <label className="text-sm font-medium">Category Name</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -177,14 +154,13 @@ export default function AddEditCategoryModal({
             </div>
 
             <div>
-              <label className="text-sm font-medium">
-                Status
-              </label>
+              <label className="text-sm font-medium">Status</label>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as "active" | "inactive")}
-                className="w-full border px-3 py-2 rounded mt-1"
+                onChange={(e) => setStatus(e.target.value as "" | "active" | "inactive")}
+                className="w-full border px-3 py-2 rounded mt-1 bg-white"
               >
+                <option value="">Select Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
@@ -192,9 +168,7 @@ export default function AddEditCategoryModal({
           </div>
 
           <div>
-            <label className="text-sm font-medium">
-              Description
-            </label>
+            <label className="text-sm font-medium">Description</label>
             <textarea
               rows={4}
               value={description}
@@ -206,13 +180,8 @@ export default function AddEditCategoryModal({
         </div>
       </div>
 
-      {/* FOOTER */}
       <div className="flex justify-end gap-3 mt-6">
-        <button
-          onClick={onClose}
-          className="border px-6 py-2 rounded"
-          disabled={saving}
-        >
+        <button onClick={onClose} className="border px-6 py-2 rounded" disabled={saving}>
           Cancel
         </button>
         <button

@@ -33,6 +33,7 @@ export interface BlogCategory {
   name: string;
   slug: string;
   status: string;
+  imageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   blogsCount: number;
