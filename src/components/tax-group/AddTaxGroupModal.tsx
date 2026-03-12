@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Modal from "../ui/Modal";
 import { createTaxGroup, getTaxes, Tax } from "../../services/settingsService";
-import { CRUDToasts } from "../../utils/toast";
 
 type Props = {
   open: boolean;
@@ -15,7 +14,8 @@ const AddTaxGroupModal: React.FC<Props> = ({
   onSuccess,
 }) => {
   const [groupName, setGroupName] = useState("");
-  const [selectedTaxIds, setSelectedTaxIds] = useState<string[]>([]);
+  const [mixOf, setMixOf] = useState("");
+  const [taxRate, setTaxRate] = useState("");
   const [availableTaxes, setAvailableTaxes] = useState<Tax[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingTaxes, setLoadingTaxes] = useState(false);
@@ -41,13 +41,53 @@ const AddTaxGroupModal: React.FC<Props> = ({
     }
   };
 
-  const handleTaxToggle = (taxId: string) => {
-    setSelectedTaxIds(prev =>
-      prev.includes(taxId)
-        ? prev.filter(id => id !== taxId)
-        : [...prev, taxId]
-    );
+  const normalize = (value: string) => value.trim().toLowerCase();
+
+  const parseMixOf = (value: string) =>
+    value
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+  const buildTaxKeyMap = (taxes: Tax[]) => {
+    const map = new Map<string, string>();
+    for (const tax of taxes) {
+      const name = (tax.name || "").trim();
+      if (!name) continue;
+
+      const beforeParen = name.split("(")[0]?.trim() || name;
+      const firstToken = name.split(/[ (]/)[0]?.trim() || name;
+
+      for (const key of [name, beforeParen, firstToken]) {
+        const normalizedKey = normalize(key);
+        if (!normalizedKey) continue;
+        if (!map.has(normalizedKey)) {
+          map.set(normalizedKey, tax.id);
+        }
+      }
+    }
+    return map;
   };
+
+  const resolveTaxIdsFromMixOf = (value: string) => {
+    const parts = parseMixOf(value);
+    const keyMap = buildTaxKeyMap(availableTaxes);
+    const ids: string[] = [];
+    const unknown: string[] = [];
+
+    for (const part of parts) {
+      const id = keyMap.get(normalize(part));
+      if (id) {
+        if (!ids.includes(id)) ids.push(id);
+      } else {
+        unknown.push(part);
+      }
+    }
+
+    return { ids, unknown };
+  };
+
+  const resolvedMix = useMemo(() => resolveTaxIdsFromMixOf(mixOf), [mixOf, availableTaxes]);
 
   const handleSave = async () => {
     if (!groupName.trim()) {
@@ -55,8 +95,18 @@ const AddTaxGroupModal: React.FC<Props> = ({
       return;
     }
 
-    if (selectedTaxIds.length === 0) {
-      setError("Please select at least one tax");
+    if (resolvedMix.unknown.length > 0) {
+      setError(`Unknown tax name(s): ${resolvedMix.unknown.join(", ")}`);
+      return;
+    }
+
+    if (resolvedMix.ids.length === 0) {
+      setError("Please enter at least one tax in Mix of");
+      return;
+    }
+
+    if (!taxRate.trim()) {
+      setError("Please enter the tax rate");
       return;
     }
 
@@ -65,12 +115,11 @@ const AddTaxGroupModal: React.FC<Props> = ({
       setError(null);
       const response = await createTaxGroup({
         name: groupName,
-        taxIds: selectedTaxIds,
+        taxIds: resolvedMix.ids,
         status: 'active'
       });
 
       if (response.success) {
-        CRUDToasts.created("Tax Group");
         handleClose();
         onSuccess();
       } else {
@@ -86,83 +135,99 @@ const AddTaxGroupModal: React.FC<Props> = ({
 
   const handleClose = () => {
     setGroupName("");
-    setSelectedTaxIds([]);
+    setMixOf("");
+    setTaxRate("");
     setError(null);
     onClose();
   };
 
   return (
-    <Modal open={open} onClose={handleClose}>
-      <h2 className="text-2xl font-bold mb-6">
-        Add New Tax Group
-      </h2>
+<Modal open={open} onClose={handleClose}>
+  <div className="w-[760px] px-10 py-8">
 
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-          {error}
-        </div>
-      )}
+    {/* Title */}
+    <h2 className="text-[30px] font-bold mb-8">
+      Add New Tax Group
+    </h2>
 
-      <div className="grid grid-cols-1 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Tax Group Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            placeholder="Cascading Tax"
-            className="w-full border rounded-md px-3 py-2"
-            value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
-          />
-        </div>
+    {error && (
+      <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+        {error}
+      </div>
+    )}
 
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Select Taxes <span className="text-red-500">*</span>
-          </label>
-          {loadingTaxes ? (
-            <p className="text-sm text-gray-600">Loading taxes...</p>
-          ) : (
-            <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
-              {availableTaxes.length === 0 ? (
-                <p className="text-sm text-gray-600">No taxes available. Please create taxes first.</p>
-              ) : (
-                availableTaxes.map((tax) => (
-                  <label key={tax.id} className="flex items-center gap-2 mb-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedTaxIds.includes(tax.id)}
-                      onChange={() => handleTaxToggle(tax.id)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm">{tax.name} ({tax.percentage}%)</span>
-                  </label>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+    {/* FORM */}
+    <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+
+      {/* Tax Group Name */}
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Tax Group Name <span className="text-red-500">*</span>
+        </label>
+
+        <input
+          placeholder="Dual Tax"
+          value={groupName}
+          onChange={(e) => setGroupName(e.target.value)}
+          className="w-full h-[46px] border border-gray-300 rounded-md px-4 text-sm"
+        />
       </div>
 
-      {/* Actions */}
-      <div className="flex justify-end gap-3 mt-8">
-        <button
-          onClick={handleClose}
-          className="border px-6 py-2 rounded-md"
-          disabled={loading}
-        >
-          Cancel
-        </button>
+      {/* Mix Of */}
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Mix of
+        </label>
 
-        <button
-          onClick={handleSave}
-          className="bg-yellow-400 px-6 py-2 rounded-md font-medium disabled:opacity-50"
-          disabled={loading || loadingTaxes}
-        >
-          {loading ? 'Saving...' : 'Save'}
-        </button>
+        <input
+          placeholder="CGST,SGST"
+          value={mixOf}
+          onChange={(e) => setMixOf(e.target.value)}
+          className="w-full h-[46px] border border-gray-300 rounded-md px-4 text-sm"
+        />
       </div>
-    </Modal>
+
+      {/* Tax Rate INPUT (not dropdown) */}
+      <div className="col-span-1">
+        <label className="block text-sm font-medium mb-2">
+          Tax Rate <span className="text-red-500">*</span>
+        </label>
+
+        <input
+          placeholder="12%"
+          value={taxRate}
+          onChange={(e) => {
+            setTaxRate(e.target.value);
+          }}
+          className="w-full h-[46px] border border-gray-300 rounded-md px-4 text-sm"
+        />
+      </div>
+
+    </div>
+
+    {/* Buttons */}
+    <div className="flex justify-end gap-4 mt-10">
+
+      <button
+        onClick={handleClose}
+        disabled={loading}
+        className="px-8 h-[44px] border border-black rounded-md text-sm font-medium"
+      >
+        Cancel
+      </button>
+
+      <button
+        onClick={handleSave}
+        disabled={loading || loadingTaxes}
+        className="px-8 h-[44px] bg-yellow-400 rounded-md text-sm font-medium hover:bg-yellow-500"
+      >
+        {loading ? "Saving..." : "Save"}
+      </button>
+
+    </div>
+
+  </div>
+</Modal>
   );
 };
 

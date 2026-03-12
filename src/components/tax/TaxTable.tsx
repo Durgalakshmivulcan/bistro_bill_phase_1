@@ -9,17 +9,17 @@ type Props = {
 
 const TaxTable: React.FC<Props> = ({ taxes, onTaxDeleted, onTaxUpdated }) => {
   return (
-    <div className="bg-white rounded-md overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-yellow-400">
+    <div className="bg-white rounded-md border border-[#EADFC2] overflow-x-auto shadow-sm">
+      <table className="w-full text-sm min-w-[640px]">
+        <thead className="bg-yellow-400 text-black">
           <tr>
-            <th className="px-4 py-3 text-left font-medium">
+            <th className="px-6 py-4 text-left font-medium">
               Tax Name
             </th>
-            <th className="px-4 py-3 text-left font-medium">
+            <th className="px-6 py-4 text-left font-medium w-40">
               Percentage
             </th>
-            <th className="px-4 py-3 text-left font-medium">
+            <th className="px-6 py-4 text-left font-medium w-28">
               Actions
             </th>
           </tr>
@@ -28,7 +28,7 @@ const TaxTable: React.FC<Props> = ({ taxes, onTaxDeleted, onTaxUpdated }) => {
         <tbody>
           {taxes.length === 0 ? (
             <tr>
-              <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+              <td colSpan={3} className="px-6 py-10 text-center text-gray-500">
                 <p>No taxes found</p>
               </td>
             </tr>

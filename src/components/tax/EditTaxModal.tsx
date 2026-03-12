@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Modal from "../ui/Modal";
 import { updateTax, Tax } from "../../services/settingsService";
-import { CRUDToasts } from "../../utils/toast";
+import { showUpdatedSweetAlert } from "../../utils/swalAlerts";
 
 type Props = {
   open: boolean;
@@ -11,12 +11,10 @@ type Props = {
 };
 
 const inputClass =
-  "w-full h-[44px] rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400";
-
+  "w-full h-[44px] rounded-md border border-gray-300 px-4 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400";
 const labelClass = "block text-sm font-semibold mb-1";
 
 const EditTaxModal: React.FC<Props> = ({ open, onClose, onSuccess, tax }) => {
-  const [showSuccess, setShowSuccess] = useState(false);
   const [taxName, setTaxName] = useState("");
   const [taxRate, setTaxRate] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,7 +23,7 @@ const EditTaxModal: React.FC<Props> = ({ open, onClose, onSuccess, tax }) => {
   useEffect(() => {
     if (tax && open) {
       setTaxName(tax.name);
-      setTaxRate(tax.percentage.toString());
+      setTaxRate(`${tax.percentage}%`);
       setError(null);
     }
   }, [tax, open]);
@@ -53,9 +51,11 @@ const EditTaxModal: React.FC<Props> = ({ open, onClose, onSuccess, tax }) => {
       });
 
       if (response.success) {
-        CRUDToasts.updated("Tax");
         onClose();
-        setShowSuccess(true);
+        await showUpdatedSweetAlert({
+          title: "Tax Updated",
+          message: "Tax Details Updated Successfully!",
+        });
         if (onSuccess) {
           onSuccess();
         }
@@ -81,9 +81,9 @@ const EditTaxModal: React.FC<Props> = ({ open, onClose, onSuccess, tax }) => {
     <>
       {/* ================= EDIT TAX MODAL ================= */}
       <Modal open={open} onClose={handleClose}>
-        <div className="w-full max-w-[420px] ">
-          <h2 className="text-xl sm:text-2xl font-bold mb-6">
-            Edit Tax
+        <div className="w-full max-w-[420px] bg-white rounded-xl p-8">
+          <h2 className="text-2xl font-bold mb-6">
+            Edit New Tax
           </h2>
 
           {error && (
@@ -92,7 +92,7 @@ const EditTaxModal: React.FC<Props> = ({ open, onClose, onSuccess, tax }) => {
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Tax Name */}
             <div>
               <label className={labelClass}>
@@ -111,33 +111,28 @@ const EditTaxModal: React.FC<Props> = ({ open, onClose, onSuccess, tax }) => {
               <label className={labelClass}>
                 Tax Rate <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  placeholder="12"
-                  className={`${inputClass} pr-10`}
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(e.target.value)}
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
-                  %
-                </span>
-              </div>
+              <input
+                type="text"
+                placeholder="12%"
+                className={inputClass}
+                value={taxRate}
+                onChange={(e) => setTaxRate(e.target.value)}
+              />
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8">
+          <div className="flex justify-center gap-6 mt-8">
             <button
               onClick={handleClose}
-              className="h-[44px] px-6 rounded-lg border border-gray-300 w-full sm:w-auto"
+              className="h-[44px] px-8 rounded-md border border-black text-black"
               disabled={loading}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="h-[44px] px-6 rounded-lg bg-yellow-400 font-semibold w-full sm:w-auto disabled:opacity-50"
+              className="h-[44px] px-8 rounded-md bg-yellow-400 font-semibold hover:bg-yellow-500 disabled:opacity-50"
               disabled={loading}
             >
               {loading ? 'Saving...' : 'Save'}
@@ -145,38 +140,6 @@ const EditTaxModal: React.FC<Props> = ({ open, onClose, onSuccess, tax }) => {
           </div>
         </div>
       </Modal>
-
-      {/* ================= SUCCESS IMAGE ALERT ================= */}
-      {showSuccess && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
-          <div className="flex min-h-screen items-center justify-center px-4">
-            <div className="relative bg-white rounded-lg p-6 sm:p-8 text-center w-full max-w-sm">
-              {/* Close */}
-              <button
-                onClick={() => setShowSuccess(false)}
-                className="absolute top-3 right-3 text-gray-400 hover:text-black"
-              >
-                ✕
-              </button>
-
-              <h3 className="text-lg sm:text-xl font-bold mb-4">
-                Tax Updated
-              </h3>
-
-              {/* Icon */}
-              <div className="flex justify-center mb-4">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl sm:text-3xl">
-                  ✓
-                </div>
-              </div>
-
-              <p className="text-sm text-gray-600">
-                Tax Updated Successfully!
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

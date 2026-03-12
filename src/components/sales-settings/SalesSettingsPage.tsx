@@ -1,367 +1,274 @@
-import { useState, useEffect } from "react";
-import {
-  getSalesChannels,
-  updateSalesChannel,
-  getAggregators,
-  updateAggregator,
-  SalesChannel,
-  Aggregator,
-} from "../../services/settingsService";
+import { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import Modal from "../ui/Modal";
+import uberEatsLogo from "../../assets/uber-eats.svg";
+import swiggyLogo from "../../assets/swiggy.svg";
+import zomatoLogo from "../../assets/zomato.svg";
+import { showConnectedSweetAlert } from "../../utils/swalAlerts";
 
 const SalesSettingsPage = () => {
-  const [channels, setChannels] = useState<SalesChannel[]>([]);
-  const [aggregators, setAggregators] = useState<Aggregator[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showConnectModal, setShowConnectModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [selectedAggregator, setSelectedAggregator] = useState<Aggregator | null>(
-    null
-  );
+  const [channels, setChannels] = useState([
+    { id: "dine-in-1", name: "Dine In", enabled: true },
+    { id: "take-away", name: "Take Away", enabled: true },
+    { id: "dine-in-2", name: "Dine In", enabled: true },
+    { id: "subscription-meal", name: "Subscription Meal", enabled: true },
+    { id: "catering", name: "Catering Orders", enabled: true },
+    { id: "reservations", name: "Reservations", enabled: true },
+  ]);
+
+  const [aggregators, setAggregators] = useState([
+    { id: "uber-eats", name: "Uber Eats", logo: uberEatsLogo, isConnected: false },
+    { id: "swiggy", name: "Swiggy", logo: swiggyLogo, isConnected: true },
+    { id: "zomato", name: "Zomato", logo: zomatoLogo, isConnected: false },
+  ]);
+
+  const [openConnectModal, setOpenConnectModal] = useState(false);
+  const [selectedAggId, setSelectedAggId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     merchantId: "",
     apiKey: "",
     apiEndpoint: "",
     callbackUrl: "",
+    status: "active",
   });
 
-  // Fetch sales channels and aggregators on mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const selectedAggregator = useMemo(
+    () => aggregators.find((a) => a.id === selectedAggId) || null,
+    [aggregators, selectedAggId]
+  );
 
-        const [channelsResponse, aggregatorsResponse] = await Promise.all([
-          getSalesChannels(),
-          getAggregators(),
-        ]);
-
-        if (channelsResponse.success && channelsResponse.data) {
-          setChannels(channelsResponse.data);
-        } else {
-          console.error("Failed to fetch sales channels:", channelsResponse.error);
-        }
-
-        if (aggregatorsResponse.success && aggregatorsResponse.data) {
-          setAggregators(aggregatorsResponse.data);
-        } else {
-          console.error("Failed to fetch aggregators:", aggregatorsResponse.error);
-        }
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError("Failed to load sales settings");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Handle channel toggle
-  const handleChannelToggle = async (channel: SalesChannel) => {
-    try {
-      const response = await updateSalesChannel(channel.id, {
-        enabled: !channel.enabled,
-      });
-
-      if (response.success && response.data) {
-        // Update local state
-        setChannels((prev) =>
-          prev.map((c) =>
-            c.id === channel.id ? { ...c, enabled: response.data!.enabled } : c
-          )
-        );
-      } else {
-        console.error("Failed to update channel:", response.error);
-        alert("Failed to update channel status");
-      }
-    } catch (err) {
-      console.error("Error updating channel:", err);
-      alert("Failed to update channel status");
-    }
+  const presets: Record<string, typeof formData> = {
+    swiggy: {
+      merchantId: "SWG1234567890",
+      apiKey: "AK8Hf87k3JfG2h8D51N1gQ0xP9h8sG9z",
+      apiEndpoint: "https://api.swiggy.com/v1/orders",
+      callbackUrl: "https://bistrobillpos.com/api/swiggy/order-status-update",
+      status: "active",
+    },
+    zomato: {
+      merchantId: "ZOM1234567890",
+      apiKey: "ZM8Hf87k3JfG2h8D51N1gQ0xP9h8sG9z",
+      apiEndpoint: "https://api.zomato.com/v1/orders",
+      callbackUrl: "https://bistrobillpos.com/api/zomato/order-status-update",
+      status: "active",
+    },
+    "uber-eats": {
+      merchantId: "UBE1234567890",
+      apiKey: "UE8Hf87k3JfG2h8D51N1gQ0xP9h8sG9z",
+      apiEndpoint: "https://api.ubereats.com/v1/orders",
+      callbackUrl: "https://bistrobillpos.com/api/ubereats/order-status-update",
+      status: "active",
+    },
   };
 
-  // Handle aggregator click
-  const handleAggregatorClick = (agg: Aggregator) => {
-    setSelectedAggregator(agg);
-    setFormData({
-      merchantId: agg.merchantId || "",
-      apiKey: agg.apiKey || "",
-      apiEndpoint: agg.apiEndpoint || "",
-      callbackUrl: agg.callbackUrl || "",
-    });
-    setShowConnectModal(true);
+  const openAggregatorModal = (id: string) => {
+    setSelectedAggId(id);
+    setFormData(presets[id] || presets.swiggy);
+    setOpenConnectModal(true);
   };
 
-  // Handle save aggregator
+  const closeAggregatorModal = () => {
+    setOpenConnectModal(false);
+  };
+
   const handleSaveAggregator = async () => {
-    if (!selectedAggregator) return;
-
-    try {
-      const response = await updateAggregator(selectedAggregator.id, {
-        merchantId: formData.merchantId,
-        apiKey: formData.apiKey,
-        apiEndpoint: formData.apiEndpoint,
-        callbackUrl: formData.callbackUrl,
-        isConnected: true,
-      });
-
-      if (response.success && response.data) {
-        // Update local state
-        setAggregators((prev) =>
-          prev.map((a) =>
-            a.id === selectedAggregator.id ? response.data! : a
-          )
-        );
-        setShowConnectModal(false);
-        setShowSuccessModal(true);
-      } else {
-        console.error("Failed to update aggregator:", response.error);
-        alert("Failed to connect aggregator");
-      }
-    } catch (err) {
-      console.error("Error updating aggregator:", err);
-      alert("Failed to connect aggregator");
-    }
+    if (!selectedAggId) return;
+    setAggregators((prev) =>
+      prev.map((a) => (a.id === selectedAggId ? { ...a, isConnected: true } : a))
+    );
+    setOpenConnectModal(false);
+    await showConnectedSweetAlert();
   };
 
-  if (loading) {
-    return (
-      <div className="border rounded-lg bg-[#FFF9E8] p-4 sm:p-6">
-        <p className="text-center text-gray-600">Loading sales settings...</p>
-      </div>
+  const handleChannelToggle = (id: string) => {
+    setChannels((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, enabled: !c.enabled } : c))
     );
-  }
-
-  if (error) {
-    return (
-      <div className="border rounded-lg bg-[#FFF9E8] p-4 sm:p-6">
-        <p className="text-center text-red-600">{error}</p>
-      </div>
-    );
-  }
+  };
 
   return (
     <>
       {/* ================= PAGE ================= */}
-      <div className="border rounded-lg bg-[#FFF9E8] p-4 sm:p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="bg-[#FFFBF3] border border-[#EADFC2] rounded-lg overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 lg:divide-x divide-[#EADFC2]">
           {/* ===== LEFT: SALES CHANNELS ===== */}
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold mb-4">
+          <div className="p-6 sm:p-8">
+            <h2 className="text-xl sm:text-2xl font-bold mb-6">
               Subscribed Sales Channels
             </h2>
 
-            {channels.length === 0 ? (
-              <div className="border rounded-lg bg-white p-6 text-center text-gray-600">
-                No sales channels available
-              </div>
-            ) : (
-              <div className="border rounded-lg bg-white overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-[#F7C948]">
-                    <tr>
-                      <th className="text-left px-4 py-3">Channel</th>
-                      <th className="text-center px-4 py-3">Status</th>
+            <div className="bg-white rounded-md border border-[#EADFC2] overflow-hidden shadow-sm max-w-md">
+              <table className="w-full text-sm">
+                <thead className="bg-yellow-400 text-black">
+                  <tr>
+                    <th className="text-left px-6 py-4 font-medium">Channel</th>
+                    <th className="text-left px-6 py-4 font-medium w-40">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {channels.map((channel, index) => (
+                    <tr
+                      key={channel.id}
+                      className={index % 2 ? "bg-[#FFF9E8]" : "bg-white"}
+                    >
+                      <td className="px-6 py-4">{channel.name}</td>
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleChannelToggle(channel.id)}
+                          aria-pressed={channel.enabled}
+                          className={`relative inline-flex w-10 h-5 cursor-pointer rounded-full transition ${
+                            channel.enabled ? "bg-[#75B800]" : "bg-gray-300"
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${
+                              channel.enabled ? "right-0.5" : "left-0.5"
+                            }`}
+                          />
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {channels.map((channel, index) => (
-                      <tr
-                        key={channel.id}
-                        className={index % 2 ? "bg-[#FFF7E0]" : "bg-white"}
-                      >
-                        <td className="px-4 py-3">{channel.name}</td>
-                        <td className="px-4 py-3 text-center">
-                          <div
-                            onClick={() => handleChannelToggle(channel)}
-                            className={`relative inline-flex w-10 h-5 cursor-pointer rounded-full transition
-                              ${
-                                channel.enabled
-                                  ? "bg-green-500"
-                                  : "bg-gray-300"
-                              }`}
-                          >
-                            <span
-                              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition
-                                ${
-                                  channel.enabled
-                                    ? "right-0.5"
-                                    : "left-0.5"
-                                }`}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* ===== RIGHT: ONLINE AGGREGATORS ===== */}
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold mb-4">
+          <div className="p-6 sm:p-8">
+            <h2 className="text-xl sm:text-2xl font-bold mb-6">
               Online Aggregators
             </h2>
 
-            {aggregators.length === 0 ? (
-              <div className="border rounded-lg bg-white p-6 text-center text-gray-600">
-                No aggregators available
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-4 sm:gap-6">
-                {aggregators.map((agg) => (
-                  <div
-                    key={agg.id}
-                    onClick={() => handleAggregatorClick(agg)}
-                    className={`cursor-pointer bg-white rounded-2xl shadow border-2 ${
-                      agg.isConnected
-                        ? "border-green-500"
-                        : "border-transparent hover:border-[#F7C948]"
-                    } flex items-center justify-center h-36 sm:h-40 relative`}
-                  >
-                    {agg.logo ? (
-                      <img
-                        src={agg.logo}
-                        alt={agg.name}
-                        className="h-20 object-contain"
-                      />
-                    ) : (
-                      <span className="text-lg font-semibold text-gray-700">
-                        {agg.name}
-                      </span>
-                    )}
-                    {agg.isConnected && (
-                      <div className="absolute top-2 right-2">
-                        <span className="bg-green-500 text-white text-xs px-2 py-1 rounded">
-                          Connected
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="grid grid-cols-2 gap-8 sm:gap-10">
+              {aggregators.map((agg) => (
+                <div
+                  key={agg.id}
+                  onClick={() => openAggregatorModal(agg.id)}
+                  className={`cursor-pointer bg-white rounded-3xl shadow-md border-4 ${
+                    agg.id === selectedAggId || agg.isConnected
+                      ? "border-[#F7C948]"
+                      : "border-transparent"
+                  } flex items-center justify-center w-40 h-40 sm:w-44 sm:h-44`}
+                >
+                  <img
+                    src={agg.logo}
+                    alt={agg.name}
+                    className="h-24 w-24 sm:h-28 sm:w-28 object-contain"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ================= CONNECT MODAL ================= */}
-      {showConnectModal && selectedAggregator && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="bg-white rounded-lg w-full max-w-lg p-6 relative">
-            <button
-              className="absolute top-4 right-4 text-gray-500"
-              onClick={() => setShowConnectModal(false)}
-            >
-              ✕
-            </button>
-
-            <h2 className="text-lg font-bold mb-6">
-              Connect {selectedAggregator.name}
+      {openConnectModal && selectedAggregator && (
+        <Modal open={openConnectModal} onClose={closeAggregatorModal}>
+          <div className="w-[760px] px-10 py-8">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-6">
+              Connect {selectedAggregator.name} Online Aggregators
             </h2>
 
             <div className="space-y-4 text-sm">
               <div>
                 <label className="block mb-1 font-medium">
-                  Merchant ID <span className="text-red-500">*</span>
+                  Merchant ID:{" "}
+                  <span className="font-normal text-gray-600">
+                    (Unique Identifier provided by {selectedAggregator.name})
+                  </span>{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
-                  className="w-full border rounded-md px-4 py-2"
+                  className="w-full h-[46px] border border-gray-200 rounded-md px-4"
                   value={formData.merchantId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, merchantId: e.target.value })
-                  }
-                  placeholder="Enter merchant ID"
+                  onChange={(e) => setFormData({ ...formData, merchantId: e.target.value })}
                 />
               </div>
+
               <div>
                 <label className="block mb-1 font-medium">
-                  API Key / Access Token <span className="text-red-500">*</span>
+                  API Key / Access Token:{" "}
+                  <span className="font-normal text-gray-600">
+                    (Security Credentials for authentication)
+                  </span>{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="password"
-                  className="w-full border rounded-md px-4 py-2"
+                  className="w-full h-[46px] border border-gray-200 rounded-md px-4"
                   value={formData.apiKey}
-                  onChange={(e) =>
-                    setFormData({ ...formData, apiKey: e.target.value })
-                  }
-                  placeholder="Enter API key"
+                  onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
                 />
               </div>
+
               <div>
                 <label className="block mb-1 font-medium">
-                  Order API Endpoint <span className="text-red-500">*</span>
+                  Order Management API Endpoint:{" "}
+                  <span className="font-normal text-gray-600">
+                    (Enter the API URL for order Management)
+                  </span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
-                  className="w-full border rounded-md px-4 py-2"
+                  className="w-full h-[46px] border border-gray-200 rounded-md px-4"
                   value={formData.apiEndpoint}
-                  onChange={(e) =>
-                    setFormData({ ...formData, apiEndpoint: e.target.value })
-                  }
-                  placeholder="https://api.example.com/orders"
+                  onChange={(e) => setFormData({ ...formData, apiEndpoint: e.target.value })}
                 />
               </div>
+
               <div>
                 <label className="block mb-1 font-medium">
-                  Callback URL <span className="text-red-500">*</span>
+                  Order Update Callback URL:{" "}
+                  <span className="font-normal text-gray-600">
+                    (Enter the URL for sending order status updates)
+                  </span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
-                  className="w-full border rounded-md px-4 py-2"
+                  className="w-full h-[46px] border border-gray-200 rounded-md px-4"
                   value={formData.callbackUrl}
-                  onChange={(e) =>
-                    setFormData({ ...formData, callbackUrl: e.target.value })
-                  }
-                  placeholder="https://yourapp.com/webhook"
+                  onChange={(e) => setFormData({ ...formData, callbackUrl: e.target.value })}
                 />
+              </div>
+
+              <div>
+                <label className="block mb-1 font-medium">
+                  Status <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full h-[46px] border border-gray-200 rounded-md px-4 pr-10 appearance-none bg-white"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <ChevronDown
+                    size={18}
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-4 mt-10">
               <button
-                onClick={() => setShowConnectModal(false)}
-                className="border px-6 py-2 rounded-md w-full sm:w-auto"
+                onClick={closeAggregatorModal}
+                className="px-8 h-[44px] border border-black rounded-md text-sm font-medium"
               >
                 Cancel
               </button>
-
               <button
                 onClick={handleSaveAggregator}
-                className="bg-[#F7C948] px-6 py-2 rounded-md font-medium w-full sm:w-auto"
+                className="px-10 h-[44px] bg-yellow-400 rounded-md text-sm font-medium hover:bg-yellow-500"
               >
                 Save
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ================= SUCCESS MODAL ================= */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="bg-white rounded-lg p-8 text-center w-full max-w-sm relative">
-            <button
-              onClick={() => setShowSuccessModal(false)}
-              className="absolute top-4 right-4 text-gray-400"
-            >
-              ✕
-            </button>
-
-            <h2 className="text-xl font-bold mb-2">Connected</h2>
-
-            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-white text-3xl">✓</span>
-            </div>
-
-            <p className="text-sm text-gray-600">
-              Online Aggregator connected Successfully!
-            </p>
-          </div>
-        </div>
+        </Modal>
       )}
     </>
   );

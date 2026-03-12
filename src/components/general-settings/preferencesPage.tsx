@@ -140,11 +140,12 @@ const PreferencesPage = () => {
               onChange={(e) => setDateFormat(e.target.value)}
               disabled={loading}
             >
-              <option>YY/MM/DD</option>
               <option>MM/DD/YYYY</option>
               <option>DD/MM/YYYY</option>
               <option>YYYY/MM/DD</option>
               <option>YYYY-MM-DD</option>
+              <option>MM-DD-YYYY</option>
+              <option>DD-MM-YYYY</option>
             </select>
           </div>
 

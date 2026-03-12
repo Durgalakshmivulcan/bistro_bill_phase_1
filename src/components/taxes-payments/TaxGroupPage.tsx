@@ -5,7 +5,7 @@ import { getTaxGroups, TaxGroup } from "../../services/settingsService";
 
 const TaxGroupPage = () => {
   const [openModal, setOpenModal] = useState(false);
-  const [showAddSuccess, setShowAddSuccess] = useState(false);
+  const [showCreateSuccess, setShowCreateSuccess] = useState(false);
   const [taxGroups, setTaxGroups] = useState<TaxGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,20 +32,26 @@ const TaxGroupPage = () => {
     fetchTaxGroups();
   }, []);
 
-  const handleSuccess = () => {
-    setShowAddSuccess(true);
-    fetchTaxGroups(); // Refresh the list
+  const handleTaxGroupCreated = () => {
+    setShowCreateSuccess(true);
+    fetchTaxGroups();
+  };
+
+  const refreshTaxGroups = () => {
+    fetchTaxGroups();
   };
 
   return (
     <>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between gap-3 mb-4">
-        <h2 className="text-xl sm:text-2xl font-bold">Tax Group</h2>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
+        <h2 className="text-4xl font-extrabold tracking-tight">
+          Tax Group
+        </h2>
 
         <button
           onClick={() => setOpenModal(true)}
-          className="bg-black text-white px-4 py-2 rounded-md text-sm w-full sm:w-auto"
+          className="bg-black text-white px-6 py-2.5 rounded-md text-sm w-full sm:w-auto"
         >
           Add New
         </button>
@@ -58,8 +64,8 @@ const TaxGroupPage = () => {
       {!loading && !error && (
         <TaxGroupTable
           groups={taxGroups}
-          onEditSuccess={handleSuccess}
-          onDeleteSuccess={handleSuccess}
+          onEditSuccess={refreshTaxGroups}
+          onDeleteSuccess={refreshTaxGroups}
         />
       )}
 
@@ -67,22 +73,22 @@ const TaxGroupPage = () => {
       <AddTaxGroupModal
         open={openModal}
         onClose={() => setOpenModal(false)}
-        onSuccess={handleSuccess}
+        onSuccess={handleTaxGroupCreated}
       />
 
       {/* ================= SUCCESS MODAL ================= */}
-      {showAddSuccess && (
+      {showCreateSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
           <div className="bg-white rounded-lg p-6 sm:p-8 text-center w-full max-w-sm relative">
             <button
-              onClick={() => setShowAddSuccess(false)}
+              onClick={() => setShowCreateSuccess(false)}
               className="absolute top-3 right-3 text-gray-400"
             >
               ✕
             </button>
 
             <h3 className="text-lg sm:text-xl font-bold mb-2">
-              Tax Group Updated
+              Tax Group Created
             </h3>
 
             <div className="flex justify-center mb-4">
@@ -92,7 +98,7 @@ const TaxGroupPage = () => {
             </div>
 
             <p className="text-sm text-gray-600">
-              Tax Group Updated Successfully!
+              Tax Group Created Successfully!
             </p>
           </div>
         </div>

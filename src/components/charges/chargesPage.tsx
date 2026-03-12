@@ -1,25 +1,23 @@
-import { useState, useEffect } from "react";
-import successIcon from "../../assets/tick.png";
-import deleteIcon from "../../assets/deleteConformImg.png";
-import deleteIcon1 from "../../assets/deleteSuccessImg.png";
+import { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import ActionMenu from "../Common/ActionMenu";
+import Modal from "../ui/Modal";
+import { showUpdatedSweetAlert } from "../../utils/swalAlerts";
 import {
-  getCharges,
-  createCharge,
-  updateCharge,
-  deleteCharge,
   Charge as ApiCharge,
   CreateChargeInput,
   UpdateChargeInput,
+  createCharge,
+  deleteCharge,
+  getCharges,
+  updateCharge,
 } from "../../services/settingsService";
 
-/* ================= TYPES ================= */
-
-type Mode = null | "add" | "edit" | "delete" | "added" | "updated" | "deleted";
+type ModalMode = "add" | "edit";
 
 type FormData = {
   name: string;
-  value: number;
+  value: string; // keep as string to allow empty input
   status: "active" | "inactive";
 };
 
@@ -28,21 +26,19 @@ type FormErrors = {
   value?: string;
 };
 
-/* ================= PAGE ================= */
-
 export default function ChargesPage() {
   const [charges, setCharges] = useState<ApiCharge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [menuIndex, setMenuIndex] = useState<number | null>(null);
-  const [activeCharge, setActiveCharge] = useState<ApiCharge | null>(null);
-  const [mode, setMode] = useState<Mode>(null);
-  const [formErrors, setFormErrors] = useState<FormErrors>({});
 
+  const [openChargeModal, setOpenChargeModal] = useState(false);
+  const [chargeModalMode, setChargeModalMode] = useState<ModalMode>("add");
+  const [activeCharge, setActiveCharge] = useState<ApiCharge | null>(null);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [form, setForm] = useState<FormData>({
     name: "",
-    value: 0,
+    value: "",
     status: "active",
   });
 
@@ -80,7 +76,8 @@ export default function ChargesPage() {
       errors.name = "Charge name is required";
     }
 
-    if (form.value <= 0) {
+    const numValue = Number(form.value);
+    if (!Number.isFinite(numValue) || numValue <= 0) {
       errors.value = "Price must be a positive number";
     }
 
@@ -90,9 +87,8 @@ export default function ChargesPage() {
 
   /* ================= ACTIONS ================= */
 
-  const closeAll = () => {
-    setMode(null);
-    setMenuIndex(null);
+  const closeChargeModal = () => {
+    setOpenChargeModal(false);
     setActiveCharge(null);
     setFormErrors({});
   };
@@ -100,18 +96,20 @@ export default function ChargesPage() {
   const openEdit = (charge: ApiCharge) => {
     setForm({
       name: charge.name,
-      value: charge.value,
+      value: String(charge.value),
       status: charge.status as "active" | "inactive",
     });
     setActiveCharge(charge);
-    setMode("edit");
+    setChargeModalMode("edit");
+    setOpenChargeModal(true);
   };
 
   const openAdd = () => {
-    setForm({ name: "", value: 0, status: "active" });
+    setForm({ name: "", value: "", status: "active" });
     setActiveCharge(null);
     setFormErrors({});
-    setMode("add");
+    setChargeModalMode("add");
+    setOpenChargeModal(true);
   };
 
   const saveEdit = async () => {
@@ -119,9 +117,10 @@ export default function ChargesPage() {
 
     try {
       setSaving(true);
+      const numValue = Number(form.value);
       const updateInput: UpdateChargeInput = {
         name: form.name,
-        value: form.value,
+        value: numValue,
         status: form.status,
       };
 
@@ -129,7 +128,11 @@ export default function ChargesPage() {
 
       if (response.success) {
         await loadCharges();
-        setMode("updated");
+        closeChargeModal();
+        await showUpdatedSweetAlert({
+          title: "Charge Updated",
+          message: "Charge Details Updated Successfully!",
+        });
       } else {
         setError(response.error?.message || "Failed to update charge");
       }
@@ -146,10 +149,11 @@ export default function ChargesPage() {
 
     try {
       setSaving(true);
+      const numValue = Number(form.value);
       const createInput: CreateChargeInput = {
         name: form.name,
         type: "Fixed", // Default to Fixed type since UI doesn't allow selection
-        value: form.value,
+        value: numValue,
         applyTo: "All", // Default to All since UI doesn't allow selection
         status: form.status,
       };
@@ -158,7 +162,11 @@ export default function ChargesPage() {
 
       if (response.success) {
         await loadCharges();
-        setMode("added");
+        closeChargeModal();
+        await showUpdatedSweetAlert({
+          title: "Charge Added",
+          message: "New Charge Added Successfully!",
+        });
       } else {
         setError(response.error?.message || "Failed to create charge");
       }
@@ -170,29 +178,8 @@ export default function ChargesPage() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!activeCharge) return;
-
-    try {
-      setSaving(true);
-      const response = await deleteCharge(activeCharge.id);
-
-      if (response.success) {
-        await loadCharges();
-        setMode("deleted");
-      } else {
-        setError(response.error?.message || "Failed to delete charge");
-      }
-    } catch (err) {
-      setError("An error occurred while deleting charge");
-      console.error("Error deleting charge:", err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleInputChange = (field: keyof FormData, value: string | number) => {
-    setForm({ ...form, [field]: value });
+    setForm({ ...form, [field]: String(value) } as FormData);
     // Clear field error when user types
     if (formErrors[field as keyof FormErrors]) {
       setFormErrors({ ...formErrors, [field]: undefined });
@@ -202,13 +189,13 @@ export default function ChargesPage() {
   /* ================= UI ================= */
 
   return (
-    <div className="bg-[#FFF9E8] border rounded-lg p-4 sm:p-6 relative">
+    <>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between gap-3 mb-6">
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">Charges</h2>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
+        <h2 className="text-4xl font-extrabold tracking-tight">Charges</h2>
         <button
           onClick={openAdd}
-          className="bg-black text-white px-4 py-2 rounded-md text-sm"
+          className="bg-black text-white px-6 py-2.5 rounded-md text-sm w-full sm:w-auto"
           disabled={loading}
         >
           Add New
@@ -247,41 +234,59 @@ export default function ChargesPage() {
         </div>
       ) : (
         /* Table */
-        <div className="border rounded-lg bg-white overflow-x-auto">
-          <table className="w-full min-w-[600px] text-sm">
-            <thead className="bg-[#F7C948]">
+        <div className="bg-white rounded-md overflow-x-auto border border-[#EADFC2]">
+          <table className="w-full text-sm min-w-[700px]">
+            <thead className="bg-yellow-400 text-black">
               <tr>
-                <th className="text-left px-4 py-3">Name</th>
-                <th className="text-left px-4 py-3">Price</th>
-                <th className="text-left px-4 py-3">Status</th>
-                <th className="text-center px-4 py-3">Actions</th>
+                <th className="text-left px-6 py-4 font-medium">Name</th>
+                <th className="text-left px-6 py-4 font-medium">Price</th>
+                <th className="text-left px-6 py-4 font-medium">Status</th>
+                <th className="text-center px-6 py-4 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {charges.map((c, i) => (
-                <tr key={c.id} className={i % 2 ? "bg-[#FFFBEA]" : "bg-white"}>
-                  <td className="px-4 py-3">{c.name}</td>
-                  <td className="px-4 py-3">₹ {c.value.toFixed(2)}</td>
-                  <td className="px-4 py-3">
+                <tr key={c.id} className={i % 2 ? "bg-[#FFF9E8]" : "bg-white"}>
+                  <td className="px-6 py-4">{c.name}</td>
+                  <td className="px-6 py-4">
+                    ₹{" "}
+                    {Number.isInteger(c.value)
+                      ? c.value
+                      : Number(c.value).toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      className={`px-3 py-1 rounded-md text-xs font-medium ${
                         c.status === "active"
                           ? "bg-blue-100 text-blue-600"
-                          : "bg-red-100 text-red-600"
+                          : "bg-[#FFE3E3] text-red-600"
                       }`}
                     >
                       {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
                     </span>
                   </td>
-                  <ActionMenu
-                    onEdit={() => {
-                      openEdit(c);
-                    }}
-                    onDelete={() => {
-                      setActiveCharge(c);
-                      setMode("delete");
-                    }}
-                  />
+                  <td className="px-6 py-4 text-center">
+                    <ActionMenu
+                      onEdit={() => openEdit(c)}
+                      deleteEntityName="Charge"
+                      successTimerMs={null}
+                      onDelete={async () => {
+                        try {
+                          const response = await deleteCharge(c.id);
+                          if (response.success) {
+                            await loadCharges();
+                            return true;
+                          }
+                          setError(response.error?.message || "Failed to delete charge");
+                          return false;
+                        } catch (err) {
+                          console.error("Error deleting charge:", err);
+                          setError("An error occurred while deleting charge");
+                          return false;
+                        }
+                      }}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -289,255 +294,95 @@ export default function ChargesPage() {
         </div>
       )}
 
-      {/* ================= MODALS ================= */}
+      {/* ================= ADD/EDIT MODAL ================= */}
+      {openChargeModal && (
+        <Modal open={openChargeModal} onClose={closeChargeModal}>
+          <div className="w-[760px] max-w-[calc(100vw-32px)] px-10 py-8">
+            <h2 className="text-3xl sm:text-4xl font-extrabold mb-6">
+              {chargeModalMode === "edit" ? "Edit Charge" : "Add Charge"}
+            </h2>
 
-      {(mode === "edit" || mode === "add") && (
-        <Overlay>
-          <Modal title={mode === "edit" ? "Edit Charge" : "Add Charge"}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <Field
-                label="Name"
-                value={form.name}
-                onChange={(v) => handleInputChange("name", v)}
-                error={formErrors.name}
-              />
-              <Field
-                label="Price"
-                value={form.value === 0 ? "" : `₹ ${form.value}`}
-                onChange={(v) => {
-                  const numValue = Number(v.replace(/\D/g, ""));
-                  handleInputChange("value", numValue);
-                }}
-                error={formErrors.value}
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block mb-1 text-sm font-medium">Name</label>
+                <input
+                  className={`w-full h-[46px] rounded-md px-4 border ${
+                    formErrors.name ? "border-red-500" : "border-gray-200"
+                  }`}
+                  value={form.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                />
+                {formErrors.name && (
+                  <p className="text-xs text-red-600 mt-1">{formErrors.name}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block mb-1 text-sm font-medium">Price</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600">
+                    ₹
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="1"
+                    className={`w-full h-[46px] rounded-md pl-9 pr-4 border ${
+                      formErrors.value ? "border-red-500" : "border-gray-200"
+                    }`}
+                    value={form.value}
+                    onChange={(e) => handleInputChange("value", e.target.value)}
+                  />
+                </div>
+                {formErrors.value && (
+                  <p className="text-xs text-red-600 mt-1">{formErrors.value}</p>
+                )}
+              </div>
+
+              <div className="sm:col-span-1">
+                <label className="block mb-1 text-sm font-medium">Status</label>
+                <div className="relative">
+                  <select
+                    className="w-full h-[46px] rounded-md px-4 pr-10 border border-gray-200 appearance-none bg-white"
+                    value={form.status}
+                    onChange={(e) =>
+                      setForm({ ...form, status: e.target.value as "active" | "inactive" })
+                    }
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <ChevronDown
+                    size={18}
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  />
+                </div>
+              </div>
+              <div className="hidden sm:block" />
             </div>
 
-            <Select
-              label="Status"
-              value={form.status}
-              onChange={(v) =>
-                handleInputChange("status", v as "active" | "inactive")
-              }
-            />
-
-            <Actions
-              onCancel={closeAll}
-              onSave={mode === "edit" ? saveEdit : saveAdd}
-              saving={saving}
-            />
-          </Modal>
-        </Overlay>
+            <div className="flex justify-end gap-4 mt-10">
+              <button
+                type="button"
+                onClick={closeChargeModal}
+                className="px-8 h-[44px] border border-black rounded-md text-sm font-medium"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={chargeModalMode === "edit" ? saveEdit : saveAdd}
+                className="px-10 h-[44px] bg-yellow-400 rounded-md text-sm font-medium hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
-
-      {mode === "updated" && (
-        <Success
-          title="Charge Updated"
-          desc="Charge Details Updated Successfully!"
-          icon="success"
-          onClose={closeAll}
-        />
-      )}
-
-      {mode === "added" && (
-        <Success
-          title="Charge Added"
-          desc="New Charge Added Successfully!"
-          icon="success"
-          onClose={closeAll}
-        />
-      )}
-
-      {mode === "delete" && (
-        <Confirm onCancel={closeAll} onConfirm={confirmDelete} saving={saving} />
-      )}
-
-      {mode === "deleted" && (
-        <Success
-          title="Deleted!"
-          desc="Charge has been successfully removed."
-          icon="delete"
-          onClose={closeAll}
-        />
-      )}
-    </div>
-  );
-}
-
-/* ================= SHARED UI ================= */
-
-function Overlay({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-3">
-      {children}
-    </div>
-  );
-}
-
-function Modal({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white rounded-lg w-full max-w-lg p-6">
-      <h3 className="text-xl font-bold mb-4">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  error,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  error?: string;
-}) {
-  return (
-    <div>
-      <label className="text-sm font-medium">{label}</label>
-      <input
-        className={`w-full border rounded-md px-3 py-2 mt-1 ${
-          error ? "border-red-500" : ""
-        }`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-    </div>
-  );
-}
-
-function Select({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="mb-6">
-      <label className="text-sm font-medium">{label}</label>
-      <select
-        className="w-full border rounded-md px-3 py-2 mt-1"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-      </select>
-    </div>
-  );
-}
-
-function Actions({
-  onCancel,
-  onSave,
-  saving,
-}: {
-  onCancel: () => void;
-  onSave: () => void;
-  saving?: boolean;
-}) {
-  return (
-    <div className="flex justify-end gap-3">
-      <button
-        onClick={onCancel}
-        className="border px-4 py-2 rounded-md"
-        disabled={saving}
-      >
-        Cancel
-      </button>
-      <button
-        onClick={onSave}
-        className="bg-[#F7C948] px-6 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled={saving}
-      >
-        {saving ? "Saving..." : "Save"}
-      </button>
-    </div>
-  );
-}
-
-function Confirm({
-  onCancel,
-  onConfirm,
-  saving,
-}: {
-  onCancel: () => void;
-  onConfirm: () => void;
-  saving?: boolean;
-}) {
-  return (
-    <Overlay>
-      <div className="bg-white rounded-lg p-6 w-full max-w-sm text-center">
-        <h3 className="text-xl font-bold mb-3">Delete</h3>
-        <img src={deleteIcon1} className="mx-auto mb-4 h-12 w-12" alt="Delete" />
-        <p className="text-sm mb-6">
-          This action cannot be undone. Do you want to proceed?
-        </p>
-        <div className="flex justify-center gap-3">
-          <button
-            onClick={onCancel}
-            className="border px-4 py-2 rounded-md"
-            disabled={saving}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="bg-[#F7C948] px-6 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={saving}
-          >
-            {saving ? "Deleting..." : "Yes"}
-          </button>
-        </div>
-      </div>
-    </Overlay>
-  );
-}
-
-function Success({
-  title,
-  desc,
-  icon,
-  onClose,
-}: {
-  title: string;
-  desc: string;
-  icon: "success" | "delete";
-  onClose: () => void;
-}) {
-  return (
-    <Overlay>
-      <div className="bg-white rounded-lg p-6 w-full max-w-sm text-center relative">
-        <button
-          onClick={onClose}
-          className="absolute right-3 top-3 text-gray-400"
-        >
-          ✕
-        </button>
-
-        <h3 className="text-xl font-bold mb-2">{title}</h3>
-
-        <div className="my-4">
-          <img
-            src={icon === "success" ? successIcon : deleteIcon}
-            className="mx-auto h-12 w-12"
-            alt={icon === "success" ? "Success" : "Delete"}
-          />
-        </div>
-
-        <p className="text-sm">{desc}</p>
-      </div>
-    </Overlay>
+    </>
   );
 }

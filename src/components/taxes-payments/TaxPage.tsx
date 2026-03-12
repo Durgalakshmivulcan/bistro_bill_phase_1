@@ -45,12 +45,14 @@ export default function TaxPage() {
 
   return (
     <>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Tax </h2>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
+        <h2 className="text-4xl font-extrabold tracking-tight">
+          Tax
+        </h2>
 
         <button
           onClick={() => setOpenModal(true)}
-          className="bg-black text-white px-4 py-2 rounded-md text-sm"
+          className="bg-black text-white px-6 py-2.5 rounded-md text-sm w-full sm:w-auto"
         >
           Add New
         </button>
@@ -58,7 +60,13 @@ export default function TaxPage() {
 
       {loading && <p className="text-gray-600">Loading taxes...</p>}
       {error && <p className="text-red-600">{error}</p>}
-      {!loading && !error && <TaxTable taxes={taxes} onTaxDeleted={handleTaxDeleted} onTaxUpdated={handleTaxUpdated} />}
+      {!loading && !error && (
+        <TaxTable
+          taxes={taxes}
+          onTaxDeleted={handleTaxDeleted}
+          onTaxUpdated={handleTaxUpdated}
+        />
+      )}
       <AddTaxModal open={openModal} onClose={() => setOpenModal(false)} onSuccess={handleTaxAdded} />
     </>
   );

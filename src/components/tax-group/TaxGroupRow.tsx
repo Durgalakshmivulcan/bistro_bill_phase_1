@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import ActionMenu from "../Common/ActionMenu";
 import Modal from "../ui/Modal";
 import { deleteTaxGroup, updateTaxGroup, getTaxes, Tax, TaxGroup } from "../../services/settingsService";
 import { CRUDToasts } from "../../utils/toast";
+import { showUpdatedSweetAlert } from "../../utils/swalAlerts";
 
 type Props = {
   group: TaxGroup;
@@ -16,28 +17,96 @@ const TaxGroupRow: React.FC<Props> = ({
   onDeleteSuccess,
 }) => {
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
-  const [showEditSuccess, setShowEditSuccess] = useState(false);
 
   const [groupName, setGroupName] = useState("");
-  const [selectedTaxIds, setSelectedTaxIds] = useState<string[]>([]);
+  const [mixOf, setMixOf] = useState("");
+  const [taxRate, setTaxRate] = useState("");
   const [availableTaxes, setAvailableTaxes] = useState<Tax[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [loadingTaxes, setLoadingTaxes] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const normalize = (value: string) => value.trim().toLowerCase();
+
+  const parseMixOf = (value: string) =>
+    value
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+  const buildTaxKeyMap = (taxes: Tax[]) => {
+    const map = new Map<string, string>();
+    for (const tax of taxes) {
+      const name = (tax.name || "").trim();
+      if (!name) continue;
+
+      const beforeParen = name.split("(")[0]?.trim() || name;
+      const firstToken = name.split(/[ (]/)[0]?.trim() || name;
+
+      for (const key of [name, beforeParen, firstToken]) {
+        const normalizedKey = normalize(key);
+        if (!normalizedKey) continue;
+        if (!map.has(normalizedKey)) {
+          map.set(normalizedKey, tax.id);
+        }
+      }
+    }
+    return map;
+  };
+
+  const resolveTaxIdsFromMixOf = (value: string) => {
+    const parts = parseMixOf(value);
+    const keyMap = buildTaxKeyMap(availableTaxes);
+    const ids: string[] = [];
+    const unknown: string[] = [];
+
+    for (const part of parts) {
+      const id = keyMap.get(normalize(part));
+      if (id) {
+        if (!ids.includes(id)) ids.push(id);
+      } else {
+        unknown.push(part);
+      }
+    }
+
+    return { ids, unknown };
+  };
+
+  const resolvedMix = useMemo(() => resolveTaxIdsFromMixOf(mixOf), [mixOf, availableTaxes]);
+
+  const formatPercent = (value: number) => {
+    if (!Number.isFinite(value) || value === 0) return "0%";
+    const text = value % 1 === 0 ? String(value) : value.toFixed(2).replace(/\.?0+$/, "");
+    return `${text}%`;
+  };
+
+  const initialMixOf = useMemo(() => {
+    if (!group.taxGroupItems || group.taxGroupItems.length === 0) return "";
+    return group.taxGroupItems
+      .map((item) => {
+        const name = (item.tax?.name || "").trim();
+        if (!name) return "";
+        return name.split("(")[0]?.trim() || name;
+      })
+      .filter(Boolean)
+      .join(", ");
+  }, [group]);
+
+  const initialTaxRate = useMemo(() => {
+    if (!group.taxGroupItems || group.taxGroupItems.length === 0) return "";
+    const sum = group.taxGroupItems.reduce((acc, item) => acc + (Number(item.tax?.percentage) || 0), 0);
+    return formatPercent(sum);
+  }, [group]);
 
   useEffect(() => {
     if (showEditModal) {
       setGroupName(group.name);
-      // Extract tax IDs from taxGroupItems
-      const taxIds = group.taxGroupItems?.map(item => item.taxId) || [];
-      setSelectedTaxIds(taxIds);
+      setMixOf(initialMixOf);
+      setTaxRate(initialTaxRate);
       fetchTaxes();
     }
-  }, [showEditModal, group]);
+  }, [showEditModal, group, initialMixOf, initialTaxRate]);
 
   const fetchTaxes = async () => {
     try {
@@ -53,22 +122,24 @@ const TaxGroupRow: React.FC<Props> = ({
     }
   };
 
-  const handleTaxToggle = (taxId: string) => {
-    setSelectedTaxIds(prev =>
-      prev.includes(taxId)
-        ? prev.filter(id => id !== taxId)
-        : [...prev, taxId]
-    );
-  };
-
   const handleEdit = async () => {
     if (!groupName.trim()) {
       setError("Please enter a group name");
       return;
     }
 
-    if (selectedTaxIds.length === 0) {
-      setError("Please select at least one tax");
+    if (resolvedMix.unknown.length > 0) {
+      setError(`Unknown tax name(s): ${resolvedMix.unknown.join(", ")}`);
+      return;
+    }
+
+    if (resolvedMix.ids.length === 0) {
+      setError("Please enter at least one tax in Mix of");
+      return;
+    }
+
+    if (!taxRate.trim()) {
+      setError("Please enter the tax rate");
       return;
     }
 
@@ -77,14 +148,16 @@ const TaxGroupRow: React.FC<Props> = ({
       setError(null);
       const response = await updateTaxGroup(group.id, {
         name: groupName,
-        taxIds: selectedTaxIds,
+        taxIds: resolvedMix.ids,
       });
 
       if (response.success) {
-        CRUDToasts.updated("Tax Group");
         setShowEditModal(false);
-        setShowEditSuccess(true);
         onEditSuccess();
+        await showUpdatedSweetAlert({
+          title: "Tax Group Updated",
+          message: "Tax Group Details Updated Successfully!",
+        });
       } else {
         setError(response.message || 'Failed to update tax group');
       }
@@ -96,230 +169,146 @@ const TaxGroupRow: React.FC<Props> = ({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (): Promise<boolean> => {
     try {
-      setDeleting(true);
-      setError(null);
       const response = await deleteTaxGroup(group.id);
 
       if (response.success) {
         CRUDToasts.deleted("Tax Group");
-        setShowDeleteConfirm(false);
-        setShowDeleteSuccess(true);
         onDeleteSuccess();
+        return true;
       } else {
-        setError(response.message || 'Failed to delete tax group');
+        return false;
       }
     } catch (err) {
-      setError('An error occurred while deleting the tax group');
       console.error('Error deleting tax group:', err);
+      return false;
     } finally {
-      setDeleting(false);
     }
   };
 
   const handleCloseEditModal = () => {
     setGroupName("");
-    setSelectedTaxIds([]);
+    setMixOf("");
+    setTaxRate("");
     setError(null);
     setShowEditModal(false);
   };
 
-  // Get tax names for display
-  const getTaxNames = () => {
-    if (!group.taxGroupItems || group.taxGroupItems.length === 0) {
-      return "No taxes";
-    }
-    return group.taxGroupItems.map(item => item.tax.name).join(", ");
+  const getMixOf = () => {
+    if (!group.taxGroupItems || group.taxGroupItems.length === 0) return "-";
+    return group.taxGroupItems
+      .map((item) => {
+        const name = (item.tax?.name || "").trim();
+        if (!name) return "";
+        return name.split("(")[0]?.trim() || name;
+      })
+      .filter(Boolean)
+      .join(", ");
+  };
+
+  const getPercentage = () => {
+    if (!group.taxGroupItems || group.taxGroupItems.length === 0) return "-";
+    const sum = group.taxGroupItems.reduce((acc, item) => acc + (Number(item.tax?.percentage) || 0), 0);
+    return formatPercent(sum);
   };
 
   return (
     <>
-      <tr className="border-b last:border-none">
-        <td className="px-4 py-3">{group.name}</td>
-        <td className="px-4 py-3">{getTaxNames()}</td>
-        <td className="px-4 py-3">
+      <tr className="border-b last:border-none even:bg-[#FFF9E8]">
+        <td className="px-6 py-4">{group.name}</td>
+        <td className="px-6 py-4">{getMixOf()}</td>
+        <td className="px-6 py-4">{getPercentage()}</td>
+        <td className="px-6 py-4">
           <ActionMenu
+            deleteEntityName="Tax group"
+            successTimerMs={null}
             onEdit={() => setShowEditModal(true)}
-            onDelete={() => setShowDeleteConfirm(true)}
+            onDelete={handleDelete}
           />
         </td>
       </tr>
 
       {/* ================= EDIT TAX GROUP MODAL ================= */}
       <Modal open={showEditModal} onClose={handleCloseEditModal}>
-        <h2 className="text-2xl font-bold mb-6">
-          Edit Tax Group
-        </h2>
+        <div className="w-[760px] px-10 py-8">
+          {/* Title */}
+          <h2 className="text-[30px] font-bold mb-8">
+            Edit Tax Group
+          </h2>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-            {error}
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* FORM */}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+            {/* Tax Group Name */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Tax Group Name <span className="text-red-500">*</span>
+              </label>
+
+              <input
+                placeholder="Dual Tax"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="w-full h-[46px] border border-gray-300 rounded-md px-4 text-sm"
+              />
+            </div>
+
+            {/* Mix Of */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Mix of
+              </label>
+
+              <input
+                placeholder="CGST,SGST"
+                value={mixOf}
+                onChange={(e) => setMixOf(e.target.value)}
+                className="w-full h-[46px] border border-gray-300 rounded-md px-4 text-sm"
+              />
+            </div>
+
+            {/* Tax Rate */}
+            <div className="col-span-1">
+              <label className="block text-sm font-medium mb-2">
+                Tax Rate <span className="text-red-500">*</span>
+              </label>
+
+              <input
+                placeholder="12%"
+                value={taxRate}
+                onChange={(e) => setTaxRate(e.target.value)}
+                className="w-full h-[46px] border border-gray-300 rounded-md px-4 text-sm"
+              />
+            </div>
           </div>
-        )}
 
-        <div className="grid grid-cols-1 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Tax Group Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              placeholder="Cascading Tax"
-              className="w-full border rounded-md px-3 py-2"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-            />
+          {/* Actions */}
+          <div className="flex justify-end gap-4 mt-10">
+            <button
+              onClick={handleCloseEditModal}
+              className="px-8 h-[44px] border border-black rounded-md text-sm font-medium"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={handleEdit}
+              className="px-8 h-[44px] bg-yellow-400 rounded-md text-sm font-medium hover:bg-yellow-500 disabled:opacity-50"
+              disabled={loading || loadingTaxes}
+            >
+              {loading ? 'Saving...' : 'Save'}
+            </button>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Select Taxes <span className="text-red-500">*</span>
-            </label>
-            {loadingTaxes ? (
-              <p className="text-sm text-gray-600">Loading taxes...</p>
-            ) : (
-              <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
-                {availableTaxes.length === 0 ? (
-                  <p className="text-sm text-gray-600">No taxes available. Please create taxes first.</p>
-                ) : (
-                  availableTaxes.map((tax) => (
-                    <label key={tax.id} className="flex items-center gap-2 mb-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedTaxIds.includes(tax.id)}
-                        onChange={() => handleTaxToggle(tax.id)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm">{tax.name} ({tax.percentage}%)</span>
-                    </label>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-3 mt-8">
-          <button
-            onClick={handleCloseEditModal}
-            className="border px-6 py-2 rounded-md"
-            disabled={loading}
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={handleEdit}
-            className="bg-yellow-400 px-6 py-2 rounded-md font-medium disabled:opacity-50"
-            disabled={loading || loadingTaxes}
-          >
-            {loading ? 'Saving...' : 'Save'}
-          </button>
         </div>
       </Modal>
 
-      {/* ================= DELETE CONFIRMATION MODAL ================= */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-lg p-6 sm:p-8 w-full max-w-sm relative">
-            <button
-              onClick={() => setShowDeleteConfirm(false)}
-              className="absolute top-3 right-3 text-gray-400"
-              disabled={deleting}
-            >
-              ✕
-            </button>
-
-            <h3 className="text-lg sm:text-xl font-bold mb-2">
-              Delete Tax Group
-            </h3>
-
-            <p className="text-sm text-gray-600 mb-6">
-              Are you sure you want to delete "{group.name}"? This action cannot be undone.
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md"
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-md disabled:opacity-50"
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= DELETE SUCCESS MODAL ================= */}
-      {showDeleteSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-lg p-6 sm:p-8 text-center w-full max-w-sm relative">
-            <button
-              onClick={() => setShowDeleteSuccess(false)}
-              className="absolute top-3 right-3 text-gray-400"
-            >
-              ✕
-            </button>
-
-            <h3 className="text-lg sm:text-xl font-bold mb-2">
-              Tax Group Deleted
-            </h3>
-
-            <div className="flex justify-center mb-4">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl sm:text-3xl">
-                ✓
-              </div>
-            </div>
-
-            <p className="text-sm text-gray-600">
-              Tax Group Deleted Successfully!
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ================= EDIT SUCCESS MODAL ================= */}
-      {showEditSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-lg p-6 sm:p-8 text-center w-full max-w-sm relative">
-            <button
-              onClick={() => setShowEditSuccess(false)}
-              className="absolute top-3 right-3 text-gray-400"
-            >
-              ✕
-            </button>
-
-            <h3 className="text-lg sm:text-xl font-bold mb-2">
-              Tax Group Updated
-            </h3>
-
-            <div className="flex justify-center mb-4">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl sm:text-3xl">
-                ✓
-              </div>
-            </div>
-
-            <p className="text-sm text-gray-600">
-              Tax Group Updated Successfully!
-            </p>
-          </div>
-        </div>
-      )}
     </>
   );
 };

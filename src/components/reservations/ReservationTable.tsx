@@ -1,3 +1,4 @@
+import { useState } from "react";
 import StatusBadge from "./StatusBadge";
 
 interface Props {
@@ -5,6 +6,16 @@ interface Props {
 }
 
 const ReservationTable: React.FC<Props> = ({ data }) => {
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  const toggleMenu = (id: string) => {
+    if (openMenu === id) {
+      setOpenMenu(null);
+    } else {
+      setOpenMenu(id);
+    }
+  };
+
   return (
     <table className="reservation-table">
       <thead>
@@ -27,19 +38,46 @@ const ReservationTable: React.FC<Props> = ({ data }) => {
         {data.map((item, index) => (
           <tr key={item.id}>
             <td>{index + 1}</td>
+
             <td>{item.customerName}</td>
-            <td>{item.date} {item.time}</td>
+
+            <td>
+              <div>{item.date}</div>
+              <div>{item.time}</div>
+            </td>
+
             <td>{item.phone}</td>
+
             <td>{item.email}</td>
+
             <td>{item.source}</td>
+
             <td>{item.guests}</td>
+
             <td>{item.floor}</td>
-            <td>{item.tables.join(", ")}</td>
+
+            <td>{item.tables?.join(", ")}</td>
+
             <td>
               <StatusBadge status={item.status} />
             </td>
-            <td>
-              <button className="action-btn">⋮</button>
+
+            <td style={{ position: "relative" }}>
+              <button
+                className="action-btn"
+                onClick={() => toggleMenu(item.id)}
+              >
+                ⋮
+              </button>
+
+              {openMenu === item.id && (
+                <div className="action-menu">
+                  <button className="menu-item">👁 View</button>
+                  <button className="menu-item">✏ Edit</button>
+                  <button className="menu-item">📝 Update Status</button>
+                  <button className="menu-item delete">🗑 Delete</button>
+                </div>
+              )}
             </td>
           </tr>
         ))}

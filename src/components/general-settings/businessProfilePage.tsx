@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Pencil } from "lucide-react";
 import { getProfile, updateProfile, BusinessProfile, UpdateProfileInput } from "../../services/settingsService";
 
 const BusinessProfilePage = () => {
@@ -12,6 +13,8 @@ const BusinessProfilePage = () => {
   // Form state
   const [formData, setFormData] = useState<UpdateProfileInput>({
     businessName: "",
+    brandName: "",
+    businessType: "",
     email: "",
     phone: "",
     address: "",
@@ -24,6 +27,9 @@ const BusinessProfilePage = () => {
     description: "",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const logoFileInputRef = useRef<HTMLInputElement | null>(null);
+  const getLogoStorageKey = (profileId?: string) =>
+    profileId ? `bb_profile_logo:${profileId}` : "bb_profile_logo";
 
   // Fetch profile on mount
   useEffect(() => {
@@ -37,10 +43,16 @@ const BusinessProfilePage = () => {
       const response = await getProfile();
 
       if (response.success && response.data) {
-        setProfile(response.data);
+        const storageKey = getLogoStorageKey(response.data.id);
+        const storedLogo = localStorage.getItem(storageKey) || "";
+        const mergedLogo = (response.data.logo || storedLogo || "") as string;
+
+        setProfile({ ...response.data, logo: mergedLogo });
         // Initialize form data with profile data
         setFormData({
           businessName: response.data.businessName || "",
+          brandName: response.data.brandName || "",
+          businessType: response.data.businessType || "",
           email: response.data.email || "",
           phone: response.data.phone || "",
           address: response.data.address || "",
@@ -48,7 +60,7 @@ const BusinessProfilePage = () => {
           state: response.data.state || "",
           country: response.data.country || "",
           postalCode: response.data.postalCode || "",
-          logo: response.data.logo || "",
+          logo: mergedLogo,
           website: response.data.website || "",
           description: response.data.description || "",
         });
@@ -69,6 +81,9 @@ const BusinessProfilePage = () => {
     // Required fields
     if (!formData.businessName?.trim()) {
       errors.businessName = "Restaurant Name is required";
+    }
+    if (!formData.businessType?.trim()) {
+      errors.businessType = "Business Type is required";
     }
     if (!formData.email?.trim()) {
       errors.email = "Email is required";
@@ -108,11 +123,20 @@ const BusinessProfilePage = () => {
       const response = await updateProfile(formData);
 
       if (response.success) {
-        setProfile(response.data!);
+        // Persist logo client-side as a fallback if backend doesn't store/return it.
+        if (profile?.id && formData.logo) {
+          localStorage.setItem(getLogoStorageKey(profile.id), formData.logo);
+        }
+
+        // Optimistically reflect the logo immediately in the view.
+        setProfile((prev) => (prev ? { ...prev, logo: formData.logo || prev.logo } : prev));
+
+        await loadProfile(); // reload updated profile
+      
         setShowEditModal(false);
         setShowSuccessModal(true);
         setFormErrors({});
-      } else {
+      }else {
         setError(response.message || "Failed to update profile");
       }
     } catch (err) {
@@ -133,6 +157,16 @@ const BusinessProfilePage = () => {
         return newErrors;
       });
     }
+  };
+
+  const handleLogoFilePick = (file: File) => {
+    // Store as data URL for preview; backend currently accepts `logo` as string (avatar).
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      handleInputChange("logo", result);
+    };
+    reader.readAsDataURL(file);
   };
 
   if (loading) {
@@ -181,47 +215,51 @@ const BusinessProfilePage = () => {
         </div>
 
         {/* Business Info */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Logo */}
-          <div>
-            <p className="text-sm font-medium mb-2">Logo</p>
-            <div className="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 border rounded-md flex items-center justify-center bg-white mx-auto lg:mx-0">
-              {profile?.logo ? (
-                <img
-                  src={profile.logo}
-                  alt="Logo"
-                  className="max-h-full max-w-full object-contain"
-                />
-              ) : (
-                <span className="text-gray-400 text-xs">No logo</span>
-              )}
-            </div>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-          {/* Details */}
-          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-sm">
-            {[
-              ["Restaurant Name", profile?.businessName],
-              ["Website URL", profile?.website],
-              ["Phone Number", profile?.phone],
-              ["Email Address", profile?.email],
-              ["Country", profile?.country],
-              ["State", profile?.state],
-              ["City", profile?.city],
-              ["Zip / Pin Code", profile?.postalCode],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="font-medium">{label}:</p>
-                <p className="text-gray-700 break-words">{value || "N/A"}</p>
-              </div>
-            ))}
+  {/* Logo */}
+  <div>
+    <p className="text-sm font-medium mb-2">Logo</p>
 
-            <div className="sm:col-span-2">
-              <p className="font-medium">Address:</p>
-              <p className="text-gray-700">{profile?.address || "N/A"}</p>
-            </div>
-          </div>
-        </div>
+    <div className="w-40 h-40 border rounded-md flex items-center justify-center bg-white">
+      {profile?.logo ? (
+        <img
+          src={profile.logo}
+          alt="Logo"
+          className="max-h-full max-w-full object-contain"
+        />
+      ) : (
+        <span className="text-gray-400 text-sm">No logo</span>
+      )}
+    </div>
+  </div>
+
+  {/* Business Info */}
+  <div className="lg:col-span-2 grid grid-cols-2 gap-6 text-sm">
+
+    <ProfileField label="Restaurant Name" value={profile?.businessName} />
+    <ProfileField label="Brand Name" value={profile?.brandName} />
+
+    <ProfileField label="Website URL" value={profile?.website} />
+    <ProfileField label="Business Type" value={profile?.businessType} />
+
+    <ProfileField label="Phone Number" value={profile?.phone} />
+    <ProfileField label="Email Address" value={profile?.email} />
+
+    <ProfileField label="Country" value={profile?.country} />
+    <ProfileField label="State" value={profile?.state} />
+
+    <ProfileField label="City" value={profile?.city} />
+    <ProfileField label="Zip/Pin Code" value={profile?.postalCode} />
+
+    <div className="col-span-2">
+      <p className="font-medium">Address:</p>
+      <p className="text-gray-700">{profile?.address || "N/A"}</p>
+    </div>
+
+  </div>
+
+</div>
 
         {/* Description */}
         <div className="mt-6">
@@ -238,7 +276,7 @@ const BusinessProfilePage = () => {
         <div className="flex min-h-screen items-start sm:items-center justify-center px-3 py-4">
 
           {/* Modal Container */}
-          <div className="bg-white w-full max-w-4xl rounded-lg flex flex-col max-h-[95vh]">
+          <div className="bg-white w-full max-w-5xl rounded-lg flex flex-col max-h-[95vh]">
 
             {/* ===== Header ===== */}
             <div className="px-4 sm:px-6 py-4 border-b">
@@ -259,27 +297,49 @@ const BusinessProfilePage = () => {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Logo */}
-                <div className="text-center lg:text-left">
-                  <p className="text-sm font-medium mb-2">Logo URL</p>
-                  <input
-                    value={formData.logo || ""}
-                    onChange={(e) => handleInputChange("logo", e.target.value)}
-                    placeholder="Enter logo URL"
-                    className="w-full border rounded-md px-3 py-2 text-sm"
-                  />
-                  {formData.logo && (
-                    <div className="w-28 h-28 sm:w-32 sm:h-32 border rounded-md flex items-center justify-center mx-auto lg:mx-0 mt-2">
-                      <img
-                        src={formData.logo}
-                        alt="Logo preview"
-                        className="max-h-full max-w-full object-contain"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
+                {/* Logo */}
+<div>
+  <p className="text-sm font-medium mb-2">logo</p>
+
+  <div className="relative w-36 h-36 border border-[#E5E5E5] rounded-md flex items-center justify-center bg-white">
+
+    {formData.logo ? (
+      <img
+        src={formData.logo}
+        alt="Logo"
+        className="max-h-full max-w-full object-contain p-2"
+      />
+    ) : (
+      <span className="text-gray-400 text-sm">No logo</span>
+    )}
+
+    {/* Edit icon */}
+    <button
+      type="button"
+      onClick={() => {
+        logoFileInputRef.current?.click();
+      }}
+      className="absolute right-2 top-2 w-7 h-7 bg-black text-white rounded-full flex items-center justify-center"
+      aria-label="Edit logo"
+    >
+      <Pencil size={14} />
+    </button>
+
+    <input
+      ref={logoFileInputRef}
+      type="file"
+      accept="image/*"
+      className="hidden"
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        handleLogoFilePick(file);
+        // Allow re-selecting the same file.
+        e.currentTarget.value = "";
+      }}
+    />
+  </div>
+</div>
 
                 {/* Form */}
                 <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -290,11 +350,31 @@ const BusinessProfilePage = () => {
                     error={formErrors.businessName}
                   />
                   <FormInput
+  label="Brand Name"
+  value={formData.brandName || ""}
+  onChange={(value) => handleInputChange("brandName", value)}
+/>
+                  <FormInput
                     label="Website URL"
                     value={formData.website || ""}
                     onChange={(value) => handleInputChange("website", value)}
                     error={formErrors.website}
                   />
+                  <div>
+  <label className="font-medium">Business Type*</label>
+
+  <select
+    value={formData.businessType || ""}
+    onChange={(e) => handleInputChange("businessType", e.target.value)}
+    className="w-full border rounded-md px-3 py-2 mt-1"
+  >
+    <option value="">Select Business Type</option>
+    <option value="Dine In">Dine In</option>
+    <option value="Take Away">Take Away</option>
+    <option value="Delivery">Delivery</option>
+    <option value="Cloud Kitchen">Cloud Kitchen</option>
+  </select>
+</div>
                   <FormInput
                     label="Phone Number*"
                     value={formData.phone || ""}
@@ -443,6 +523,20 @@ function FormInput({
         }`}
       />
       {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+    </div>
+  );
+}
+function ProfileField({
+  label,
+  value
+}: {
+  label: string
+  value?: string
+}) {
+  return (
+    <div>
+      <p className="font-medium">{label}:</p>
+      <p className="text-gray-700">{value || "N/A"}</p>
     </div>
   );
 }

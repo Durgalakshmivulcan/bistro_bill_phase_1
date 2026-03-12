@@ -12,19 +12,28 @@ const TaxGroupTable: React.FC<Props> = ({
   onDeleteSuccess,
 }) => {
   return (
-    <div className="overflow-x-auto border rounded-lg bg-white">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-100">
+    <div className="bg-white rounded-md border border-[#EADFC2] overflow-x-auto shadow-sm">
+      <table className="w-full text-sm min-w-[780px]">
+        <thead className="bg-yellow-400 text-black">
           <tr>
-            <th className="px-4 py-3 text-left">Group Name</th>
-            <th className="px-4 py-3 text-left">Taxes</th>
-            <th className="px-4 py-3 text-left">Action</th>
+            <th className="px-6 py-4 text-left font-medium">
+              Tax Name
+            </th>
+            <th className="px-6 py-4 text-left font-medium">
+              Mix of
+            </th>
+            <th className="px-6 py-4 text-left font-medium w-40">
+              Percentage
+            </th>
+            <th className="px-6 py-4 text-left font-medium w-28">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
           {groups.length === 0 ? (
             <tr>
-              <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+              <td colSpan={4} className="px-6 py-10 text-center text-gray-500">
                 <p>No tax groups found</p>
               </td>
             </tr>

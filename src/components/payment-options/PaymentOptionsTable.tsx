@@ -4,9 +4,10 @@ import PaymentRow from "./PaymentRow";
 type Props = {
   options: PaymentOption[];
   onRefresh: () => void;
+  onUpdatedSuccess: () => void | Promise<void>;
 };
 
-const PaymentOptionsTable: React.FC<Props> = ({ options, onRefresh }) => {
+const PaymentOptionsTable: React.FC<Props> = ({ options, onRefresh, onUpdatedSuccess }) => {
   return (
     <div className="bg-white rounded-md overflow-x-auto">
       <table className="w-full text-sm">
@@ -37,6 +38,7 @@ const PaymentOptionsTable: React.FC<Props> = ({ options, onRefresh }) => {
                 key={option.id}
                 option={option}
                 onRefresh={onRefresh}
+                onUpdatedSuccess={onUpdatedSuccess}
               />
             ))
           )}

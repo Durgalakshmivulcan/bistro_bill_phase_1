@@ -12,13 +12,12 @@ import { CRUDToasts } from "../../utils/toast";
 type Props = {
   option: PaymentOption;
   onRefresh: () => void;
+  onUpdatedSuccess: () => void | Promise<void>;
 };
 
-const PaymentRow: React.FC<Props> = ({ option, onRefresh }) => {
+const PaymentRow: React.FC<Props> = ({ option, onRefresh, onUpdatedSuccess }) => {
   const [enabled, setEnabled] = useState(option.status === "active");
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showEditSuccess, setShowEditSuccess] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleStatusToggle = async () => {
@@ -41,26 +40,28 @@ const PaymentRow: React.FC<Props> = ({ option, onRefresh }) => {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (): Promise<boolean> => {
     try {
       setLoading(true);
       const response = await deletePaymentOption(option.id);
 
       if (response.success) {
         CRUDToasts.deleted("Payment Option");
-        setShowDeleteConfirm(false);
         onRefresh();
+        return true;
       }
+      return false;
     } catch (err) {
       console.error("Error deleting payment option:", err);
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = async () => {
     setShowEditModal(false);
-    setShowEditSuccess(true);
+    await onUpdatedSuccess();
     onRefresh();
   };
 
@@ -82,7 +83,9 @@ const PaymentRow: React.FC<Props> = ({ option, onRefresh }) => {
         <td className="px-4 py-3">
           <ActionMenu
             onEdit={() => setShowEditModal(true)}
-            onDelete={() => setShowDeleteConfirm(true)}
+            onDelete={handleDelete}
+            deleteEntityName="Payment mode"
+            successTimerMs={null}
           />
         </td>
       </tr>
@@ -95,75 +98,6 @@ const PaymentRow: React.FC<Props> = ({ option, onRefresh }) => {
           onSuccess={handleEditSuccess}
           option={option}
         />
-      )}
-
-      {/* ================= EDIT SUCCESS MODAL ================= */}
-      {showEditSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-lg p-6 sm:p-8 text-center w-full max-w-sm relative">
-            <button
-              onClick={() => setShowEditSuccess(false)}
-              className="absolute top-3 right-3 text-gray-400"
-            >
-              ✕
-            </button>
-
-            <h3 className="text-lg sm:text-xl font-bold mb-2">
-              Payment Mode Updated
-            </h3>
-
-            <div className="flex justify-center mb-4">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl sm:text-3xl">
-                ✓
-              </div>
-            </div>
-
-            <p className="text-sm text-gray-600">
-              Payment mode updated successfully!
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ================= DELETE CONFIRMATION MODAL ================= */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-lg p-6 sm:p-8 w-full max-w-sm relative">
-            <button
-              onClick={() => setShowDeleteConfirm(false)}
-              className="absolute top-3 right-3 text-gray-400"
-            >
-              ✕
-            </button>
-
-            <h3 className="text-lg sm:text-xl font-bold mb-2">
-              Delete Payment Mode
-            </h3>
-
-            <p className="text-sm text-gray-600 mb-6">
-              Are you sure you want to delete "{option.name}"? This action
-              cannot be undone.
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="border px-6 py-2 rounded-md"
-                disabled={loading}
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={handleDelete}
-                disabled={loading}
-                className="bg-red-500 text-white px-6 py-2 rounded-md font-medium disabled:opacity-50"
-              >
-                {loading ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </>
   );

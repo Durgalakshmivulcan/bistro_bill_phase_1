@@ -14,12 +14,14 @@ const TaxesPaymentsLayout = () => {
             {/* Top Tabs */}
             <SettingsTabs />
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* LEFT SIDE MENU */}
-              <TaxesPaymentsSidebar />
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* LEFT SIDE MENU */}
+              <div className="lg:col-span-1 bg-[#FFFBF3] rounded-lg p-3 h-fit">
+                <TaxesPaymentsSidebar />
+              </div>
 
               {/* RIGHT CONTENT (CHANGES) */}
-              <div className="lg:col-span-3 bg-[#FFF9E8] border rounded-lg p-6">
+              <div className="lg:col-span-3 bg-[#FFFBF3] border border-[#EADFC2] rounded-lg p-6">
                 <Outlet />
               </div>
             </div>

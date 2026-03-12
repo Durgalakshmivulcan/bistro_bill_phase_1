@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import PaymentOptionsTable from "../payment-options/PaymentOptionsTable";
 import AddPaymentModal from "../Common/AddPaymentModal";
 import { getPaymentOptions, PaymentOption } from "../../services/settingsService";
+import { showUpdatedSweetAlert } from "../../utils/swalAlerts";
 
 const PaymentOptionsPage = () => {
   const [openModal, setOpenModal] = useState(false);
@@ -35,6 +36,13 @@ const PaymentOptionsPage = () => {
   const handlePaymentAdded = () => {
     setShowAddSuccess(true);
     fetchPaymentOptions(); // Refresh the list
+  };
+
+  const handlePaymentUpdated = async () => {
+    await showUpdatedSweetAlert({
+      title: "Payment Mode Updated",
+      message: "Payment Mode Details Updated Successfully!",
+    });
   };
 
   return (
@@ -72,6 +80,7 @@ const PaymentOptionsPage = () => {
         <PaymentOptionsTable
           options={options}
           onRefresh={fetchPaymentOptions}
+          onUpdatedSuccess={handlePaymentUpdated}
         />
       )}
 
@@ -109,6 +118,7 @@ const PaymentOptionsPage = () => {
           </div>
         </div>
       )}
+
     </>
   );
 };
