@@ -50,14 +50,8 @@ export const getSalesSummary = async (req: AuthenticatedRequest, res: Response) 
       });
     }
 
-    const startDateStr = String(startDate);
-    const endDateStr = String(endDate);
-    const start = /^\d{4}-\d{2}-\d{2}$/.test(startDateStr)
-      ? new Date(`${startDateStr}T00:00:00.000Z`)
-      : new Date(startDateStr);
-    const end = /^\d{4}-\d{2}-\d{2}$/.test(endDateStr)
-      ? new Date(`${endDateStr}T23:59:59.999Z`)
-      : new Date(endDateStr);
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
 
     // Validate dates
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
@@ -229,14 +223,8 @@ export const getSalesByPeriod = async (req: AuthenticatedRequest, res: Response)
       });
     }
 
-    const startDateStr = String(startDate);
-    const endDateStr = String(endDate);
-    const start = /^\d{4}-\d{2}-\d{2}$/.test(startDateStr)
-      ? new Date(`${startDateStr}T00:00:00.000Z`)
-      : new Date(startDateStr);
-    const end = /^\d{4}-\d{2}-\d{2}$/.test(endDateStr)
-      ? new Date(`${endDateStr}T23:59:59.999Z`)
-      : new Date(endDateStr);
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
 
     // Validate dates
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
@@ -364,14 +352,8 @@ export const getSalesByType = async (req: AuthenticatedRequest, res: Response) =
       });
     }
 
-    const startDateStr = String(startDate);
-    const endDateStr = String(endDate);
-    const start = /^\d{4}-\d{2}-\d{2}$/.test(startDateStr)
-      ? new Date(`${startDateStr}T00:00:00.000Z`)
-      : new Date(startDateStr);
-    const end = /^\d{4}-\d{2}-\d{2}$/.test(endDateStr)
-      ? new Date(`${endDateStr}T23:59:59.999Z`)
-      : new Date(endDateStr);
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
 
     // Validate dates
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
@@ -484,14 +466,8 @@ export const getSalesByPayment = async (req: AuthenticatedRequest, res: Response
       });
     }
 
-    const startDateStr = String(startDate);
-    const endDateStr = String(endDate);
-    const start = /^\d{4}-\d{2}-\d{2}$/.test(startDateStr)
-      ? new Date(`${startDateStr}T00:00:00.000Z`)
-      : new Date(startDateStr);
-    const end = /^\d{4}-\d{2}-\d{2}$/.test(endDateStr)
-      ? new Date(`${endDateStr}T23:59:59.999Z`)
-      : new Date(endDateStr);
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
 
     // Validate dates
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
@@ -610,14 +586,8 @@ export const getTopProducts = async (req: AuthenticatedRequest, res: Response) =
       });
     }
 
-    const startDateStr = String(startDate);
-    const endDateStr = String(endDate);
-    const start = /^\d{4}-\d{2}-\d{2}$/.test(startDateStr)
-      ? new Date(`${startDateStr}T00:00:00.000Z`)
-      : new Date(startDateStr);
-    const end = /^\d{4}-\d{2}-\d{2}$/.test(endDateStr)
-      ? new Date(`${endDateStr}T23:59:59.999Z`)
-      : new Date(endDateStr);
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
 
     // Validate dates
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
@@ -789,14 +759,8 @@ export const getLeastProducts = async (req: AuthenticatedRequest, res: Response)
       });
     }
 
-    const startDateStr = String(startDate);
-    const endDateStr = String(endDate);
-    const start = /^\d{4}-\d{2}-\d{2}$/.test(startDateStr)
-      ? new Date(`${startDateStr}T00:00:00.000Z`)
-      : new Date(startDateStr);
-    const end = /^\d{4}-\d{2}-\d{2}$/.test(endDateStr)
-      ? new Date(`${endDateStr}T23:59:59.999Z`)
-      : new Date(endDateStr);
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
 
     // Validate dates
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {

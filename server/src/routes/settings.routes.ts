@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware';
-import { requireTenantContext } from '../middleware/tenant.middleware';
+import { tenantMiddleware, requireTenantContext } from '../middleware/tenant.middleware';
 import { requirePermission } from '../middleware/rbac.middleware';
 import { imageUpload, uploadToS3Middleware } from '../middleware/upload.middleware';
 import {
@@ -38,18 +38,17 @@ const router = Router();
 
 // All settings routes require authentication and tenant context
 router.use(authenticate);
+router.use(tenantMiddleware);
 router.use(requireTenantContext);
 
 // Tax Routes
-// Read endpoints are consumed in catalog create/update forms.
-// Keep them accessible for any authenticated tenant user to avoid RBAC blocking dropdowns.
-router.get('/taxes', getTaxes);
+router.get('/taxes', requirePermission('taxes', 'read'), getTaxes);
 router.post('/taxes', requirePermission('taxes', 'create'), createTax);
 router.put('/taxes/:id', requirePermission('taxes', 'update'), updateTax);
 router.delete('/taxes/:id', requirePermission('taxes', 'delete'), deleteTax);
 
 // Tax Group Routes
-router.get('/tax-groups', getTaxGroups);
+router.get('/tax-groups', requirePermission('taxes', 'read'), getTaxGroups);
 router.post('/tax-groups', requirePermission('taxes', 'create'), createTaxGroup);
 router.put('/tax-groups/:id', requirePermission('taxes', 'update'), updateTaxGroup);
 router.delete('/tax-groups/:id', requirePermission('taxes', 'delete'), deleteTaxGroup);
@@ -81,7 +80,7 @@ router.get('/profile', requirePermission('settings', 'read'), getProfile);
 router.put('/profile', requirePermission('settings', 'update'), imageUpload.single('avatar'), uploadToS3Middleware(), updateProfile);
 
 // Sales Channel Routes
-router.get('/sales-channels', getSalesChannels);
+router.get('/sales-channels', requirePermission('settings', 'read'), getSalesChannels);
 router.put('/sales-channels/:id', requirePermission('settings', 'update'), updateSalesChannel);
 
 // Aggregator Routes

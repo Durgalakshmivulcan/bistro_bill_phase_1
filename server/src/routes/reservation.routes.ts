@@ -8,6 +8,7 @@ import {
   updateReservationStatus,
 } from '../controllers/reservation.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { tenantMiddleware, requireTenantContext } from '../middleware/tenant.middleware';
 
 const router = Router();
 
@@ -17,14 +18,14 @@ const router = Router();
  * @access Private
  * @query { branchId?, date?, status?, search?, page?, limit? }
  */
-router.get('/', authenticate, listReservations);
+router.get('/', authenticate, tenantMiddleware, requireTenantContext, listReservations);
 
 /**
  * @route GET /api/v1/reservations/:id
  * @description Get reservation by ID
  * @access Private
  */
-router.get('/:id', authenticate, getReservation);
+router.get('/:id', authenticate, tenantMiddleware, requireTenantContext, getReservation);
 
 /**
  * @route POST /api/v1/reservations
@@ -32,21 +33,21 @@ router.get('/:id', authenticate, getReservation);
  * @access Private
  * @body { branchId, customerName, customerPhone, date, startTime, endTime, guestCount?, tableId?, roomId?, customerId?, notes? }
  */
-router.post('/', authenticate, createReservation);
+router.post('/', authenticate, tenantMiddleware, requireTenantContext, createReservation);
 
 /**
  * @route PUT /api/v1/reservations/:id
  * @description Update a reservation
  * @access Private
  */
-router.put('/:id', authenticate, updateReservation);
+router.put('/:id', authenticate, tenantMiddleware, requireTenantContext, updateReservation);
 
 /**
  * @route DELETE /api/v1/reservations/:id
  * @description Delete a reservation
  * @access Private
  */
-router.delete('/:id', authenticate, deleteReservation);
+router.delete('/:id', authenticate, tenantMiddleware, requireTenantContext, deleteReservation);
 
 /**
  * @route PATCH /api/v1/reservations/:id/status
@@ -54,6 +55,6 @@ router.delete('/:id', authenticate, deleteReservation);
  * @access Private
  * @body { status: 'Pending' | 'Confirmed' | 'Cancelled' | 'Completed' }
  */
-router.patch('/:id/status', authenticate, updateReservationStatus);
+router.patch('/:id/status', authenticate, tenantMiddleware, requireTenantContext, updateReservationStatus);
 
 export default router;

@@ -59,7 +59,17 @@ export function tenantMiddleware(
     next();
     return;
   }
+  console.log("User:", req.user);
+console.log("BusinessOwnerId:", req.user.businessOwnerId);
+// If BusinessOwner, use businessOwnerId from the authenticated user context
+if (req.user.userType === 'BusinessOwner') {
+  // Use businessOwnerId from the authenticated user context
+  req.tenantId = req.user.businessOwnerId;
+  next();
+  return;
+}
 
+// For Staff users, businessOwnerId must exist
   // For BusinessOwner and Staff, businessOwnerId is required
   if (!req.user.businessOwnerId) {
     const response: ApiResponse = {
@@ -102,7 +112,11 @@ export function requireTenantContext(
     res.status(401).json(response);
     return;
   }
-
+// Defensive fallback: derive tenantId from authenticated user context
+  // if a route forgot to run tenantMiddleware first.
+  if (!req.tenantId && req.user.businessOwnerId) {
+    req.tenantId = req.user.businessOwnerId;
+  }
   // For all users including SuperAdmin, tenantId must be set
   // SuperAdmin must pass tenantId explicitly via query/params for these routes
   if (!req.tenantId) {
