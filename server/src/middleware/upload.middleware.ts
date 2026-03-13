@@ -168,6 +168,9 @@ export function uploadToS3Middleware(folder?: string) {
   };
 }
 
+// Backward-compatible alias for routes that still reference the old local-assets middleware name.
+export const uploadToLocalAssetsMiddleware = uploadToS3Middleware;
+
 /**
  * Middleware to upload multiple files to S3 after multer processing
  * @param folder - Optional folder name in S3

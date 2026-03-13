@@ -14,7 +14,7 @@ const TaxRow: React.FC<Props> = ({ tax, onDeleted, onUpdated }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const handleDelete = async (): Promise<boolean> => {
+  const handleDelete = async (): Promise<void> => {
     try {
       setDeleting(true);
       const response = await deleteTax(tax.id);
@@ -24,13 +24,12 @@ const TaxRow: React.FC<Props> = ({ tax, onDeleted, onUpdated }) => {
         if (onDeleted) {
           onDeleted();
         }
-        return true;
-      } else {
-        return false;
+        return;
       }
+      return;
     } catch (err) {
       console.error('Error deleting tax:', err);
-      return false;
+      return;
     } finally {
       setDeleting(false);
     }

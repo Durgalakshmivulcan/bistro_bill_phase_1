@@ -199,14 +199,14 @@ const ReasonsTable = ({ title, reasonType }: Props) => {
                   const response = await deleteReason(item.id);
                   if (response.success) {
                     await loadReasons();
-                    return true;
+                    return;
                   }
                   setError(response.message || "Failed to delete reason");
-                  return false;
+                  return;
                 } catch (err) {
                   console.error("An error occurred while deleting reason:", err);
                   setError("An error occurred while deleting reason");
-                  return false;
+                  return;
                 }
               }}
             />

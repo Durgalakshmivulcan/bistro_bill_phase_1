@@ -169,20 +169,19 @@ const TaxGroupRow: React.FC<Props> = ({
     }
   };
 
-  const handleDelete = async (): Promise<boolean> => {
+  const handleDelete = async (): Promise<void> => {
     try {
       const response = await deleteTaxGroup(group.id);
 
       if (response.success) {
         CRUDToasts.deleted("Tax Group");
         onDeleteSuccess();
-        return true;
-      } else {
-        return false;
+        return;
       }
+      return;
     } catch (err) {
       console.error('Error deleting tax group:', err);
-      return false;
+      return;
     } finally {
     }
   };

@@ -9,9 +9,15 @@ import deleteIcon from "../../assets/deleteConformImg.png";
 type Props = {
   onEdit?: () => void;
   onDelete?: () => Promise<void> | void;
+  deleteEntityName?: string;
+  successTimerMs?: number | null;
 };
 
-const ActionMenu: React.FC<Props> = ({ onEdit, onDelete }) => {
+const ActionMenu: React.FC<Props> = ({
+  onEdit,
+  onDelete,
+  deleteEntityName = "Item",
+}) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -88,7 +94,7 @@ const ActionMenu: React.FC<Props> = ({ onEdit, onDelete }) => {
           <img src="${successIcon}" style="width:56px; height:56px;" />
         </div>
         <p style="font-size:14px; color:#6b7280; text-align:center;">
-          Tax has been successfully removed.
+          ${deleteEntityName} has been successfully removed.
         </p>
       `,
       confirmButtonText: "OK",

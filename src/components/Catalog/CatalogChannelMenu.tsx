@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import {
   Search,
   Plus,
@@ -26,6 +27,7 @@ import {
 } from "../../services/settingsService";
 import { getErrorMessage } from "../../utils/errorHandler";
 import { LoadingSpinner } from "../Common";
+import Pagination from "../Common/Pagination";
 import ProductQuickViewModal from "./products/ProductQuickViewModal";
 import Modal from "../ui/Modal";
 
@@ -57,7 +59,7 @@ const GROUP_COLORS = [
 
 function getProductImage(item: Product): string {
   const primary = item.images?.find((img) => img.isPrimary);
-  return primary?.url || item.images?.[0]?.url || "/placeholder.jpg";
+  return item.primaryImage || primary?.url || item.images?.[0]?.url || "/placeholder.jpg";
 }
 
 function getProductPrice(item: Product): string {
@@ -89,6 +91,11 @@ function groupKey(item: Product, type: GroupByType): string {
   return "No Tags";
 }
 
+function getGroupLabel(type: GroupByType | ""): string {
+  const option = GROUP_OPTIONS.find((item) => item.value === type);
+  return option ? `By ${option.label}` : "";
+}
+
 export default function CatalogChannelMenu() {
   const navigate = useNavigate();
   const searchDropdownRef = useRef<HTMLDivElement>(null);
@@ -101,20 +108,26 @@ export default function CatalogChannelMenu() {
 
   const [selectedBranch, setSelectedBranch] = useState("");
   const [selectedChannel, setSelectedChannel] = useState("");
-  const [groupBy, setGroupBy] = useState<GroupByType>("category");
-  const [search, setSearch] = useState("");
+  const [groupBy, setGroupBy] = useState<GroupByType | "">("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [openActionFor, setOpenActionFor] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
 
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const groupsPerPage = 4;
+  const productsPerPage = 20;
 
   useEffect(() => {
     void loadInitialData();
@@ -141,6 +154,23 @@ export default function CatalogChannelMenu() {
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
+
+  useEffect(() => {
+    if (!openActionFor) return undefined;
+
+    const closeMenu = () => {
+      setOpenActionFor(null);
+      setActionMenuPosition(null);
+    };
+
+    window.addEventListener("scroll", closeMenu, true);
+    window.addEventListener("resize", closeMenu);
+
+    return () => {
+      window.removeEventListener("scroll", closeMenu, true);
+      window.removeEventListener("resize", closeMenu);
+    };
+  }, [openActionFor]);
 
   const loadInitialData = async () => {
     setLoadingMeta(true);
@@ -173,16 +203,6 @@ export default function CatalogChannelMenu() {
     setBranches(nextBranches);
     setChannels(nextChannels);
     setAggregators(nextAggregators);
-
-    const combinedNames = Array.from(
-      new Set([
-        ...nextChannels.map((item) => item.name),
-        ...nextAggregators.map((item) => item.name),
-      ])
-    );
-
-    setSelectedBranch(nextBranches[0]?.id || "");
-    setSelectedChannel(combinedNames[0] || "");
 
     if (
       branchRes.status === "rejected" &&
@@ -218,7 +238,6 @@ export default function CatalogChannelMenu() {
   };
 
   const filteredProducts = useMemo(() => {
-    const query = search.trim().toLowerCase();
     const channelFiltered = selectedChannel
       ? products.filter((item) =>
           (item.prices || []).some(
@@ -229,30 +248,14 @@ export default function CatalogChannelMenu() {
         )
       : products;
 
-    if (!query) return channelFiltered;
+    return channelFiltered;
+  }, [products, selectedChannel]);
 
-    return channelFiltered.filter((item) => {
-      const name = item.name.toLowerCase();
-      const category = (item.category?.name || "").toLowerCase();
-      const type = (item.type || "").toLowerCase();
-      const menu = (item.menu?.name || "").toLowerCase();
-      const subCategory = (item.subCategory?.name || "").toLowerCase();
-      const brand = (item.brand?.name || "").toLowerCase();
-      const tags = (item.tags || []).map((tag) => tag.name.toLowerCase()).join(" ");
-
-      return (
-        name.includes(query) ||
-        category.includes(query) ||
-        type.includes(query) ||
-        menu.includes(query) ||
-        subCategory.includes(query) ||
-        brand.includes(query) ||
-        tags.includes(query)
-      );
-    });
-  }, [products, search, selectedChannel]);
+  const hasAppliedFilters = Boolean(groupBy);
 
   const grouped = useMemo(() => {
+    if (!groupBy) return [];
+
     const map = filteredProducts.reduce((acc, item) => {
       const key = groupKey(item, groupBy);
       if (!acc[key]) acc[key] = [];
@@ -262,6 +265,30 @@ export default function CatalogChannelMenu() {
 
     return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredProducts, groupBy]);
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * productsPerPage;
+    return filteredProducts.slice(start, start + productsPerPage);
+  }, [currentPage, filteredProducts]);
+
+  const totalPages = hasAppliedFilters
+    ? Math.max(1, Math.ceil(grouped.length / groupsPerPage))
+    : Math.max(1, Math.ceil(filteredProducts.length / productsPerPage));
+
+  const paginatedGrouped = useMemo(() => {
+    const start = (currentPage - 1) * groupsPerPage;
+    return grouped.slice(start, start + groupsPerPage);
+  }, [currentPage, grouped, groupsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedChannel, selectedBranch, groupBy]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const channelOptions = useMemo(() => {
     const combinedNames = Array.from(
@@ -326,17 +353,40 @@ export default function CatalogChannelMenu() {
 
   const handleFavorite = (item: Product) => {
     setOpenActionFor(null);
+    setActionMenuPosition(null);
     setSuccessNotice(`${item.name} marked as favorite.`);
   };
 
+  const handleActionMenuToggle = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    itemId: string
+  ) => {
+    if (openActionFor === itemId) {
+      setOpenActionFor(null);
+      setActionMenuPosition(null);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    setOpenActionFor(itemId);
+    setActionMenuPosition({
+      top: Math.min(window.innerHeight - 210, rect.bottom + 6),
+      left: Math.max(8, rect.right - 176),
+    });
+  };
+
+  const selectedGroupLabel = getGroupLabel(groupBy);
+  const activeActionItem =
+    filteredProducts.find((item) => item.id === openActionFor) ||
+    products.find((item) => item.id === openActionFor) ||
+    null;
+
   return (
-    <div className="min-h-screen bg-[#f3f3ef] p-6 space-y-4">
+    <div className="min-h-screen bg-bb-bg p-6 space-y-4">
       <div>
         <h1 className="text-[42px] font-bold leading-none">Channel Menu</h1>
         <p className="text-[11px] text-[#686868] mt-2 max-w-5xl">
-          The Channel Menu shows all the items, grouped by category and sub-category, that are
-          available across the selected branch and channel. Through the channel menu, item
-          description, category, sub category and display order can be modified.
+          The Channel Menu shows all the items, grouped by category and sub-category, that are available across the selected branch and channel. Though the channel menu, item description, category, sub category and display order can be modified. Any modification done for a channel will be reflect only on that channel and will not have any impact on the base menu data.
         </p>
       </div>
 
@@ -345,7 +395,7 @@ export default function CatalogChannelMenu() {
           <select
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
-            className="w-full h-9 border border-[#d3d3d3] rounded bg-[#f8f8f8] px-2 text-xs"
+            className="w-full h-9 border border-[#d3d3d3] rounded bg-bb-bg px-3 text-sm text-[#444]"
             disabled={loadingMeta || branches.length === 0}
           >
             <option value="">{branches.length ? "Select Branch" : "No Branches"}</option>
@@ -361,7 +411,7 @@ export default function CatalogChannelMenu() {
           <select
             value={selectedChannel}
             onChange={(e) => setSelectedChannel(e.target.value)}
-            className="w-full h-9 border border-[#d3d3d3] rounded bg-[#f8f8f8] px-2 text-xs"
+            className="w-full h-9 border border-[#d3d3d3] rounded bg-bb-bg px-3 text-sm text-[#444]"
             disabled={loadingMeta || channelOptions.length === 0}
           >
             <option value="">
@@ -376,13 +426,13 @@ export default function CatalogChannelMenu() {
         </div>
 
         <div className="relative xl:col-span-4" ref={searchDropdownRef}>
-          <input
-            value={search}
-            onFocus={() => setShowSearchDropdown(true)}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search here..."
-            className="w-full h-9 border border-[#d3d3d3] rounded bg-[#f8f8f8] px-3 pr-8 text-xs"
-          />
+          <button
+            type="button"
+            onClick={() => setShowSearchDropdown((prev) => !prev)}
+            className="w-full h-9 border border-[#d3d3d3] rounded bg-bb-bg px-3 pr-10 text-sm text-left text-[#444]"
+          >
+            {selectedGroupLabel || "Search here..."}
+          </button>
           <button
             type="button"
             className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666]"
@@ -422,8 +472,9 @@ export default function CatalogChannelMenu() {
           <button
             type="button"
             onClick={() => {
-              setSearch("");
-              setGroupBy("category");
+              setSelectedBranch("");
+              setSelectedChannel("");
+              setGroupBy("");
               setShowSearchDropdown(false);
             }}
             className="w-full h-9 rounded border border-[#c79d2a] bg-[#f4c542] text-xs font-semibold"
@@ -480,17 +531,67 @@ export default function CatalogChannelMenu() {
         </div>
       )}
 
-      {!loadingMeta && !loadingProducts && grouped.length === 0 && (
+      {!loadingMeta &&
+        !loadingProducts &&
+        ((hasAppliedFilters && grouped.length === 0) ||
+          (!hasAppliedFilters && filteredProducts.length === 0)) && (
         <div className="bg-white border border-[#dddddd] rounded p-8 text-center text-sm text-[#666]">
           No products available for selected branch/channel.
         </div>
       )}
 
-      {!loadingMeta && !loadingProducts && grouped.length > 0 && (
-        <div className="overflow-x-auto pb-2">
+      {!loadingMeta && !loadingProducts && !hasAppliedFilters && filteredProducts.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" ref={actionMenuRef}>
+          {paginatedProducts.map((item) => (
+            <div key={item.id} className="relative rounded-lg border border-bb-border bg-white p-3">
+              <button
+                type="button"
+                className="absolute right-2 top-2 p-1 rounded hover:bg-[#f2f2f2]"
+                disabled={actionLoadingId === item.id}
+                onClick={(event) => handleActionMenuToggle(event, item.id)}
+              >
+                <MoreVertical size={16} />
+              </button>
+
+              <div className="flex min-w-0 gap-3 flex-wrap">
+                <img
+                  src={getProductImage(item)}
+                  alt={item.name}
+                  className="h-12 w-16 rounded object-cover bg-gray-100 shrink-0"
+                />
+                <div className="min-w-0 pr-4">
+                  <div className="text-sm font-medium leading-5 text-bb-text line-clamp-2">
+                    {item.name}
+                  </div>
+                  <div className="mt-1 text-xs text-bb-textSoft">Price : Rs. {getProductPrice(item)}</div>
+                  {item.status === "inactive" && (
+                    <div className="text-[10px] mt-1 inline-flex px-2 py-0.5 rounded bg-red-100 text-red-700">
+                      Unavailable
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loadingMeta && !loadingProducts && hasAppliedFilters && grouped.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between text-xs text-[#666]">
+            <span>
+              Showing groups {(currentPage - 1) * groupsPerPage + 1} -{" "}
+              {Math.min(currentPage * groupsPerPage, grouped.length)} of {grouped.length}
+            </span>
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto pb-2">
           <div className="flex gap-4 min-w-max" ref={actionMenuRef}>
-            {grouped.map(([group, items], idx) => (
-              <div key={group} className="w-[335px] border border-[#d9d9d9] rounded-lg bg-[#f6f6f6] p-2">
+            {paginatedGrouped.map(([group, items], idx) => (
+              <div key={group} className="w-[335px] rounded-lg border border-bb-border bg-bb-bg p-2">
                 <div
                   className={`h-8 rounded px-3 text-white flex items-center justify-between ${
                     GROUP_COLORS[idx % GROUP_COLORS.length]
@@ -517,84 +618,27 @@ export default function CatalogChannelMenu() {
 
                 <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
                   {items.map((item) => (
-                    <div key={item.id} className="bg-white border border-[#e0e0e0] rounded p-2 relative">
+                    <div key={item.id} className="relative rounded-lg border border-bb-border bg-white p-3">
                       <button
                         type="button"
                         className="absolute right-1 top-1 p-1 rounded hover:bg-[#f2f2f2]"
                         disabled={actionLoadingId === item.id}
-                        onClick={() => setOpenActionFor((prev) => (prev === item.id ? null : item.id))}
+                        onClick={(event) => handleActionMenuToggle(event, item.id)}
                       >
                         <MoreVertical size={14} />
                       </button>
 
-                      {openActionFor === item.id && (
-                        <div className="absolute right-2 top-7 z-30 w-44 border border-[#ddd] rounded bg-white shadow">
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f4f4f4] flex items-center gap-2"
-                            onClick={() => {
-                              setQuickViewId(item.id);
-                              setOpenActionFor(null);
-                            }}
-                          >
-                            <Eye size={13} /> View
-                          </button>
-
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f4f4f4] flex items-center gap-2"
-                            onClick={() => {
-                              navigate(`/catalog/products/edit/${item.id}`);
-                              setOpenActionFor(null);
-                            }}
-                          >
-                            <Pencil size={13} /> Edit
-                          </button>
-
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f4f4f4] flex items-center gap-2"
-                            onClick={() => {
-                              void handleMarkUnavailable(item);
-                            }}
-                          >
-                            <Clock3 size={13} /> Mark Unavailable
-                          </button>
-
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-[#f4f4f4] flex items-center gap-2"
-                            onClick={() => {
-                              setDeleteTarget(item);
-                              setOpenActionFor(null);
-                            }}
-                          >
-                            <Trash2 size={13} /> Delete
-                          </button>
-
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f4f4f4] flex items-center gap-2"
-                            onClick={() => {
-                              handleFavorite(item);
-                            }}
-                          >
-                            <Star size={13} /> Favorite
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="flex gap-2">
+                      <div className="flex gap-3 flex-wrap">
                         <img
                           src={getProductImage(item)}
                           alt={item.name}
-                          className="w-14 h-12 rounded object-cover border border-[#ddd]"
+                          className="h-12 w-16 rounded object-cover bg-gray-100"
                         />
                         <div className="min-w-0">
-                          <div className="text-xs font-semibold leading-4 text-[#222] line-clamp-2">
+                          <div className="text-sm font-medium leading-5 text-bb-text line-clamp-2">
                             {item.name}
                           </div>
-                          <div className="text-[11px] text-[#666] mt-1">Price : Rs. {getProductPrice(item)}</div>
+                          <div className="mt-1 text-xs text-bb-textSoft">Price : Rs. {getProductPrice(item)}</div>
                           {item.status === "inactive" && (
                             <div className="text-[10px] mt-1 inline-flex px-2 py-0.5 rounded bg-red-100 text-red-700">
                               Unavailable
@@ -609,6 +653,24 @@ export default function CatalogChannelMenu() {
             ))}
           </div>
         </div>
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </div>
+      )}
+
+      {!loadingMeta && !loadingProducts && !hasAppliedFilters && filteredProducts.length > 0 && totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredProducts.length}
+          itemsPerPage={productsPerPage}
+          onPageChange={setCurrentPage}
+        />
       )}
 
       <ProductQuickViewModal
@@ -645,7 +707,74 @@ export default function CatalogChannelMenu() {
           </div>
         </div>
       </Modal>
+      {activeActionItem &&
+        actionMenuPosition &&
+        createPortal(
+          <div
+            className="fixed z-[100] w-44 border border-[#ddd] rounded bg-white shadow"
+            style={{
+              top: actionMenuPosition.top,
+              left: actionMenuPosition.left,
+            }}
+          >
+            <button
+              type="button"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[#f4f4f4] flex items-center gap-2"
+              onClick={() => {
+                setQuickViewId(activeActionItem.id);
+                setOpenActionFor(null);
+                setActionMenuPosition(null);
+              }}
+            >
+              <Eye size={13} /> View
+            </button>
+
+            <button
+              type="button"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[#f4f4f4] flex items-center gap-2"
+              onClick={() => {
+                navigate(`/catalog/products/edit/${activeActionItem.id}`);
+                setOpenActionFor(null);
+                setActionMenuPosition(null);
+              }}
+            >
+              <Pencil size={13} /> Edit
+            </button>
+
+            <button
+              type="button"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[#f4f4f4] flex items-center gap-2"
+              onClick={() => {
+                void handleMarkUnavailable(activeActionItem);
+              }}
+            >
+              <Clock3 size={13} /> Mark Unavailable
+            </button>
+
+            <button
+              type="button"
+              className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-[#f4f4f4] flex items-center gap-2"
+              onClick={() => {
+                setDeleteTarget(activeActionItem);
+                setOpenActionFor(null);
+                setActionMenuPosition(null);
+              }}
+            >
+              <Trash2 size={13} /> Delete
+            </button>
+
+            <button
+              type="button"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[#f4f4f4] flex items-center gap-2"
+              onClick={() => {
+                handleFavorite(activeActionItem);
+              }}
+            >
+              <Star size={13} /> Favorite
+            </button>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
-

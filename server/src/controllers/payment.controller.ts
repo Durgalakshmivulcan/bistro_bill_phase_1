@@ -2148,6 +2148,6 @@ export const testGatewayConnection = async (req: AuthenticatedRequest, res: Resp
     } as ApiResponse);
   }
 };
-export const listPayments = async (req: any, res: any) => {
+export const listPayments = async (_req: any, res: any) => {
   res.json({ payments: [] });
 };

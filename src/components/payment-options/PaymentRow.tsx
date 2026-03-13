@@ -40,7 +40,7 @@ const PaymentRow: React.FC<Props> = ({ option, onRefresh, onUpdatedSuccess }) =>
     }
   };
 
-  const handleDelete = async (): Promise<boolean> => {
+  const handleDelete = async (): Promise<void> => {
     try {
       setLoading(true);
       const response = await deletePaymentOption(option.id);
@@ -48,12 +48,12 @@ const PaymentRow: React.FC<Props> = ({ option, onRefresh, onUpdatedSuccess }) =>
       if (response.success) {
         CRUDToasts.deleted("Payment Option");
         onRefresh();
-        return true;
+        return;
       }
-      return false;
+      return;
     } catch (err) {
       console.error("Error deleting payment option:", err);
-      return false;
+      return;
     } finally {
       setLoading(false);
     }

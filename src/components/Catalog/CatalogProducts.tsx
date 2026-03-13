@@ -375,7 +375,7 @@ const CatalogProductsPage = () => {
               <div className="relative w-full max-w-[420px]" ref={searchDropdownRef}>
                 <input
                   placeholder="Search here..."
-                  className="w-full h-10 border border-[#d0d0d0] rounded-md px-3 pr-9 text-sm bg-[#f3f3f3]"
+                  className="w-full h-10 border border-[#d0d0d0] rounded-md px-3 pr-9 text-sm"
                   value={searchQuery}
                   onFocus={() => setShowSearchDropdown(true)}
                   onChange={(e) => {

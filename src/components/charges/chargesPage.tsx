@@ -275,14 +275,14 @@ export default function ChargesPage() {
                           const response = await deleteCharge(c.id);
                           if (response.success) {
                             await loadCharges();
-                            return true;
+                            return;
                           }
                           setError(response.error?.message || "Failed to delete charge");
-                          return false;
+                          return;
                         } catch (err) {
                           console.error("Error deleting charge:", err);
                           setError("An error occurred while deleting charge");
-                          return false;
+                          return;
                         }
                       }}
                     />

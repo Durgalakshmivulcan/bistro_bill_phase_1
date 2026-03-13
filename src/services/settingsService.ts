@@ -151,6 +151,7 @@ export interface Reason {
   businessOwnerId: string;
   type: ReasonType;
   text: string;
+  description?: string;
   status: string; // 'active' | 'inactive'
   createdAt: string;
   updatedAt: string;
@@ -159,12 +160,14 @@ export interface Reason {
 export interface CreateReasonInput {
   type: ReasonType;
   text: string;
+  description?: string;
   status?: string;
 }
 
 export interface UpdateReasonInput {
   type?: ReasonType;
   text?: string;
+  description?: string;
   status?: string;
 }
 

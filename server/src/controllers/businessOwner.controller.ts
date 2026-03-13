@@ -1105,6 +1105,6 @@ export async function deleteBusinessOwner(
     res.status(500).json(response);
   }
 }
-export const updateOwnBusinessProfile = async (req: any, res: any) => {
+export const updateOwnBusinessProfile = async (_req: any, res: any) => {
   res.json({ message: "Business profile updated" });
 };
