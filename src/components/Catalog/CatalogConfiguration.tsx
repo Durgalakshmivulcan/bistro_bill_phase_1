@@ -8,13 +8,13 @@ import TagsContent from "./TagsContent";
 type MenuType = "Category" | "Sub-Category" | "Menu" | "Brand" | "Tags";
 
 export default function CatalogConfiguration() {
-  const [activeMenu, setActiveMenu] = useState<MenuType>("Menu");
+  const [activeMenu, setActiveMenu] = useState<MenuType>("Category");
   const menuItems: MenuType[] = ["Category", "Sub-Category", "Menu", "Brand", "Tags"];
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-bb-bg font-inter">
+    <div className="flex flex-col lg:flex-row rounded-xl border border-[#eadfca] bg-[#fffdf7] font-inter overflow-hidden">
       {/* CONFIGURATION SIDE MENU */}
-      <aside className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-gray-200 p-4 space-y-1 bg-bb-bg">
+      <aside className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-[#eadfca] p-4 space-y-2 bg-[#fffdf7]">
         {menuItems.map((item) => (
           <div
             key={item}
@@ -22,7 +22,7 @@ export default function CatalogConfiguration() {
             className={`px-3 py-2 rounded text-sm cursor-pointer transition ${
               activeMenu === item
                 ? "bg-yellow-400 font-semibold text-black"
-                : "text-gray-600 hover:bg-yellow-50"
+                : "text-[#4f4f4f] hover:bg-[#fff7dd]"
             }`}
           >
             {item}
@@ -31,7 +31,7 @@ export default function CatalogConfiguration() {
       </aside>
 
       {/* CONTENT AREA */}
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-5 lg:p-6 bg-[#fffdf7]">
         {activeMenu === "Category" && <CategoryContent />}
         {activeMenu === "Sub-Category" && <SubCategoryContent />}
         {activeMenu === "Menu" && <MenuContent />}

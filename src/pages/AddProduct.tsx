@@ -123,6 +123,27 @@ const AddProduct = () => {
     };
   };
 
+  const normalizeNullableId = (value: unknown): string | null | undefined => {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    const normalized = String(value).trim();
+    return normalized ? normalized : null;
+  };
+
+  const normalizeOptionalText = (value: unknown): string | null | undefined => {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    const normalized = String(value).trim();
+    return normalized ? normalized : null;
+  };
+
+  const normalizeOptionalNumber = (value: unknown): number | null | undefined => {
+    if (value === undefined) return undefined;
+    if (value === null || value === "") return null;
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+
   const collectPendingImageFiles = (): File[] => {
     const files: File[] = [];
 
@@ -408,32 +429,26 @@ const AddProduct = () => {
       } else if (isEdit && id) {
         // Update existing product
         const updateData = {
-          name: productData?.name,
+          name: productData?.name?.trim() || undefined,
           type: productData?.type,
-          categoryId: productData?.categoryId,
-          subCategoryId: productData?.subCategoryId,
-          brandId: productData?.brandId,
-          menuId: productData?.menuId,
-          sku: productData?.sku,
-          barcode: productData?.barcode,
-          description: productData?.description,
-          shortCode: productData?.shortCode,
-          hsnCode: productData?.hsnCode,
-          preparationTime: productData?.preparationTime,
-          servesCount: productData?.servesCount,
-          displayOrder:
-            productData?.displayOrder === "" || productData?.displayOrder === undefined
-              ? null
-              : Number(productData.displayOrder),
-          measuringUnit: productData?.measuringUnit || null,
+          categoryId: normalizeNullableId(productData?.categoryId),
+          subCategoryId: normalizeNullableId(productData?.subCategoryId),
+          brandId: normalizeNullableId(productData?.brandId),
+          menuId: normalizeNullableId(productData?.menuId),
+          sku: normalizeOptionalText(productData?.sku),
+          description: normalizeOptionalText(productData?.description),
+          shortCode: normalizeOptionalText(productData?.shortCode),
+          hsnCode: normalizeOptionalText(productData?.hsnCode),
+          preparationTime: normalizeOptionalNumber(productData?.preparationTime),
+          servesCount: normalizeOptionalNumber(productData?.servesCount),
+          measuringUnit: normalizeOptionalText(productData?.measuringUnit),
           includesTax: productData?.includesTax,
-          taxId: productData?.taxId || null,
+          taxId: normalizeNullableId(productData?.taxId),
           eligibleForDiscount: productData?.eligibleForDiscount,
-          discountType: productData?.discountType || null,
-          tagId: productData?.tagId || null,
+          discountType: normalizeOptionalText(productData?.discountType),
+          tagId: normalizeNullableId(productData?.tagId),
           isVeg: productData?.isVeg,
           status: productData?.status,
-          availabilitySchedule: productData?.availabilitySchedule,
           kitchenIds: productData?.kitchenIds,
         };
 

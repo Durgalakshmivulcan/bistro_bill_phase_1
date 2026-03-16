@@ -24,7 +24,7 @@ import successIcon from "../../assets/deleteSuccessImg.png";
 type SortKey = "name" | "status";
 
 export default function MenuContent() {
-  const [view, setView] = useState<"table" | "grid">("table");
+  const [view, setView] = useState<"table" | "grid">("grid");
   const [activeItem, setActiveItem] = useState<Menu | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [modal, setModal] = useState<"add" | "edit" | null>(null);
@@ -156,7 +156,7 @@ export default function MenuContent() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 rounded-xl border border-[#eadfca] bg-white p-4 lg:p-5">
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>}
 
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
@@ -366,7 +366,7 @@ export default function MenuContent() {
 
       {view === "grid" && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {loading ? (
               <div className="col-span-full p-8">
                 <LoadingSpinner size="lg" message="Loading menus..." />
@@ -375,24 +375,41 @@ export default function MenuContent() {
               <div className="col-span-full p-8 text-center text-gray-500">No menus found</div>
             ) : (
               paginatedRows.map((item) => (
-                <div key={item.id} className="bg-white border rounded-xl p-4">
-                  {item.image ? (
-                    <img src={item.image} className="w-full h-32 rounded-lg object-cover" alt={item.name} />
-                  ) : (
-                    <div className="w-full h-32 rounded-lg bg-gray-200 flex items-center justify-center text-gray-500">
-                      No Image
-                    </div>
-                  )}
+                <div key={item.id} className="rounded-lg border border-[#ebe6db] bg-white p-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
+                  <div className="flex items-start gap-3">
+                    {item.image ? (
+                      <img src={item.image} className="h-20 w-24 rounded object-cover shrink-0" alt={item.name} />
+                    ) : (
+                      <div className="h-20 w-24 rounded bg-gray-200 flex items-center justify-center text-[11px] text-gray-500 shrink-0">
+                        No Image
+                      </div>
+                    )}
 
-                  <h3 className="font-semibold mt-2">{item.name}</h3>
-                  <p className="text-xs text-gray-500 line-clamp-2 mt-1">{item.description || "-"}</p>
-                  <span
-                    className={`inline-block mt-2 px-3 py-1 rounded-full text-xs ${
-                      item.status === "active" ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {item.status === "active" ? "Active" : "Inactive"}
-                  </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <h3 className="truncate text-[15px] font-semibold text-[#333]">{item.name}</h3>
+                          <Pencil size={12} className="text-[#d69b00] shrink-0" />
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(item.id)}
+                          onChange={() => toggleSelect(item.id)}
+                          className="mt-0.5 h-4 w-4 shrink-0"
+                        />
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-[13px] leading-5 text-[#7a7a7a]">
+                        {item.description || "No description available."}
+                      </p>
+                      <span
+                        className={`mt-3 inline-flex rounded px-2 py-1 text-[11px] ${
+                          item.status === "active" ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {item.status === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               ))
             )}

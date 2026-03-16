@@ -26,7 +26,7 @@ export enum TableStatus {
 export interface Floor {
   id: string;
   name: string;
-  floorNumber: number;
+  type?: string;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -41,6 +41,7 @@ export interface Floor {
  */
 export interface Table {
   id: string;
+  floorId: string;
   tableNumber: string;
   capacity: number;
   status: string;
@@ -50,7 +51,7 @@ export interface Table {
   floor: {
     id: string;
     name: string;
-    floorNumber: number;
+    branchId?: string;
   };
 }
 
@@ -106,8 +107,23 @@ export async function getFloors(
     const query = queryParams.toString();
     const url = `/resources/branches/${branchId}/floors${query ? `?${query}` : ''}`;
 
-    const response = await api.get<ApiResponse<FloorListResponse>>(url);
-    return response;
+    const response = await api.get<ApiResponse<any>>(url);
+    const floors = Array.isArray(response.data?.floors) ? response.data.floors : [];
+    return {
+      ...response,
+      data: {
+        floors: floors.map((floor: any) => ({
+          id: floor.id,
+          name: floor.name,
+          type: floor.type,
+          status: floor.status,
+          createdAt: floor.createdAt,
+          updatedAt: floor.updatedAt,
+          branch: floor.branch,
+        })),
+        total: response.data?.total ?? floors.length,
+      },
+    };
   } catch (error: any) {
     return {
       success: false,
@@ -134,19 +150,43 @@ export async function getFloors(
  */
 export async function getTables(
   floorId: string,
-  status?: string,
-  currentStatus?: string
+  status?: string
 ): Promise<ApiResponse<TableListResponse>> {
   try {
     const queryParams = new URLSearchParams();
     if (status) queryParams.append('status', status);
-    if (currentStatus) queryParams.append('currentStatus', currentStatus);
 
     const query = queryParams.toString();
     const url = `/resources/floors/${floorId}/tables${query ? `?${query}` : ''}`;
 
-    const response = await api.get<ApiResponse<TableListResponse>>(url);
-    return response;
+    const response = await api.get<ApiResponse<any>>(url);
+    const rawTables = Array.isArray(response.data?.tables)
+      ? response.data.tables
+      : Array.isArray(response.data)
+        ? response.data
+        : [];
+
+    return {
+      ...response,
+      data: {
+        tables: rawTables.map((table: any) => ({
+          id: table.id,
+          floorId: table.floorId,
+          tableNumber: table.label,
+          capacity: table.chairs,
+          status: table.status,
+          currentStatus: table.status,
+          createdAt: table.createdAt,
+          updatedAt: table.updatedAt,
+          floor: {
+            id: table.floor?.id || table.floorId,
+            name: table.floor?.name || "",
+            branchId: table.floor?.branchId,
+          },
+        })),
+        total: response.data?.total ?? rawTables.length,
+      },
+    };
   } catch (error: any) {
     return {
       success: false,

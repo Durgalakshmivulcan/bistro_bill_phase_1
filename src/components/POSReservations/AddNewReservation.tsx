@@ -6,7 +6,6 @@ import Input from "../form/Input";
 import Select from "../form/Select";
 import Modal from "../../components/ui/Modal";
 import tickImg from "../../assets/tick.png";
-import { useAuth } from "../../contexts/AuthContext";
 import { useBranch } from "../../contexts/BranchContext";
 import { createReservation, CreateReservationInput } from "../../services/reservationService";
 import { getCustomers, Customer } from "../../services/customerService";
@@ -14,7 +13,6 @@ import { getFloors, getTables, Floor, Table } from "../../services/tableService"
 
 const AddNewReservation: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { currentBranchId } = useBranch();
 
   // Use branchId from BranchContext
@@ -115,9 +113,8 @@ const AddNewReservation: React.FC = () => {
     const fetchTables = async () => {
       setLoadingTables(true);
       try {
-        const response = await getTables(floorId, 'active', 'Available');
+        const response = await getTables(floorId, 'available');
         if (response.success && response.data?.tables) {
-          // Filter tables by capacity >= guestCount
           const availableTables = response.data.tables.filter(
             (table) => table.capacity >= guestCount
           );

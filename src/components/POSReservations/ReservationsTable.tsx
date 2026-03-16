@@ -66,8 +66,10 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
       return `${String(hour12).padStart(2, '0')}:${minutes} ${ampm}`;
     };
 
-    const floorType = apiReservation.table?.floor?.type;
-    const floorLabel = floorType === 'NonAC' ? 'Non-AC' : floorType === 'AC' ? 'AC' : 'AC';
+    const floorLabel =
+      apiReservation.table?.floor?.name ||
+      apiReservation.room?.name ||
+      '-';
 
     return {
       id: apiReservation.id,
@@ -78,7 +80,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
       email: apiReservation.customer?.email || '',
       source: 'POS' as const, // Default to POS, could be enhanced later
       guests: apiReservation.guestCount,
-      floor: floorLabel as 'AC' | 'Non-AC',
+      floor: floorLabel as Reservation['floor'],
       tableNo: apiReservation.table?.label || apiReservation.room?.name || '-',
       status: statusMap[apiReservation.status] || 'new',
     };
@@ -288,7 +290,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
                 <div className="flex justify-center">
                   <ActionsMenu
                     actions={["view", "edit", "updateStatus", "delete"]}
-                    onView={() => navigate(`/reservations/${r.id}`)}
+                    onView={() => navigate(`/reservations/view/${r.id}`)}
                     onEdit={() => navigate(`/reservations/edit/${r.id}`)}
                     onUpdateStatus={() => handleUpdateStatus(r.id)}
                     onDelete={() => handleDeleteClick(r.id)}

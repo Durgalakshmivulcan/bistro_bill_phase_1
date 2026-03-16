@@ -1,23 +1,38 @@
-import { useState } from "react";
-import Select from "../../form/Select";
+import { useEffect, useState } from "react";
 import Input from "../../form/Input";
 import MultiSelect from "../../form/Multiselect";
 
 const chargesList = ["Convenience Fee", "Packing Charges"];
 const allergyList = ["Peanut Allergy", "Egg Allergy", "Milk Allergy"];
 
-const AdditionalDetails = ({ onNext, onPrev }: any) => {
+const AdditionalDetails = ({
+  onNext,
+  onPrev,
+  productData,
+  setProductData,
+  readOnly,
+}: any) => {
   const [charges, setCharges] = useState<string[]>([]);
   const [allergies, setAllergies] = useState<string[]>([]);
+  
+  useEffect(() => {
+    setCharges(Array.isArray(productData?.charges) ? productData.charges : []);
+    setAllergies(
+      Array.isArray(productData?.allergens)
+        ? productData.allergens.map((item: any) => item?.name || item).filter(Boolean)
+        : []
+    );
+  }, [productData]);
 
-  const [serves, setServes] = useState("");
-  const [serveUnit, setServeUnit] = useState("");
-  const [portionSize, setPortionSize] = useState("");
-  const [prepTime] = useState("02:00 Hrs");
-  const [prepMinutes, setPrepMinutes] = useState<number | null>(null);
+  const updateProductField = (field: string, value: any) => {
+    setProductData?.((prev: any) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
-  const formatTime = (minutes: number | null) => {
-    if (minutes === null || minutes <= 0) return "Enter Time";
+  const formatTime = (minutes: number | null | undefined) => {
+    if (minutes === null || minutes === undefined || minutes <= 0) return "Enter Time";
 
     const hrs = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -27,34 +42,26 @@ const AdditionalDetails = ({ onNext, onPrev }: any) => {
       "0"
     )} Hrs`;
   };
-  const increaseTime = () => {
-    setPrepMinutes(prev => (prev === null ? 30 : prev + 30));
+  const changePrepTime = (delta: number) => {
+    const current =
+      productData?.preparationTime === null || productData?.preparationTime === undefined
+        ? 0
+        : Number(productData.preparationTime);
+    const nextValue = Math.max(0, current + delta);
+    updateProductField("preparationTime", nextValue || null);
   };
 
-  const decreaseTime = () => {
-    setPrepMinutes(prev => {
-      if (prev === null || prev <= 30) return null;
-      return prev - 30;
-    });
+  const handleChargesChange = (values: string[]) => {
+    setCharges(values);
+    updateProductField("charges", values);
   };
 
-  /* MULTI SELECT HANDLER */
-  const handleMultiSelect = (
-    value: string,
-    list: string[],
-    setList: React.Dispatch<React.SetStateAction<string[]>>
-  ) => {
-    if (!value) return;
-    if (!list.includes(value)) {
-      setList([...list, value]);
-    }
-  };
-
-  const removeItem = (
-    value: string,
-    setList: React.Dispatch<React.SetStateAction<string[]>>
-  ) => {
-    setList(prev => prev.filter(item => item !== value));
+  const handleAllergyChange = (values: string[]) => {
+    setAllergies(values);
+    updateProductField(
+      "allergens",
+      values.map((name) => ({ name }))
+    );
   };
 
   return (
@@ -70,7 +77,7 @@ const AdditionalDetails = ({ onNext, onPrev }: any) => {
             value: c,
           }))}
           value={charges}
-          onChange={setCharges}
+          onChange={handleChargesChange}
         />
 
       </div>
@@ -86,15 +93,17 @@ const AdditionalDetails = ({ onNext, onPrev }: any) => {
         <Input
           label="Serve"
           placeholder="Enter Serves"
-          value={serves}
-          onChange={(value: string) => setServes(value)}
+          value={productData?.servesCount?.toString?.() ?? ""}
+          disabled={readOnly}
+          onChange={(value: string) => updateProductField("servesCount", value)}
         />
 
         <Input
           label="Serve Size Unit"
           placeholder="Enter Serve Size Unit"
-          value={serveUnit}
-          onChange={(value: string) => setServeUnit(value)}
+          value={productData?.measuringUnit ?? ""}
+          disabled={readOnly}
+          onChange={(value: string) => updateProductField("measuringUnit", value)}
         />
 
 
@@ -107,21 +116,27 @@ const AdditionalDetails = ({ onNext, onPrev }: any) => {
 
             {/* Minus */}
             <button
-              onClick={decreaseTime}
-              className="w-10 h-10 flex items-center justify-center text-white text-lg shrink-0"
+              type="button"
+              onClick={() => changePrepTime(-30)}
+              disabled={readOnly}
+              className="w-10 h-10 flex items-center justify-center text-white text-lg shrink-0 disabled:opacity-50"
             >
               −
             </button>
 
             {/* Time Display */}
             <div className="bg-white text-black text-xs h-10 px-4 flex items-center justify-center flex-1">
-              {formatTime(prepMinutes)}
+              {formatTime(
+                productData?.preparationTime === "" ? null : Number(productData?.preparationTime)
+              )}
             </div>
 
             {/* Plus */}
             <button
-              onClick={increaseTime}
-              className="w-10 h-10 flex items-center justify-center text-white text-lg shrink-0"
+              type="button"
+              onClick={() => changePrepTime(30)}
+              disabled={readOnly}
+              className="w-10 h-10 flex items-center justify-center text-white text-lg shrink-0 disabled:opacity-50"
             >
               +
             </button>
@@ -132,8 +147,9 @@ const AdditionalDetails = ({ onNext, onPrev }: any) => {
         <Input
           label="Portion Size"
           placeholder="Enter Portion Size"
-          value={portionSize}
-          onChange={(value: string) => setPortionSize(value)}
+          value={productData?.portionSize ?? ""}
+          disabled={readOnly}
+          onChange={(value: string) => updateProductField("portionSize", value)}
         />
       </div>
 
@@ -146,7 +162,7 @@ const AdditionalDetails = ({ onNext, onPrev }: any) => {
             value: a,
           }))}
           value={allergies}
-          onChange={setAllergies}
+          onChange={handleAllergyChange}
         />
 
       </div>

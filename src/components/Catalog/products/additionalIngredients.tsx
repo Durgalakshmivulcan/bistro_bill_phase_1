@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Input from "../../form/Input";
 import Select from "../../form/Select";
@@ -7,7 +7,7 @@ import { upsertProductNutrition } from "../../../services/catalogService";
 
 import tickImg from "../../../assets/tick.png";
 
-const AdditionalIngredients = ({ onPrev, onNext, productData }: any) => {
+const AdditionalIngredients = ({ onPrev, onNext, productData, readOnly }: any) => {
   const navigate = useNavigate();
 
   const [form, setForm] = useState<any>({});
@@ -16,6 +16,42 @@ const AdditionalIngredients = ({ onPrev, onNext, productData }: any) => {
 
   const update = (key: string, value: any) =>
     setForm((prev: any) => ({ ...prev, [key]: value }));
+
+  useEffect(() => {
+    const nutrition = productData?.nutrition;
+    if (!nutrition) return;
+
+    const nextForm: Record<string, any> = {
+      kcal: nutrition.calories?.toString?.() ?? "",
+      protein: nutrition.protein?.toString?.() ?? "",
+      carbs: nutrition.carbs?.toString?.() ?? "",
+      totalFat: nutrition.fat?.toString?.() ?? "",
+      fiber: nutrition.fiber?.toString?.() ?? "",
+      sugar: nutrition.sugar?.toString?.() ?? "",
+      sodium: nutrition.sodium?.toString?.() ?? "",
+    };
+
+    const vitamins = nutrition.vitamins && typeof nutrition.vitamins === "object"
+      ? Object.entries(nutrition.vitamins)
+      : [];
+    const minerals = nutrition.minerals && typeof nutrition.minerals === "object"
+      ? Object.entries(nutrition.minerals)
+      : [];
+
+    vitamins.slice(0, 5).forEach(([name, amount], index) => {
+      const slot = index + 1;
+      nextForm[`vitamin${slot}`] = name;
+      nextForm[`vitamin${slot}Amt`] = String(amount ?? "");
+    });
+
+    minerals.slice(0, 5).forEach(([name, amount], index) => {
+      const slot = index + 1;
+      nextForm[`mineral${slot}`] = name;
+      nextForm[`mineral${slot}Amt`] = String(amount ?? "");
+    });
+
+    setForm((prev: any) => ({ ...prev, ...nextForm }));
+  }, [productData?.nutrition]);
 
   /* FINAL SAVE */
   const handleCreate = async () => {
@@ -88,24 +124,34 @@ const AdditionalIngredients = ({ onPrev, onNext, productData }: any) => {
         {/* BASIC NUTRITION */}
         <Select
           label="Portion Size Unit"
+          value={form.portionUnit || ""}
+          disabled={readOnly}
           onChange={(v) => update("portionUnit", v)}
         />
         <Input
           label="Kilo Calories"
+          value={form.kcal || ""}
+          disabled={readOnly}
           onChange={(v) => update("kcal", v)}
         />
 
         <Input
           label="Carbohydrates (g)"
+          value={form.carbs || ""}
+          disabled={readOnly}
           onChange={(v) => update("carbs", v)}
         />
         <Input
           label="Sugar (g)"
+          value={form.sugar || ""}
+          disabled={readOnly}
           onChange={(v) => update("sugar", v)}
         />
 
         <Input
           label="Protein (g)"
+          value={form.protein || ""}
+          disabled={readOnly}
           onChange={(v) => update("protein", v)}
         />
         <Input
@@ -115,10 +161,14 @@ const AdditionalIngredients = ({ onPrev, onNext, productData }: any) => {
 
         <Input
           label="Sodium (mg)"
+          value={form.sodium || ""}
+          disabled={readOnly}
           onChange={(v) => update("sodium", v)}
         />
         <Input
           label="Total Fat (g)"
+          value={form.totalFat || ""}
+          disabled={readOnly}
           onChange={(v) => update("totalFat", v)}
         />
 
@@ -228,12 +278,16 @@ const AdditionalIngredients = ({ onPrev, onNext, productData }: any) => {
           <div key={`mineral-${i}`} className="contents">
             <Input
               label={`${i}. Mineral Name`}
+              value={form[`mineral${i}`] || ""}
+              disabled={readOnly}
               onChange={(v) =>
                 update(`mineral${i}`, v)
               }
             />
             <Input
               label={`${i}. Mineral Amount (mg)`}
+              value={form[`mineral${i}Amt`] || ""}
+              disabled={readOnly}
               onChange={(v) =>
                 update(
                   `mineral${i}Amt`,
@@ -249,12 +303,16 @@ const AdditionalIngredients = ({ onPrev, onNext, productData }: any) => {
           <div key={`vitamin-${i}`} className="contents">
             <Input
               label={`${i}. Vitamin Name`}
+              value={form[`vitamin${i}`] || ""}
+              disabled={readOnly}
               onChange={(v) =>
                 update(`vitamin${i}`, v)
               }
             />
             <Input
               label={`${i}. Vitamin Amount (mg)`}
+              value={form[`vitamin${i}Amt`] || ""}
+              disabled={readOnly}
               onChange={(v) =>
                 update(
                   `vitamin${i}Amt`,

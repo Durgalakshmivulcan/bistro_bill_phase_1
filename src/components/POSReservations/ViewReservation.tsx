@@ -152,12 +152,7 @@ const ViewReservation = () => {
             <div>
               <label className="text-sm font-medium">Floor / Area</label>
               <div className="mt-1 bg-gray-200 rounded-lg px-4 py-3">
-                {reservation.table?.floor?.name ||
-                  (reservation.table?.floor?.type === 'NonAC'
-                    ? 'Non-AC'
-                    : reservation.table?.floor?.type === 'AC'
-                      ? 'AC'
-                      : "N/A")}
+                {reservation.table?.floor?.name || "N/A"}
               </div>
             </div>
           </div>
@@ -201,7 +196,7 @@ const ViewReservation = () => {
 
           <div className="flex justify-end gap-3">
             <button
-              onClick={() => navigate("/reservations")}
+              onClick={() => navigate("/pos/reservations")}
               className="border border-black px-6 py-2 rounded"
             >
               Cancel

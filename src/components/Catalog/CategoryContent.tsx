@@ -26,7 +26,7 @@ import successIcon from "../../assets/deleteSuccessImg.png";
 type SortKey = "name" | "status";
 
 export default function CategoryContent() {
-  const [view, setView] = useState<"table" | "grid">("table");
+  const [view, setView] = useState<"table" | "grid">("grid");
   const [selected, setSelected] = useState<string[]>([]);
   const [activeItem, setActiveItem] = useState<Category | null>(null);
   const [modal, setModal] = useState<"add" | "edit" | null>(null);
@@ -161,7 +161,7 @@ export default function CategoryContent() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 rounded-xl border border-[#eadfca] bg-white p-4 lg:p-5">
       {error && (
         <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded">{error}</div>
       )}
@@ -355,16 +355,42 @@ export default function CategoryContent() {
 
       {!loading && view === "grid" && filteredAndSorted.length > 0 && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {paginatedRows.map((cat) => (
-              <div key={cat.id} className="bg-white border rounded-xl p-4">
-                <img
-                  src={cat.image || "/placeholder.jpg"}
-                  className="w-full h-32 object-cover rounded-lg"
-                  alt={cat.name}
-                />
-                <h3 className="font-semibold mt-2">{cat.name}</h3>
-                <p className="text-xs text-gray-500 line-clamp-2">{cat.description || "-"}</p>
+              <div key={cat.id} className="rounded-lg border border-[#ebe6db] bg-white p-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)]">
+                <div className="flex items-start gap-3">
+                  <img
+                    src={cat.image || "/placeholder.jpg"}
+                    className="h-20 w-24 rounded object-cover bg-gray-100 shrink-0"
+                    alt={cat.name}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h3 className="truncate text-[15px] font-semibold text-[#333]">{cat.name}</h3>
+                        <Pencil size={12} className="text-[#d69b00] shrink-0" />
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(cat.id)}
+                        onChange={() => toggleSelect(cat.id)}
+                        className="mt-0.5 h-4 w-4 shrink-0"
+                      />
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-[13px] leading-5 text-[#7a7a7a]">
+                      {cat.description || "No description available."}
+                    </p>
+                    <span
+                      className={`mt-3 inline-flex rounded px-2 py-1 text-[11px] ${
+                        cat.status === "active"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {cat.status === "active" ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                </div>
               </div>
             ))}
           </div>

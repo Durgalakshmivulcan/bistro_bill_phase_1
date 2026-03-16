@@ -166,14 +166,16 @@ export const getReservation = async (id: string): Promise<ReservationResponse> =
 export const createReservation = async (
   input: CreateReservationInput
 ): Promise<ReservationResponse> => {
-  const response = await api.post<ApiResponse<{ reservation: Reservation }>>(
+  const response = await api.post<ApiResponse<Reservation | { reservation: Reservation }>>(
     '/reservations',
     input
   );
+  const rawData = response.data as Reservation | { reservation: Reservation } | undefined;
+  const reservation = rawData && 'reservation' in rawData ? rawData.reservation : rawData;
 
   return {
     success: response.success,
-    data: response.data?.reservation as Reservation,
+    data: reservation as Reservation,
   };
 };
 
@@ -185,14 +187,16 @@ export const updateReservation = async (
   id: string,
   input: UpdateReservationInput
 ): Promise<ReservationResponse> => {
-  const response = await api.put<ApiResponse<{ reservation: Reservation }>>(
+  const response = await api.put<ApiResponse<Reservation | { reservation: Reservation }>>(
     `/reservations/${id}`,
     input
   );
+  const rawData = response.data as Reservation | { reservation: Reservation } | undefined;
+  const reservation = rawData && 'reservation' in rawData ? rawData.reservation : rawData;
 
   return {
     success: response.success,
-    data: response.data?.reservation as Reservation,
+    data: reservation as Reservation,
   };
 };
 

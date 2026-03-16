@@ -76,6 +76,37 @@ const ImagesStep = ({
   const [pendingEditRowId, setPendingEditRowId] = useState<string | null>(null);
 
   useEffect(() => {
+    const existing: LocalImage[] = (productData?.images || []).map(
+      (img: any, idx: number) => ({
+        id: img.id || `existing-${idx}`,
+        file: null as any,
+        preview: img.url || "",
+        isPrimary: img.isPrimary ?? idx === 0,
+        sortOrder: img.sortOrder ?? idx,
+      })
+    );
+
+    const localFiles: LocalImage[] = (productData?.imageFiles || []).map(
+      (entry: any, idx: number) => ({
+        id: entry.id || `local-${idx}`,
+        file: entry.file ?? null,
+        preview: entry.preview || "",
+        isPrimary: entry.isPrimary ?? false,
+        sortOrder: entry.sortOrder ?? existing.length + idx,
+      })
+    );
+
+    const merged = [...existing, ...localFiles]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .filter(
+        (img, idx, arr) => arr.findIndex((candidate) => candidate.id === img.id) === idx
+      );
+
+    setImages(merged);
+    setChannelRows((productData?.channelImageMappings || []) as ChannelImageRow[]);
+  }, [productData?.images, productData?.imageFiles, productData?.channelImageMappings]);
+
+  useEffect(() => {
     const loadChannels = async () => {
       try {
         const response = await getChannels();

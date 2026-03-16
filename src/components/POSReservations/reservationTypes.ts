@@ -14,7 +14,7 @@ export type Reservation = {
   email: string;
   source: "POS" | "Customer";
   guests: number;
-  floor: "AC" | "Non-AC";
+  floor: string;
   tableNo: string;
   status: ReservationStatus;
 };

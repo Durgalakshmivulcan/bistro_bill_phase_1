@@ -11,12 +11,13 @@ import {
   Clock3,
   Trash2,
   Star,
+  X,
+  Check,
 } from "lucide-react";
 import { getBranches, Branch } from "../../services/branchService";
 import {
   getProducts,
   deleteProduct,
-  toggleProductStatus,
   Product,
 } from "../../services/catalogService";
 import {
@@ -96,10 +97,20 @@ function getGroupLabel(type: GroupByType | ""): string {
   return option ? `By ${option.label}` : "";
 }
 
+const CHANNEL_MENU_UNAVAILABLE_STORAGE_KEY = "catalog-channel-menu-unavailable";
+
+type ProductUnavailabilityConfig = {
+  channels: string[];
+  timeSlots: string[];
+};
+
+type ChannelUnavailableMap = Record<string, ProductUnavailabilityConfig>;
+
 export default function CatalogChannelMenu() {
   const navigate = useNavigate();
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
+  const actionPortalRef = useRef<HTMLDivElement>(null);
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -126,11 +137,35 @@ export default function CatalogChannelMenu() {
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [unavailableTarget, setUnavailableTarget] = useState<Product | null>(null);
+  const [selectedUnavailableChannels, setSelectedUnavailableChannels] = useState<string[]>([]);
+  const [selectedUnavailableTimeSlots, setSelectedUnavailableTimeSlots] = useState<string[]>([]);
+  const [unavailableModalStep, setUnavailableModalStep] = useState<"channels" | "slots">("channels");
+  const [channelUnavailableMap, setChannelUnavailableMap] = useState<ChannelUnavailableMap>({});
+  const [successModalMessage, setSuccessModalMessage] = useState<string | null>(null);
   const groupsPerPage = 4;
   const productsPerPage = 20;
 
   useEffect(() => {
     void loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const storedValue = window.localStorage.getItem(
+        CHANNEL_MENU_UNAVAILABLE_STORAGE_KEY
+      );
+      if (!storedValue) return;
+
+      const parsed = JSON.parse(storedValue) as ChannelUnavailableMap;
+      if (parsed && typeof parsed === "object") {
+        setChannelUnavailableMap(parsed);
+      }
+    } catch (error) {
+      console.error("Failed to load channel unavailable state:", error);
+    }
   }, []);
 
   useEffect(() => {
@@ -146,8 +181,14 @@ export default function CatalogChannelMenu() {
       ) {
         setShowSearchDropdown(false);
       }
-      if (actionMenuRef.current && !actionMenuRef.current.contains(target)) {
+      const clickedInsideActionTrigger =
+        actionMenuRef.current && actionMenuRef.current.contains(target);
+      const clickedInsidePortal =
+        actionPortalRef.current && actionPortalRef.current.contains(target);
+
+      if (!clickedInsideActionTrigger && !clickedInsidePortal) {
         setOpenActionFor(null);
+        setActionMenuPosition(null);
       }
     };
 
@@ -306,6 +347,30 @@ export default function CatalogChannelMenu() {
     return combinedNames.sort((a, b) => a.localeCompare(b));
   }, [channels, aggregators]);
 
+  const persistChannelUnavailableMap = (nextMap: ChannelUnavailableMap) => {
+    setChannelUnavailableMap(nextMap);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        CHANNEL_MENU_UNAVAILABLE_STORAGE_KEY,
+        JSON.stringify(nextMap)
+      );
+    }
+  };
+
+  const isUnavailableForChannel = (item: Product, channelName: string) => {
+    if (!channelName) return item.status === "inactive";
+
+    const normalizedChannel = normalizeChannelName(channelName);
+    const mappedChannels = channelUnavailableMap[item.id]?.channels || [];
+    return (
+      item.status === "inactive" ||
+      mappedChannels.some(
+        (mappedChannel) =>
+          normalizeChannelName(mappedChannel) === normalizedChannel
+      )
+    );
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
 
@@ -326,29 +391,59 @@ export default function CatalogChannelMenu() {
     }
   };
 
-  const handleMarkUnavailable = async (item: Product) => {
-    if (item.status === "inactive") {
-      setSuccessNotice(`${item.name} is already unavailable.`);
-      setOpenActionFor(null);
+  const handleMarkUnavailable = (item: Product) => {
+    setOpenActionFor(null);
+    setActionMenuPosition(null);
+    setError(null);
+
+    const presetChannel =
+      selectedChannel && channelOptions.some(
+        (option) => normalizeChannelName(option) === normalizeChannelName(selectedChannel)
+      )
+        ? [selectedChannel]
+        : channelUnavailableMap[item.id]?.channels || [];
+
+    setUnavailableTarget(item);
+    setSelectedUnavailableChannels(presetChannel);
+    setSelectedUnavailableTimeSlots(channelUnavailableMap[item.id]?.timeSlots || []);
+    setUnavailableModalStep("channels");
+  };
+
+  const handleSaveUnavailableChannels = () => {
+    if (!unavailableTarget) return;
+
+    if (selectedUnavailableChannels.length === 0) {
+      setError("Select at least one channel to mark as unavailable.");
       return;
     }
 
-    try {
-      setActionLoadingId(item.id);
-      setOpenActionFor(null);
-
-      const res = await toggleProductStatus(item.id, "inactive");
-      if (res.success) {
-        setSuccessNotice(`${item.name} marked as unavailable.`);
-        await loadProducts();
-      } else {
-        setError(res.error?.message || res.message || "Failed to mark unavailable");
-      }
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to mark unavailable"));
-    } finally {
-      setActionLoadingId(null);
+    if (unavailableModalStep === "channels") {
+      setUnavailableModalStep("slots");
+      return;
     }
+
+    if (selectedUnavailableTimeSlots.length === 0) {
+      setError("Select at least one time slot to mark as unavailable.");
+      return;
+    }
+
+    const nextMap: ChannelUnavailableMap = {
+      ...channelUnavailableMap,
+      [unavailableTarget.id]: {
+        channels: selectedUnavailableChannels,
+        timeSlots: selectedUnavailableTimeSlots,
+      },
+    };
+
+    persistChannelUnavailableMap(nextMap);
+    setUnavailableTarget(null);
+    setUnavailableModalStep("channels");
+
+    setSuccessModalMessage(
+      `Product Marked as Unavailable from ${selectedUnavailableTimeSlots[0]} to ${
+        selectedUnavailableTimeSlots[selectedUnavailableTimeSlots.length - 1]
+      } Successfully!`
+    );
   };
 
   const handleFavorite = (item: Product) => {
@@ -380,6 +475,40 @@ export default function CatalogChannelMenu() {
     filteredProducts.find((item) => item.id === openActionFor) ||
     products.find((item) => item.id === openActionFor) ||
     null;
+  const availableChannelChoices = channelOptions.length > 0
+    ? channelOptions
+    : ["Dine In", "Take Away", "Catering", "Subscription", "Swiggy", "Zomato", "Uber Eats"];
+
+  const toggleUnavailableChannel = (channelName: string) => {
+    setSelectedUnavailableChannels((prev) =>
+      prev.includes(channelName)
+        ? prev.filter((item) => item !== channelName)
+        : [...prev, channelName]
+    );
+  };
+
+  const timeSlotChoices = useMemo(() => {
+    const slots: string[] = [];
+    for (let hour = 9; hour <= 22; hour += 1) {
+      const period = hour >= 12 ? "PM" : "AM";
+      const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      slots.push(`${displayHour.toString().padStart(2, "0")}:00 ${period}`);
+      if (hour < 22) {
+        slots.push(`${displayHour.toString().padStart(2, "0")}:30 ${period}`);
+      }
+    }
+    return slots;
+  }, []);
+
+  const toggleUnavailableTimeSlot = (slot: string) => {
+    setSelectedUnavailableTimeSlots((prev) =>
+      prev.includes(slot)
+        ? prev.filter((item) => item !== slot)
+        : [...prev, slot].sort(
+            (a, b) => timeSlotChoices.indexOf(a) - timeSlotChoices.indexOf(b)
+          )
+    );
+  };
 
   return (
     <div className="min-h-screen bg-bb-bg p-6 space-y-4">
@@ -564,7 +693,7 @@ export default function CatalogChannelMenu() {
                     {item.name}
                   </div>
                   <div className="mt-1 text-xs text-bb-textSoft">Price : Rs. {getProductPrice(item)}</div>
-                  {item.status === "inactive" && (
+                  {isUnavailableForChannel(item, selectedChannel) && (
                     <div className="text-[10px] mt-1 inline-flex px-2 py-0.5 rounded bg-red-100 text-red-700">
                       Unavailable
                     </div>
@@ -639,7 +768,7 @@ export default function CatalogChannelMenu() {
                             {item.name}
                           </div>
                           <div className="mt-1 text-xs text-bb-textSoft">Price : Rs. {getProductPrice(item)}</div>
-                          {item.status === "inactive" && (
+                          {isUnavailableForChannel(item, selectedChannel) && (
                             <div className="text-[10px] mt-1 inline-flex px-2 py-0.5 rounded bg-red-100 text-red-700">
                               Unavailable
                             </div>
@@ -707,10 +836,135 @@ export default function CatalogChannelMenu() {
           </div>
         </div>
       </Modal>
+      <Modal
+        open={!!unavailableTarget}
+        onClose={() => {
+          setUnavailableTarget(null);
+          setSelectedUnavailableChannels([]);
+          setSelectedUnavailableTimeSlots([]);
+          setUnavailableModalStep("channels");
+        }}
+        className="w-[92%] max-w-[500px] p-0 overflow-hidden"
+      >
+        <div className="relative px-8 pt-8 pb-8 text-center">
+          <button
+            type="button"
+            className="absolute right-5 top-5 text-[#555] text-xl leading-none"
+            onClick={() => {
+              setUnavailableTarget(null);
+              setSelectedUnavailableChannels([]);
+              setSelectedUnavailableTimeSlots([]);
+              setUnavailableModalStep("channels");
+            }}
+          >
+            ×
+          </button>
+
+          {unavailableModalStep === "channels" ? (
+            <>
+              <h2 className="mx-auto max-w-[290px] text-[17px] font-medium leading-6 mb-5 text-[#444]">
+                Select the channels where you want this Product Type to be unavailable.
+              </h2>
+
+              <div className="mx-auto mt-2 grid grid-cols-2 gap-x-10 gap-y-3 max-w-[285px] text-left">
+                {availableChannelChoices.map((channelName) => {
+                  const checked = selectedUnavailableChannels.includes(channelName);
+
+                  return (
+                    <label key={channelName} className="flex items-center gap-3 text-[14px] text-[#444]">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleUnavailableChannel(channelName)}
+                        className="h-[14px] w-[14px] rounded-sm border-[#cfcfcf] text-black"
+                      />
+                      <span>{channelName}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-[26px] font-bold mb-4">Mark Unavailable</h2>
+              <p className="mx-auto mb-5 max-w-[320px] text-[15px] leading-6 text-[#444]">
+                Select the Time Slots where you want this Product to be unavailable.
+              </p>
+
+              <div className="mx-auto grid grid-cols-4 gap-3 text-sm">
+                {timeSlotChoices.map((slot) => {
+                  const selected = selectedUnavailableTimeSlots.includes(slot);
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => toggleUnavailableTimeSlot(slot)}
+                      className={`rounded border py-2 ${
+                        selected
+                          ? "border-[#d8a100] bg-[#f4c542] text-black"
+                          : "border-[#ddd] bg-white text-[#666]"
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          <div className="mt-7 flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (unavailableModalStep === "slots") {
+                  setUnavailableModalStep("channels");
+                  return;
+                }
+                setUnavailableTarget(null);
+                setSelectedUnavailableChannels([]);
+                setSelectedUnavailableTimeSlots([]);
+                setUnavailableModalStep("channels");
+              }}
+              className="min-w-[78px] rounded border border-[#7d7d7d] px-6 py-2 text-[15px] font-medium text-[#333]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveUnavailableChannels}
+              className="min-w-[78px] rounded bg-[#f4c542] px-7 py-2 text-[15px] font-medium text-[#222]"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        open={!!successModalMessage}
+        onClose={() => setSuccessModalMessage(null)}
+        className="w-[92%] max-w-[430px] p-0 overflow-hidden"
+      >
+        <div className="relative px-8 pt-8 pb-9 text-center">
+          <button
+            type="button"
+            className="absolute right-5 top-5 text-[#555] text-xl leading-none"
+            onClick={() => setSuccessModalMessage(null)}
+          >
+            ×
+          </button>
+          <h2 className="text-[26px] font-bold mb-5">Saved Changes</h2>
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#2eb872] text-white">
+            ✓
+          </div>
+          <p className="mx-auto max-w-[300px] text-[14px] leading-5 text-[#444]">{successModalMessage}</p>
+        </div>
+      </Modal>
       {activeActionItem &&
         actionMenuPosition &&
         createPortal(
           <div
+            ref={actionPortalRef}
             className="fixed z-[100] w-44 border border-[#ddd] rounded bg-white shadow"
             style={{
               top: actionMenuPosition.top,
@@ -745,7 +999,7 @@ export default function CatalogChannelMenu() {
               type="button"
               className="w-full text-left px-3 py-2 text-xs hover:bg-[#f4f4f4] flex items-center gap-2"
               onClick={() => {
-                void handleMarkUnavailable(activeActionItem);
+                handleMarkUnavailable(activeActionItem);
               }}
             >
               <Clock3 size={13} /> Mark Unavailable

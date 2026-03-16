@@ -6,16 +6,14 @@ import Input from "../form/Input";
 import Select from "../form/Select";
 import Modal from "../../components/ui/Modal";
 import tickImg from "../../assets/tick.png";
-import { useAuth } from "../../contexts/AuthContext";
 import { useBranch } from "../../contexts/BranchContext";
-import { getReservation, updateReservation, Reservation, UpdateReservationInput } from "../../services/reservationService";
+import { getReservation, updateReservation, UpdateReservationInput } from "../../services/reservationService";
 import { getCustomers, Customer } from "../../services/customerService";
 import { getFloors, getTables, Floor, Table } from "../../services/tableService";
 
 const EditReservation = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const { currentBranchId } = useBranch();
 
   // Use branchId from BranchContext
@@ -171,12 +169,15 @@ const EditReservation = () => {
     const fetchTables = async () => {
       setLoadingTables(true);
       try {
-        const response = await getTables(floorId, 'active');
+        const response = await getTables(floorId);
         if (response.success && response.data?.tables) {
-          // Filter tables by capacity >= guestCount
-          const availableTables = response.data.tables.filter(
-            (table) => table.capacity >= guestCount
-          );
+          const availableTables = response.data.tables.filter((table) => {
+            const meetsCapacity = table.capacity >= guestCount;
+            const canUseStatus =
+              table.status === "available" ||
+              table.id === tableId;
+            return meetsCapacity && canUseStatus;
+          });
           setTables(availableTables);
         }
       } catch (err) {
