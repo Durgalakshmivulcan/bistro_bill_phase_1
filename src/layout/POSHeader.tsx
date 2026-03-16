@@ -55,8 +55,8 @@ const POSHeader = () => {
   return (
     <>
       {/* ================= HEADER ================= */}
-      <header className="w-full bg-bb-bg">
-        <div className="flex items-center justify-between px-4 lg:px-6 h-[56px]">
+      <header className="w-full bg-[#F9F4E8]/90 backdrop-blur border-b border-[#EADFC2]">
+        <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-[64px]">
           {/* LEFT */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2" onClick={() => navigate("/bodashboard")}>

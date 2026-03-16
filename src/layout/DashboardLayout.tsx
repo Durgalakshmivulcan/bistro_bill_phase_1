@@ -17,6 +17,9 @@ const [notifyOpen, setNotifyOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<
+    { id: string; message: string; date: string }[]
+  >([]);
   const { currentBranchId, availableBranches, setCurrentBranch } = useBranch();
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -70,6 +73,44 @@ const [notifyOpen, setNotifyOpen] = useState(false);
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Seed PO notifications for branch managers (UI parity with provided mock)
+  useEffect(() => {
+    if (!user) return;
+    const isBranchManager =
+      user.userType === "Staff" &&
+      (user.role?.name?.toLowerCase().includes("manager") ||
+        user.role?.name?.toLowerCase().includes("branch"));
+    if (!isBranchManager) return;
+
+    if (notifications.length === 0) {
+      setNotifications([
+        {
+          id: "po-updated",
+          message: "PO with Invoice No. - INV-2025-0025 has been Updated by Business Owner.",
+          date: "05/01/2025",
+        },
+        {
+          id: "po-created",
+          message: "PO with Invoice No. - INV-2025-0025 has been Created by Branch Manager & pending for Approval.",
+          date: "05/01/2025",
+        },
+        {
+          id: "po-approved",
+          message: "PO with Invoice No. - INV-2025-0025 has been Approved by Business Owner.",
+          date: "05/01/2025",
+        },
+        {
+          id: "po-declined",
+          message: "PO with Invoice No. - INV-2025-0256 has been Declined by Business Owner.",
+          date: "01/01/2025",
+        },
+      ]);
+    }
+  }, [user, notifications.length]);
+
+  const clearNotification = (id: string) =>
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
 
   return (
     <div className="bb-app-shell">
@@ -237,12 +278,30 @@ const [notifyOpen, setNotifyOpen] = useState(false);
 
       {/* LIST */}
       <div className="divide-y max-h-[60vh] overflow-y-auto">
-        <div className="flex items-center justify-center py-12 text-gray-400">
-          <div className="text-center">
-            <i className="bi bi-bell text-3xl mb-2 block" />
-            <p className="text-sm">No new notifications</p>
+        {notifications.length === 0 ? (
+          <div className="flex items-center justify-center py-12 text-gray-400">
+            <div className="text-center">
+              <i className="bi bi-bell text-3xl mb-2 block" />
+              <p className="text-sm">No new notifications</p>
+            </div>
           </div>
-        </div>
+        ) : (
+          notifications.map((n) => (
+            <div key={n.id} className="flex items-start gap-3 py-4 px-1">
+              <div className="flex-1 text-sm leading-5 text-gray-800">
+                {n.message}
+                <div className="text-xs text-gray-500 mt-1">{n.date}</div>
+              </div>
+              <button
+                onClick={() => clearNotification(n.id)}
+                className="text-gray-400 hover:text-black"
+                aria-label="Dismiss notification"
+              >
+                ✕
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   </div>

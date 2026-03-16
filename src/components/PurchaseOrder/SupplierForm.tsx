@@ -1,13 +1,11 @@
 import { useNavigate, useParams } from "react-router-dom";
-import Input from "../form/Input";
-import Select from "../form/Select";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Modal from "../../components/ui/Modal";
 import tickImg from "../../assets/tick.png";
 import { createSupplier, updateSupplier, CreateSupplierData, UpdateSupplierData, getSupplierContacts, createSupplierContact, updateSupplierContact, deleteSupplierContact, SupplierContact } from "../../services/supplierService";
-import { CRUDToasts } from "../../utils/toast";
 import { getBranches, Branch } from "../../services/branchService";
+import PurchaseOrderTabs from "../NavTabs/PurchaseOrderTabs";
 
 type Mode = "add" | "edit" | "view";
 
@@ -26,6 +24,7 @@ export default function SupplierForm({
 
   // ---------------- STATE ----------------
   const [successOpen, setSuccessOpen] = useState(false);
+  const [successNavTo, setSuccessNavTo] = useState<string>("/purchaseorder");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -53,7 +52,7 @@ export default function SupplierForm({
     gst: defaultValues?.gstNumber || "",
     tin: defaultValues?.tinNumber || "",
     taxCode: defaultValues?.taxStateCode || "",
-    status: defaultValues?.status || "active",
+    status: defaultValues?.status || "",
     address: defaultValues?.address || "",
     account: defaultValues?.bankAccount || "",
     bank: defaultValues?.bankName || "",
@@ -61,7 +60,17 @@ export default function SupplierForm({
     ifsc: defaultValues?.ifscCode || "",
     phone: defaultValues?.phone || "",
     email: defaultValues?.email || "",
+    contactName: "",
   });
+
+  const [quickContact, setQuickContact] = useState({
+    // In edit/view, prefill from supplier's primary fields so the section isn't blank.
+    name: "",
+    email: defaultValues?.email || "",
+    phone: defaultValues?.phone || "",
+  });
+
+  const [pendingContacts, setPendingContacts] = useState<SupplierContact[]>([]);
 
   const handleBranchSelect = (value: string) => {
     if (!value || isView) return;
@@ -106,7 +115,26 @@ export default function SupplierForm({
         try {
           const response = await getSupplierContacts(id);
           if (response.success && response.data) {
-            setContacts(response.data.contacts || []);
+            const raw: any = response.data;
+            const list: SupplierContact[] =
+              raw.contacts ||
+              raw?.data?.contacts ||
+              raw?.supplierContacts ||
+              [];
+
+            setContacts(list || []);
+
+            // In view mode, show the first contact in the (disabled) contact fields as well.
+            if (mode === "view") {
+              const first = (list || [])[0];
+              if (first) {
+                setQuickContact((prev) => ({
+                  name: prev.name || first.name || "",
+                  email: prev.email || first.email || "",
+                  phone: prev.phone || first.phone || "",
+                }));
+              }
+            }
           }
         } catch (err) {
           console.error('Failed to load contacts:', err);
@@ -118,6 +146,18 @@ export default function SupplierForm({
     loadContacts();
   }, [id, mode]);
 
+  // If supplier data is loaded for edit/view, make sure the contact section shows something.
+  useEffect(() => {
+    if (mode === "add") return;
+    if (!defaultValues) return;
+
+    setQuickContact((prev) => ({
+      name: prev.name,
+      email: prev.email || defaultValues.email || "",
+      phone: prev.phone || defaultValues.phone || "",
+    }));
+  }, [defaultValues, mode]);
+
   const handleSubmit = async () => {
     if (isView) return;
 
@@ -126,7 +166,7 @@ export default function SupplierForm({
       setError("Supplier Name is required");
       return;
     }
-    if (!formData.phone.trim()) {
+    if (!formData.phone.trim() && !quickContact.phone.trim()) {
       setError("Phone Number is required");
       return;
     }
@@ -151,9 +191,9 @@ export default function SupplierForm({
         // Create new supplier
         const createData: CreateSupplierData = {
           name: formData.name,
-          phone: formData.phone,
+          phone: formData.phone || quickContact.phone,
           code: formData.code || undefined,
-          email: formData.email || undefined,
+          email: (formData.email || quickContact.email) || undefined,
           address: formData.address || undefined,
           gstNumber: formData.gst || undefined,
           tinNumber: formData.tin || undefined,
@@ -162,18 +202,26 @@ export default function SupplierForm({
           bankName: formData.bank || undefined,
           bankBranch: formData.branch || undefined,
           ifscCode: formData.ifsc || undefined,
-          status: formData.status as 'active' | 'inactive',
+          status: (formData.status ? (formData.status as 'active' | 'inactive') : undefined),
         };
 
         const response = await createSupplier(createData);
 
         if (response.success) {
-          CRUDToasts.created("Supplier");
+          const createdSupplierId = (response.data as any)?.id as string | undefined;
+          // If user added contacts before saving supplier, persist them now.
+          if (createdSupplierId && pendingContacts.length > 0) {
+            for (const c of pendingContacts) {
+              await createSupplierContact(createdSupplierId, {
+                name: c.name,
+                email: c.email || undefined,
+                phone: c.phone || undefined,
+              });
+            }
+          }
+
+          setSuccessNavTo("/purchaseorder");
           setSuccessOpen(true);
-          setTimeout(() => {
-            setSuccessOpen(false);
-            navigate("/purchaseorder/suppliers");
-          }, 2000);
         } else {
           setError(response.error?.message || "Failed to create supplier");
         }
@@ -192,18 +240,14 @@ export default function SupplierForm({
           bankName: formData.bank || undefined,
           bankBranch: formData.branch || undefined,
           ifscCode: formData.ifsc || undefined,
-          status: formData.status as 'active' | 'inactive',
+          status: (formData.status ? (formData.status as 'active' | 'inactive') : undefined),
         };
 
         const response = await updateSupplier(id, updateData);
 
         if (response.success) {
-          CRUDToasts.updated("Supplier");
+          setSuccessNavTo("/purchaseorder");
           setSuccessOpen(true);
-          setTimeout(() => {
-            setSuccessOpen(false);
-            navigate("/purchaseorder/suppliers");
-          }, 2000);
         } else {
           setError(response.error?.message || "Failed to update supplier");
         }
@@ -234,7 +278,37 @@ export default function SupplierForm({
 
   const handleContactSubmit = async () => {
     if (!id) {
-      setError("Supplier must be saved before adding contacts");
+      // Allow local edits/adds before supplier is saved.
+      if (!contactFormData.name.trim()) {
+        setError("Contact name is required");
+        return;
+      }
+
+      if (editingContact) {
+        const updated: SupplierContact = {
+          ...editingContact,
+          name: contactFormData.name,
+          email: contactFormData.email || null,
+          phone: contactFormData.phone || null,
+        };
+        setContacts((prev) => prev.map((c) => (c.id === editingContact.id ? updated : c)));
+        setPendingContacts((prev) => prev.map((c) => (c.id === editingContact.id ? updated : c)));
+        setContactModalOpen(false);
+        return;
+      }
+
+      const tmp: SupplierContact = {
+        id: `tmp-${Date.now()}`,
+        supplierId: "tmp",
+        name: contactFormData.name,
+        email: contactFormData.email || null,
+        phone: contactFormData.phone || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setContacts((prev) => [...prev, tmp]);
+      setPendingContacts((prev) => [...prev, tmp]);
+      setContactModalOpen(false);
       return;
     }
 
@@ -254,7 +328,6 @@ export default function SupplierForm({
           setContacts((prev) =>
             prev.map((c) => (c.id === editingContact.id ? response.data! : c))
           );
-          CRUDToasts.updated("Contact");
           setContactModalOpen(false);
         } else {
           setError(response.error?.message || "Failed to update contact");
@@ -264,7 +337,6 @@ export default function SupplierForm({
         const response = await createSupplierContact(id, contactFormData);
         if (response.success && response.data) {
           setContacts((prev) => [...prev, response.data!]);
-          CRUDToasts.created("Contact");
           setContactModalOpen(false);
         } else {
           setError(response.error?.message || "Failed to create contact");
@@ -278,7 +350,12 @@ export default function SupplierForm({
   };
 
   const handleContactDelete = async (contactId: string) => {
-    if (!id) return;
+    // Local removal if supplier not saved yet.
+    if (!id) {
+      setContacts((prev) => prev.filter((c) => c.id !== contactId));
+      setPendingContacts((prev) => prev.filter((c) => c.id !== contactId));
+      return;
+    }
 
     if (!window.confirm("Are you sure you want to delete this contact?")) {
       return;
@@ -291,7 +368,6 @@ export default function SupplierForm({
       const response = await deleteSupplierContact(id, contactId);
       if (response.success) {
         setContacts((prev) => prev.filter((c) => c.id !== contactId));
-        CRUDToasts.deleted("Contact");
       } else {
         setError(response.error?.message || "Failed to delete contact");
       }
@@ -302,10 +378,67 @@ export default function SupplierForm({
     }
   };
 
+  const handleQuickAddContact = async () => {
+    if (isView) return;
+
+    if (!quickContact.name.trim()) {
+      setError("Contact name is required");
+      return;
+    }
+    if (!quickContact.phone.trim()) {
+      setError("Phone Number is required");
+      return;
+    }
+
+    // Keep supplier primary phone/email in sync (needed for supplier create).
+    if (!formData.phone && quickContact.phone) {
+      setFormData((prev) => ({ ...prev, phone: quickContact.phone }));
+    }
+    if (!formData.email && quickContact.email) {
+      setFormData((prev) => ({ ...prev, email: quickContact.email }));
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      if (id) {
+        const response = await createSupplierContact(id, {
+          name: quickContact.name,
+          email: quickContact.email || undefined,
+          phone: quickContact.phone || undefined,
+        });
+        if (response.success && response.data) {
+          setContacts((prev) => [...prev, response.data!]);
+        } else {
+          setError(response.error?.message || "Failed to create contact");
+          return;
+        }
+      } else {
+        const tmp: SupplierContact = {
+          id: `tmp-${Date.now()}`,
+          supplierId: "tmp",
+          name: quickContact.name,
+          email: quickContact.email || null,
+          phone: quickContact.phone || null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setContacts((prev) => [...prev, tmp]);
+        setPendingContacts((prev) => [...prev, tmp]);
+      }
+
+      setQuickContact({ name: "", email: "", phone: "" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ---------------- UI ----------------
   return (
-    <div className="bg-bb-bg min-h-screen p-6 space-y-6">
-      <h1 className="text-2xl font-bold">
+    <div className="space-y-6">
+      <PurchaseOrderTabs />
+
+      <h1 className="text-4xl font-extrabold tracking-tight text-black">
         {mode === "add" && "Add New Supplier"}
         {mode === "edit" && "Edit Supplier"}
         {mode === "view" && "View Supplier"}
@@ -319,54 +452,54 @@ export default function SupplierForm({
       )}
 
       {/* ================= SUPPLIER DETAILS ================= */}
-      <div className="bg-[#FFF9ED] border rounded-xl p-6 space-y-4">
+      <div className="bg-[#FFFBF3] border border-[#EADFC2] rounded-lg p-6 space-y-4">
         <h2 className="font-semibold text-yellow-600">
           Suppliers Detail's
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
+          <Field
             label="Supplier Name"
             placeholder="Paramount Products"
             value={formData.name}
-            onChange={(value) => handleInputChange('name', value)}
+            onChange={(v) => handleInputChange("name", v)}
             disabled={isView}
           />
-          <Input
+          <Field
             label="Supplier Code"
             placeholder="123452"
             value={formData.code}
-            onChange={(value) => handleInputChange('code', value)}
+            onChange={(v) => handleInputChange("code", v)}
             disabled={isView}
           />
 
-          <Input
+          <Field
             label="GST Number"
             placeholder="124567892"
             value={formData.gst}
-            onChange={(value) => handleInputChange('gst', value)}
+            onChange={(v) => handleInputChange("gst", v)}
             disabled={isView}
           />
-          <Input
+          <Field
             label="TIN"
             placeholder="TIN7895556"
             value={formData.tin}
-            onChange={(value) => handleInputChange('tin', value)}
+            onChange={(v) => handleInputChange("tin", v)}
             disabled={isView}
           />
 
-          <Input
+          <Field
             label="Tax State Code"
             placeholder="45612"
             value={formData.taxCode}
-            onChange={(value) => handleInputChange('taxCode', value)}
+            onChange={(v) => handleInputChange("taxCode", v)}
             disabled={isView}
           />
-          <Select
+          <SelectField
             label="Status"
             value={formData.status}
-            onChange={(value) => handleInputChange('status', value)}
             disabled={isView}
+            onChange={(v) => handleInputChange("status", v)}
             options={[
               { label: "Select Status", value: "" },
               { label: "Active", value: "active" },
@@ -376,7 +509,7 @@ export default function SupplierForm({
 
           {/* Managing Branches */}
           <div className="space-y-1">
-            <Select
+            <SelectField
               label="Managing by Branches"
               value=""
               disabled={isView || loadingBranches}
@@ -388,12 +521,12 @@ export default function SupplierForm({
                     : branches.length === 0
                       ? "No branches available"
                       : "Select Branches",
-                  value: ""
+                  value: "",
                 },
-                ...branches.map(branch => ({
+                ...branches.map((branch) => ({
                   label: branch.name,
-                  value: branch.id
-                }))
+                  value: branch.id,
+                })),
               ]}
             />
 
@@ -405,14 +538,14 @@ export default function SupplierForm({
                 return (
                   <span
                     key={branchId}
-                    className="px-3 py-1 text-xs bg-gray-200 rounded-full flex items-center gap-1"
+                    className="px-3 py-1 text-xs bg-[#EADFC2] rounded-full flex items-center gap-2"
                   >
                     {displayName}
                     {!isView && (
                       <button
                         type="button"
                         onClick={() => removeBranch(branchId)}
-                        className="text-gray-600 hover:text-black"
+                        className="text-gray-700 hover:text-black"
                       >
                         ✕
                       </button>
@@ -423,94 +556,91 @@ export default function SupplierForm({
             </div>
           </div>
 
-          <Input
+          <Field
             label="Address"
             placeholder="4341 Valley Street, Columbus, OH 4321"
             value={formData.address}
-            onChange={(value) => handleInputChange('address', value)}
+            onChange={(v) => handleInputChange("address", v)}
             disabled={isView}
           />
         </div>
       </div>
 
       {/* ================= BANK DETAILS ================= */}
-      <div className="bg-[#FFF9ED] border rounded-xl p-6 space-y-4">
+      <div className="bg-[#FFFBF3] border border-[#EADFC2] rounded-lg p-6 space-y-4">
         <h2 className="font-semibold text-yellow-600">
           Bank Detail's
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
+          <Field
             label="Bank Account Number"
             placeholder="123456789012"
             value={formData.account}
-            onChange={(value) => handleInputChange('account', value)}
+            onChange={(v) => handleInputChange("account", v)}
             disabled={isView}
           />
-          <Input
+          <Field
             label="Bank Name"
             placeholder="Andhra Bank"
             value={formData.bank}
-            onChange={(value) => handleInputChange('bank', value)}
+            onChange={(v) => handleInputChange("bank", v)}
             disabled={isView}
           />
-          <Input
+          <Field
             label="Bank Branch"
-            placeholder="Enter bank branch"
+            placeholder="Select bank Branch"
             value={formData.branch}
-            onChange={(value) => handleInputChange('branch', value)}
+            onChange={(v) => handleInputChange("branch", v)}
             disabled={isView}
           />
-          <Input
+          <Field
             label="IFSC Code"
             placeholder="UBIN0801678"
             value={formData.ifsc}
-            onChange={(value) => handleInputChange('ifsc', value)}
+            onChange={(v) => handleInputChange("ifsc", v)}
             disabled={isView}
           />
         </div>
       </div>
 
       {/* ================= CONTACT DETAILS ================= */}
-      <div className="bg-[#FFF9ED] border rounded-xl p-6 space-y-4">
+      <div className="bg-[#FFFBF3] border border-[#EADFC2] rounded-lg p-6 space-y-4">
         <h2 className="font-semibold text-yellow-600">
           Contact Detail's
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input
-            label="Name"
-            disabled={isView}
-            value={formData.name}
-            onChange={(value) => handleInputChange('name', value)}
-          />
-          <Input
-            label="Email Address"
-            value={formData.email}
-            onChange={(value) => handleInputChange('email', value)}
-            disabled={isView}
-          />
-          <Input
-            label="Phone Number"
-            value={formData.phone}
-            onChange={(value) => handleInputChange('phone', value)}
-            disabled={isView}
-          />
-        </div>
+        {!isView && (
+          <div className="border border-[#EADFC2] rounded-md bg-[#FFFBF3] p-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field
+                label="Name"
+                value={quickContact.name}
+                onChange={(v) => setQuickContact((prev) => ({ ...prev, name: v }))}
+                disabled={isView}
+              />
+              <Field
+                label="Email Address"
+                value={quickContact.email}
+                onChange={(v) => setQuickContact((prev) => ({ ...prev, email: v }))}
+                disabled={isView}
+              />
+              <PhoneField
+                label="Phone Number"
+                value={quickContact.phone}
+                onChange={(v) => setQuickContact((prev) => ({ ...prev, phone: v }))}
+                disabled={isView}
+              />
+            </div>
 
-        {!isView && id && (
-          <button
-            type="button"
-            onClick={openAddContactModal}
-            className="w-full border rounded-md py-2 text-sm flex items-center justify-center gap-2 hover:bg-bb-bg"
-          >
-            <Plus size={14} /> Add New Contact Detail's
-          </button>
-        )}
-
-        {!id && mode === "add" && (
-          <div className="text-sm text-gray-600 text-center py-4">
-            Please save the supplier first before adding contacts.
+            <button
+              type="button"
+              onClick={handleQuickAddContact}
+              disabled={saving}
+              className="mt-4 w-full border border-black rounded-md py-2 text-sm flex items-center justify-center gap-2 bg-[#FFFDF5] disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              + Add New Contact Detail's
+            </button>
           </div>
         )}
 
@@ -519,9 +649,9 @@ export default function SupplierForm({
             Loading contacts...
           </div>
         ) : (
-          <div className="border rounded-md overflow-hidden">
+          <div className="border border-gray-200 rounded-md overflow-hidden bg-white">
             <table className="w-full text-sm">
-              <thead className="bg-[#FFD24C]">
+              <thead className="bg-yellow-400 text-black">
                 <tr>
                   <th className="px-4 py-2 text-left">
                     Name
@@ -532,21 +662,26 @@ export default function SupplierForm({
                   <th className="px-4 py-2 text-left">
                     Phone Number
                   </th>
-                  <th className="px-4 py-2 text-center">
-                    Actions
-                  </th>
+                  {!isView && (
+                    <th className="px-4 py-2 text-center">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {contacts.length === 0 ? (
                   <tr className="border-t">
-                    <td colSpan={4} className="px-4 py-4 text-center text-gray-500">
+                    <td colSpan={isView ? 3 : 4} className="px-4 py-4 text-center text-gray-500">
                       No contacts available
                     </td>
                   </tr>
                 ) : (
-                  contacts.map((contact) => (
-                    <tr key={contact.id} className="border-t">
+                  contacts.map((contact, idx) => (
+                    <tr
+                      key={contact.id}
+                      className={`border-t ${idx % 2 ? "bg-[#FFF9E8]" : "bg-white"}`}
+                    >
                       <td className="px-4 py-2">{contact.name}</td>
                       <td className="px-4 py-2">
                         {contact.email || "-"}
@@ -554,22 +689,22 @@ export default function SupplierForm({
                       <td className="px-4 py-2">
                         {contact.phone || "-"}
                       </td>
-                      <td className="px-4 py-2 text-center flex justify-center gap-3">
-                        {!isView && (
-                          <>
+                      {!isView && (
+                        <td className="px-4 py-2 text-center">
+                          <div className="flex justify-center gap-4">
                             <Pencil
-                              size={14}
+                              size={16}
                               className="cursor-pointer hover:text-blue-600"
                               onClick={() => openEditContactModal(contact)}
                             />
                             <Trash2
-                              size={14}
+                              size={16}
                               className="cursor-pointer hover:text-red-600"
                               onClick={() => handleContactDelete(contact.id)}
                             />
-                          </>
-                        )}
-                      </td>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -584,18 +719,30 @@ export default function SupplierForm({
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="border px-4 py-2 rounded"
+          className="border border-black px-8 py-2 rounded-md bg-white"
           disabled={saving}
         >
-          {isView ? "Back" : "Cancel"}
+          Cancel
         </button>
 
-        {mode !== "view" && (
+        {mode === "view" ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (!id) return;
+              navigate(`/purchaseorder/suppliers/edit/${id}`);
+            }}
+            className="bg-yellow-400 px-10 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!id}
+          >
+            Edit
+          </button>
+        ) : (
           <button
             type="button"
             onClick={handleSubmit}
             disabled={saving}
-            className="bg-yellow-400 px-6 py-2 rounded border border-black disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-yellow-400 px-10 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? "Saving..." : mode === "add" ? "Save" : "Update"}
           </button>
@@ -605,7 +752,10 @@ export default function SupplierForm({
       {/* ================= SUCCESS MODAL ================= */}
       <Modal
         open={successOpen}
-        onClose={() => setSuccessOpen(false)}
+        onClose={() => {
+          setSuccessOpen(false);
+          navigate(successNavTo);
+        }}
         className="w-[90%] max-w-md p-8 text-center"
       >
         <h2 className="text-2xl font-bold mb-6">
@@ -640,23 +790,23 @@ export default function SupplierForm({
         </h2>
 
         <div className="space-y-4">
-          <Input
+          <Field
             label="Name *"
             placeholder="Enter contact name"
             value={contactFormData.name}
-            onChange={(value) => setContactFormData({ ...contactFormData, name: value })}
+            onChange={(v) => setContactFormData({ ...contactFormData, name: v })}
           />
-          <Input
+          <Field
             label="Email"
             placeholder="Enter email address"
             value={contactFormData.email}
-            onChange={(value) => setContactFormData({ ...contactFormData, email: value })}
+            onChange={(v) => setContactFormData({ ...contactFormData, email: v })}
           />
-          <Input
+          <Field
             label="Phone"
             placeholder="Enter phone number"
             value={contactFormData.phone}
-            onChange={(value) => setContactFormData({ ...contactFormData, phone: value })}
+            onChange={(v) => setContactFormData({ ...contactFormData, phone: v })}
           />
         </div>
 
@@ -679,6 +829,126 @@ export default function SupplierForm({
           </button>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const bg = disabled ? "bg-[#E5E5E5]" : "bg-[#FFFDF5]";
+  return (
+    <div className="space-y-1">
+      <label className="text-sm font-semibold text-black">{label}</label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        className={`w-full h-[42px] border border-gray-200 rounded-md px-4 ${bg} text-sm ${
+          disabled ? "opacity-60 cursor-not-allowed" : ""
+        }`}
+      />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { label: string; value: string }[];
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="text-sm font-semibold text-black">{label}</label>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className={`w-full h-[42px] border border-gray-200 rounded-md px-4 pr-10 ${
+            disabled ? "bg-[#E5E5E5]" : "bg-[#FFFDF5]"
+          } text-sm appearance-none ${
+            disabled ? "opacity-60 cursor-not-allowed" : ""
+          }`}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          size={16}
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+        />
+      </div>
+    </div>
+  );
+}
+
+function PhoneField({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="text-sm font-semibold text-black">{label}</label>
+      <div
+        className={`flex items-center w-full h-[42px] border border-gray-200 rounded-md ${
+          disabled ? "bg-[#E5E5E5]" : "bg-[#FFFDF5]"
+        } overflow-hidden ${
+          disabled ? "opacity-60 cursor-not-allowed" : ""
+        }`}
+      >
+        <div className="relative h-full">
+          <select
+            disabled={true}
+            className={`h-full px-3 pr-8 text-sm appearance-none border-r border-gray-200 ${
+              disabled ? "bg-[#E5E5E5]" : "bg-[#FFFDF5]"
+            }`}
+          >
+            <option>+91</option>
+          </select>
+          <ChevronDown
+            size={14}
+            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+          />
+        </div>
+
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          placeholder="9875642310"
+          className="flex-1 h-full px-3 text-sm focus:outline-none"
+        />
+      </div>
     </div>
   );
 }

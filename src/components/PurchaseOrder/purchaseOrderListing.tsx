@@ -1,15 +1,13 @@
-import { Search, X, RefreshCw, Pause, Play } from "lucide-react";
+import { Search, X } from "lucide-react";
 import Select from "../form/Select";
 import { useNavigate } from "react-router-dom";
 import Actions from "../form/ActionButtons";
-import Pagination from "../Common/Pagination";
 import LoadingSpinner from "../Common/LoadingSpinner";
 import PurchaseOrderTabs from "../NavTabs/PurchaseOrderTabs";
 import { useState, useEffect, useRef, useMemo } from "react";
 import Modal from "../../components/ui/Modal";
 import deleteImg from "../../assets/deleteConformImg.png";
 import tickImg from "../../assets/deleteSuccessImg.png";
-import sucesstickImg from "../../assets/tick.png";
 import { getPurchaseOrders, deletePurchaseOrder, importPurchaseOrders, resendPOEmail, downloadPOPdf, pausePORecurrence, resumePORecurrence, PurchaseOrder } from "../../services/purchaseOrderService";
 import { getSuppliers, Supplier } from "../../services/supplierService";
 import { getBranches, Branch } from "../../services/branchService";
@@ -17,14 +15,13 @@ import { useFilters } from "../../hooks/useFilters";
 import { CRUDToasts } from "../../utils/toast";
 import { useDebounce } from "../../hooks/useDebounce";
 import { usePagination } from "../../hooks/usePagination";
+import { showUpdatedSweetAlert } from "../../utils/swalAlerts";
 
 export default function PurchaseOrderPOList() {
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletedOpen, setDeletedOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [resendOpen, setResendOpen] = useState(false);
-  const [resendConfirmOpen, setResendConfirmOpen] = useState(false);
   const [resendSending, setResendSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -36,7 +33,7 @@ export default function PurchaseOrderPOList() {
   const [branches, setBranches] = useState<Branch[]>([]);
 
   // Pagination state
-  const { page, pageSize, setPage, setPageSize, resetPagination } = usePagination({
+  const { page, pageSize, setPage, resetPagination } = usePagination({
     defaultPage: 1,
     defaultPageSize: 25,
     persistInUrl: true,
@@ -50,6 +47,16 @@ export default function PurchaseOrderPOList() {
   const [importSuccess, setImportSuccess] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Date filter: "+ Custom Date" opens a range picker (UI per screenshot)
+  const [customDateOpen, setCustomDateOpen] = useState(false);
+  const [customStart, setCustomStart] = useState<Date | null>(null);
+  const [customEnd, setCustomEnd] = useState<Date | null>(null);
+  const customDateRef = useRef<HTMLDivElement | null>(null);
+  const [calendarBaseMonth, setCalendarBaseMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+
   // Setup filters using useFilters hook
   const { filterValues, setFilterValue, filteredItems: filteredByFilters, clearAllFilters } = useFilters({
     items: purchaseOrders,
@@ -57,15 +64,15 @@ export default function PurchaseOrderPOList() {
       {
         key: 'branch',
         predicate: (po, value) => {
-          if (!value || value === 'Filter by Branch') return true;
+          if (!value) return true;
           return po.branch.name === value;
         },
-        defaultValue: 'Filter by Branch'
+        defaultValue: ''
       },
       {
         key: 'date',
         predicate: (po, value) => {
-          if (!value || value === 'Filter by Date' || !po.createdAt) return true;
+          if (!value || !po.createdAt) return true;
 
           const poDate = new Date(po.createdAt);
           const today = new Date();
@@ -75,23 +82,44 @@ export default function PurchaseOrderPOList() {
             const checkDate = new Date(poDate);
             checkDate.setHours(0, 0, 0, 0);
             return checkDate.getTime() === today.getTime();
+          } else if (value === 'Yesterday') {
+            const y = new Date(today);
+            y.setDate(today.getDate() - 1);
+            const checkDate = new Date(poDate);
+            checkDate.setHours(0, 0, 0, 0);
+            return checkDate.getTime() === y.getTime();
           } else if (value === 'Last 7 days') {
             const sevenDaysAgo = new Date(today);
             sevenDaysAgo.setDate(today.getDate() - 7);
             return poDate >= sevenDaysAgo && poDate <= today;
+          } else if (value === 'Last 30 days') {
+            const d = new Date(today);
+            d.setDate(today.getDate() - 30);
+            return poDate >= d && poDate <= today;
+          } else if (value === 'Last 90 days') {
+            const d = new Date(today);
+            d.setDate(today.getDate() - 90);
+            return poDate >= d && poDate <= today;
+          } else if (value === 'Custom Date') {
+            if (!customStart || !customEnd) return true;
+            const s = new Date(customStart);
+            s.setHours(0, 0, 0, 0);
+            const e = new Date(customEnd);
+            e.setHours(23, 59, 59, 999);
+            return poDate >= s && poDate <= e;
           }
 
           return true;
         },
-        defaultValue: 'Filter by Date'
+        defaultValue: ''
       },
       {
         key: 'supplier',
         predicate: (po, value) => {
-          if (!value || value === 'Filter by Supplier') return true;
+          if (!value) return true;
           return po.supplier.name === value;
         },
-        defaultValue: 'Filter by Supplier'
+        defaultValue: ''
       }
     ]
   });
@@ -99,10 +127,27 @@ export default function PurchaseOrderPOList() {
   // Get supplier names for filter options from API data
   const supplierOptions = useMemo(() => {
     return [
-      { label: "Filter by Supplier", value: "Filter by Supplier" },
       ...suppliers.map(supplier => ({ label: supplier.name, value: supplier.name }))
     ];
   }, [suppliers]);
+
+  const branchOptions = useMemo(() => {
+    return [
+      ...branches.map((b) => ({ label: b.name, value: b.name })),
+    ];
+  }, [branches]);
+
+  const dateOptions = useMemo(() => {
+    return [
+      { label: "Today", value: "Today" },
+      { label: "Yesterday", value: "Yesterday" },
+      { label: "Last 7 days", value: "Last 7 days" },
+      { label: "Last 30 days", value: "Last 30 days" },
+      { label: "Last 90 days", value: "Last 90 days" },
+      { label: "Custom Date", value: "Custom Date" },
+      { label: <span className="font-medium">+ Custom Date</span>, value: "__custom__" },
+    ];
+  }, []);
 
   // Debounce search query for API calls
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -186,6 +231,8 @@ export default function PurchaseOrderPOList() {
   const handleClearFilters = () => {
     setSearchQuery("");
     clearAllFilters();
+    setCustomStart(null);
+    setCustomEnd(null);
     resetPagination(); // Reset to page 1 when clearing filters
   };
 
@@ -200,12 +247,6 @@ export default function PurchaseOrderPOList() {
       if (response.success) {
         CRUDToasts.deleted("Purchase Order");
         setDeletedOpen(true);
-
-        // Auto close success modal and refresh list
-        setTimeout(() => {
-          setDeletedOpen(false);
-          fetchPurchaseOrders();
-        }, 2000);
       } else {
         setError(response.message || "Failed to delete purchase order");
         setTimeout(() => setError(""), 3000);
@@ -217,29 +258,24 @@ export default function PurchaseOrderPOList() {
     }
   };
 
-  const handleResendConfirm = async () => {
-    if (!selectedId) return;
+  const handleResend = async (poId: string) => {
+    if (!poId || resendSending) return;
 
     setResendSending(true);
-
+    setError("");
     try {
-      const response = await resendPOEmail(selectedId);
-
-      if (response.success) {
-        setResendConfirmOpen(false);
-        setResendOpen(true);
-
-        // Auto close success modal
-        setTimeout(() => {
-          setResendOpen(false);
-        }, 2000);
-      } else {
-        setResendConfirmOpen(false);
-        setError(response.error?.message || "Failed to send email");
+      const response = await resendPOEmail(poId);
+      if (!response.success) {
+        setError(response.error?.message || response.message || "Failed to send email");
         setTimeout(() => setError(""), 3000);
+        return;
       }
+
+      await showUpdatedSweetAlert({
+        title: "Mail Sent",
+        message: "Mail Successfully Sent to Supplier registered<br/>Email Address.",
+      });
     } catch (err) {
-      setResendConfirmOpen(false);
       setError("An error occurred while sending email");
       setTimeout(() => setError(""), 3000);
       console.error("Failed to resend PO email:", err);
@@ -428,6 +464,104 @@ export default function PurchaseOrderPOList() {
     }
   };
 
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxPagesToShow = 9;
+
+    if (totalPages <= maxPagesToShow) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+      return pages;
+    }
+
+    pages.push(1);
+    const left = Math.max(2, page - 1);
+    const right = Math.min(totalPages - 1, page + 1);
+    if (left > 2) pages.push("...");
+    for (let i = left; i <= right; i++) pages.push(i);
+    if (right < totalPages - 1) pages.push("...");
+    pages.push(totalPages);
+    return pages;
+  };
+
+  const monthLabel = (d: Date) =>
+    d.toLocaleString("en-US", { month: "long", year: "numeric" });
+
+  const buildMonth = (year: number, month: number) => {
+    const first = new Date(year, month, 1);
+    const startDow = (first.getDay() + 6) % 7; // Monday=0
+    const start = new Date(year, month, 1 - startDow);
+    const weeks: { date: Date; inMonth: boolean }[][] = [];
+    for (let w = 0; w < 6; w++) {
+      const row: { date: Date; inMonth: boolean }[] = [];
+      for (let i = 0; i < 7; i++) {
+        const day = new Date(start);
+        day.setDate(start.getDate() + w * 7 + i);
+        row.push({ date: day, inMonth: day.getMonth() === month });
+      }
+      weeks.push(row);
+    }
+    return weeks;
+  };
+
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  const inRange = (d: Date) => {
+    if (!customStart || !customEnd) return false;
+    const t = new Date(d);
+    t.setHours(0, 0, 0, 0);
+    const s = new Date(customStart);
+    s.setHours(0, 0, 0, 0);
+    const e = new Date(customEnd);
+    e.setHours(0, 0, 0, 0);
+    return t >= s && t <= e;
+  };
+
+  const handleDayPick = (d: Date) => {
+    if (!customStart || (customStart && customEnd)) {
+      setCustomStart(d);
+      setCustomEnd(null);
+      return;
+    }
+    const s = customStart;
+    if (d < s) {
+      setCustomStart(d);
+      setCustomEnd(s);
+    } else {
+      setCustomEnd(d);
+    }
+  };
+
+  useEffect(() => {
+    if (customStart && customEnd && customDateOpen) {
+      setFilterValue("date", "Custom Date");
+      setCustomDateOpen(false);
+    }
+  }, [customStart, customEnd, customDateOpen, setFilterValue]);
+
+  // Close the custom date popover when clicking outside (since UI has no explicit Close button).
+  useEffect(() => {
+    if (!customDateOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const el = customDateRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setCustomDateOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [customDateOpen]);
+
   return (
     <div className="bg-bb-bg min-h-screen p-6 space-y-4">
       <PurchaseOrderTabs />
@@ -465,21 +599,21 @@ export default function PurchaseOrderPOList() {
             <Search
               size={16}
               className="
-                absolute left-3 top-1/2
+                absolute right-3 top-1/2
                 -translate-y-1/2
                 text-gray-400
                 pointer-events-none
               "
             />
             <input
-              placeholder="Search purchase orders..."
+              placeholder="Search here..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="
               text-black
                 w-full
                 border rounded-md
-                pl-10 pr-10 py-2
+                pl-4 pr-10 py-2
                 text-sm
                 bg-white
                 focus:outline-none
@@ -488,7 +622,7 @@ export default function PurchaseOrderPOList() {
             {searchQuery && (
               <button
                 onClick={handleClearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-9 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 aria-label="Clear search"
               >
                 <X size={16} />
@@ -520,32 +654,130 @@ export default function PurchaseOrderPOList() {
 
       {/* FILTER ROW */}
       <div className="flex justify-end items-center gap-2">
-        <div className="w-[15%]">
+        <div className="w-[180px]">
           <Select
             value={filterValues.branch as string}
             onChange={(value) => setFilterValue('branch', value)}
-            options={[
-              { label: "Filter by Branch", value: "Filter by Branch" },
-              ...branches.map((b) => ({ label: b.name, value: b.name })),
-            ]}
+            options={branchOptions}
+            placeholder="Filter by Branch"
+            className="border-gray-200 bg-white"
           />
         </div>
-        <div className="w-[15%]">
+        <div className="w-[180px] relative">
           <Select
             value={filterValues.date as string}
-            onChange={(value) => setFilterValue('date', value)}
-            options={[
-              { label: "Filter by Date", value: "Filter by Date" },
-              { label: "Today", value: "Today" },
-              { label: "Last 7 days", value: "Last 7 days" },
-            ]}
+            onChange={(value) => {
+              if (value === "__custom__") {
+                setCustomDateOpen(true);
+                setCustomStart(null);
+                setCustomEnd(null);
+                const now = new Date();
+                setCalendarBaseMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+                return;
+              }
+              setFilterValue("date", value);
+            }}
+            options={dateOptions}
+            placeholder="Filter by Date"
+            className="border-gray-200 bg-white"
           />
+
+          {customDateOpen && (
+            <div
+              ref={customDateRef}
+              className="absolute right-0 mt-2 z-50 bg-gray-100 border border-gray-200 rounded-md shadow-lg p-4 w-[520px]"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCalendarBaseMonth(
+                      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+                    )
+                  }
+                  className="w-8 h-8 border border-gray-200 rounded flex items-center justify-center"
+                  aria-label="Previous month"
+                >
+                  ‹
+                </button>
+                <div className="flex items-center gap-10">
+                  <div className="text-sm font-medium">{monthLabel(calendarBaseMonth)}</div>
+                  <div className="text-sm font-medium">
+                    {monthLabel(new Date(calendarBaseMonth.getFullYear(), calendarBaseMonth.getMonth() + 1, 1))}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCalendarBaseMonth(
+                      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+                    )
+                  }
+                  className="w-8 h-8 border border-gray-200 rounded flex items-center justify-center"
+                  aria-label="Next month"
+                >
+                  ›
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                {[0, 1].map((offset) => {
+                  const m = new Date(
+                    calendarBaseMonth.getFullYear(),
+                    calendarBaseMonth.getMonth() + offset,
+                    1
+                  );
+                  const weeks = buildMonth(m.getFullYear(), m.getMonth());
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return (
+                    <div
+                      key={offset}
+                      className="select-none bg-white rounded-md shadow p-3 border border-gray-200"
+                    >
+                      <div className="grid grid-cols-7 text-[11px] text-gray-500 mb-2">
+                        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
+                          <div key={d} className="text-center">{d}</div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-7 gap-1">
+                        {weeks.flat().map(({ date, inMonth }) => {
+                          const isStart = customStart && isSameDay(date, customStart);
+                          const isEnd = customEnd && isSameDay(date, customEnd);
+                          const isIn = inRange(date);
+                          const isToday = isSameDay(date, today);
+                          const base =
+                            "w-8 h-8 rounded flex items-center justify-center text-sm";
+                          const muted = inMonth ? "text-gray-800" : "text-gray-300";
+                          const rangeBg = isIn ? "bg-yellow-100" : "";
+                          const edgeBg = isStart || isEnd ? "bg-yellow-400 text-black font-medium" : "";
+                          const todayRing = isToday ? "ring-1 ring-gray-300" : "";
+                          return (
+                            <button
+                              key={`${offset}-${date.toISOString()}`}
+                              type="button"
+                              onClick={() => handleDayPick(date)}
+                              className={`${base} ${muted} ${rangeBg} ${edgeBg} ${todayRing}`}
+                            >
+                              {date.getDate()}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
-        <div className="w-[15%]">
+        <div className="w-[180px]">
           <Select
             value={filterValues.supplier as string}
             onChange={(value) => setFilterValue('supplier', value)}
             options={supplierOptions}
+            placeholder="Filter by Supplier"
+            className="border-gray-200 bg-white"
           />
         </div>
         <button
@@ -556,7 +788,7 @@ export default function PurchaseOrderPOList() {
         </button>
       </div>
       {/* TABLE */}
-      <div className="bg-white border rounded-xl overflow-x-auto">
+      <div className="bg-white border border-[#EADFC2] rounded-md overflow-x-auto">
         {loading ? (
           <div className="flex justify-center py-12">
             <LoadingSpinner size="lg" message="Loading purchase orders..." />
@@ -579,27 +811,29 @@ export default function PurchaseOrderPOList() {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-bb-primary">
+            <thead className="bg-yellow-400 text-black">
               <tr>
-                <th className="px-4 py-3">Sl No</th>
-                <th className="px-4 py-3">Created on</th>
-                <th className="px-4 py-3">PO Invoice</th>
-                <th className="px-4 py-3">Supplier Name</th>
-                <th className="px-4 py-3">Branch Name</th>
-                <th className="px-4 py-3">Amount paid</th>
-                <th className="px-4 py-3">Grand Total</th>
-                <th className="px-4 py-3">Recurring</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-center">Actions</th>
+                <th className="px-4 py-3 text-left font-medium">Sl. No.</th>
+                <th className="px-4 py-3 text-left font-medium">Created on</th>
+                <th className="px-4 py-3 text-left font-medium">PO Invoice</th>
+                <th className="px-4 py-3 text-left font-medium">Supplier Name</th>
+                <th className="px-4 py-3 text-left font-medium">Branch Name</th>
+                <th className="px-4 py-3 text-left font-medium">Amount Paid</th>
+                <th className="px-4 py-3 text-left font-medium">Grand Total</th>
+                <th className="px-4 py-3 text-left font-medium">Status</th>
+                <th className="px-4 py-3 text-center font-medium">Actions</th>
               </tr>
             </thead>
 
             <tbody>
               {filteredPurchaseOrders.map((po, index) => (
-                <tr key={po.id} className="border-t odd:bg-white even:bg-bb-bg">
+                <tr
+                  key={po.id}
+                  className={`border-t ${index % 2 ? "bg-[#FFF9E8]" : "bg-white"}`}
+                >
                   <td className="px-4 py-3">{index + 1}</td>
                   <td className="px-4 py-3">
-                    {new Date(po.createdAt).toLocaleDateString()}
+                    {formatDate(po.createdAt)}
                   </td>
                   <td className="px-4 py-3">{po.invoiceNumber || "N/A"}</td>
                   <td className="px-4 py-3">{po.supplier.name}</td>
@@ -611,45 +845,9 @@ export default function PurchaseOrderPOList() {
                     ₹ {po.grandTotal.toLocaleString()}
                   </td>
 
-                  {/* Recurring Column */}
-                  <td className="px-4 py-3">
-                    {po.isRecurring ? (
-                      <div className="flex flex-col items-start gap-1">
-                        <div className="flex items-center gap-1">
-                          <RefreshCw size={12} className="text-blue-600" />
-                          <span className="text-xs font-medium text-blue-700">
-                            {po.recurrenceFrequency}
-                          </span>
-                        </div>
-                        {po.nextScheduledDate && (
-                          <span className="text-[10px] text-gray-500">
-                            Next: {new Date(po.nextScheduledDate).toLocaleDateString()}
-                          </span>
-                        )}
-                        <button
-                          onClick={() => handleToggleRecurrence(po)}
-                          className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full ${
-                            po.recurrenceStatus === 'Paused'
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                              : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                          }`}
-                          title={po.recurrenceStatus === 'Paused' ? 'Resume recurring PO' : 'Pause recurring PO'}
-                        >
-                          {po.recurrenceStatus === 'Paused' ? (
-                            <><Play size={10} /> Resume</>
-                          ) : (
-                            <><Pause size={10} /> Pause</>
-                          )}
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">-</span>
-                    )}
-                  </td>
-
                   <td className="px-4 py-3">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusClass(
+                      className={`px-3 py-1 rounded-md text-xs font-medium ${getStatusClass(
                         po.status,
                       )}`}
                     >
@@ -658,27 +856,53 @@ export default function PurchaseOrderPOList() {
                   </td>
 
                   <td className="px-4 py-3 text-center">
-                    <Actions
-                      actions={["view", "edit", "delete", "resend", "download"]}
-                      onView={() =>
-                        navigate(`/purchaseorder/polist/view/${po.id}`)
-                      }
-                      onEdit={() =>
-                        navigate(`/purchaseorder/polist/edit/${po.id}`)
-                      }
-                      onDelete={() => {
-                        setSelectedId(po.id);
-                        setDeleteOpen(true);
-                      }}
-                      onResend={() => {
-                        setSelectedId(po.id);
-                        setResendConfirmOpen(true);
-                      }}
-                      onDownload={() => {
-                        handleDownloadPdf(po.id);
-                      }}
-                    />
-                  </td>
+  {(() => {
+    const actions: ActionType[] =
+      po.status === "Approved"
+        ? ["view", "resend", "download", "logs"]
+        : po.status === "Pending"
+          ? ["view", "edit", "delete", "resend"]
+          : po.status === "Declined"
+            ? ["view", "resend", "download", "logs"]
+            : ["view", "download", "logs"];
+
+    return (
+      <Actions
+        actions={actions}
+        onView={() => navigate(`/purchaseorder/polist/view/${po.id}`)}
+        onEdit={
+          actions.includes("edit")
+            ? () => navigate(`/purchaseorder/polist/edit/${po.id}`)
+            : undefined
+        }
+        onDelete={
+          actions.includes("delete")
+            ? () => {
+                setSelectedId(po.id);
+                setDeleteOpen(true);
+              }
+            : undefined
+        }
+        onResend={
+          actions.includes("resend")
+            ? () => handleResend(po.id)
+            : undefined
+        }
+        onDownload={
+          actions.includes("download")
+            ? () => handleDownloadPdf(po.id)
+            : undefined
+        }
+        onLogs={
+          actions.includes("logs")
+            ? () =>
+                setError("Logs & Transactions is not available yet.")
+            : undefined
+        }
+      />
+    );
+  })()}
+</td>
                 </tr>
               ))}
             </tbody>
@@ -687,17 +911,69 @@ export default function PurchaseOrderPOList() {
       </div>
 
       {/* Pagination Controls */}
-      {!loading && filteredPurchaseOrders.length > 0 && (
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          totalItems={totalItems}
-          itemsPerPage={pageSize}
-          onPageChange={setPage}
-          onItemsPerPageChange={setPageSize}
-          pageSizeOptions={[10, 25, 50, 100]}
-          showPageSize={true}
-        />
+      {!loading && filteredPurchaseOrders.length > 0 && totalPages > 1 && (
+        <div className="flex justify-end pt-2">
+          <div className="flex items-center gap-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              className="w-7 h-7 border border-gray-300 rounded flex items-center justify-center disabled:opacity-50"
+              aria-label="First page"
+            >
+              «
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="w-7 h-7 border border-gray-300 rounded flex items-center justify-center disabled:opacity-50"
+              aria-label="Previous page"
+            >
+              ‹
+            </button>
+
+            {getPageNumbers().map((p, i) =>
+              p === "..." ? (
+                <span key={`dots-${i}`} className="px-2 text-gray-500">
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={`p-${p}`}
+                  type="button"
+                  onClick={() => setPage(p as number)}
+                  className={`w-7 h-7 border rounded flex items-center justify-center ${
+                    page === p
+                      ? "bg-yellow-400 border-yellow-400 font-medium"
+                      : "border-gray-300 bg-white hover:bg-gray-50"
+                  }`}
+                >
+                  {p}
+                </button>
+              )
+            )}
+
+            <button
+              type="button"
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
+              className="w-7 h-7 border border-gray-300 rounded flex items-center justify-center disabled:opacity-50"
+              aria-label="Next page"
+            >
+              ›
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage(totalPages)}
+              disabled={page === totalPages}
+              className="w-7 h-7 border border-gray-300 rounded flex items-center justify-center disabled:opacity-50"
+              aria-label="Last page"
+            >
+              »
+            </button>
+          </div>
+        </div>
       )}
 
       <Modal
@@ -734,7 +1010,10 @@ export default function PurchaseOrderPOList() {
       </Modal>
       <Modal
         open={deletedOpen}
-        onClose={() => setDeletedOpen(false)}
+        onClose={() => {
+          setDeletedOpen(false);
+          fetchPurchaseOrders();
+        }}
         className="w-[90%] max-w-md p-8 text-center"
       >
         <h2 className="text-2xl font-bold mb-6">Deleted!</h2>
@@ -747,52 +1026,13 @@ export default function PurchaseOrderPOList() {
           Purchase order has been successfully removed.
         </p>
       </Modal>
-      <Modal
-        open={resendConfirmOpen}
-        onClose={() => !resendSending && setResendConfirmOpen(false)}
-        className="w-[90%] max-w-md p-8 text-center"
-      >
-        <h2 className="text-2xl font-bold mb-4">Resend Email</h2>
-
-        <p className="text-sm text-gray-600 mb-6">
-          Are you sure you want to resend the <br />
-          purchase order email to the supplier?
-        </p>
-
-        <div className="flex justify-center gap-4">
-          <button
-            onClick={() => setResendConfirmOpen(false)}
-            disabled={resendSending}
-            className="border border-black px-6 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={handleResendConfirm}
-            disabled={resendSending}
-            className="bg-yellow-400 px-8 py-2 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {resendSending ? "Sending..." : "Yes, Send"}
-          </button>
-        </div>
-      </Modal>
-      <Modal
-        open={resendOpen}
-        onClose={() => setResendOpen(false)}
-        className="w-[90%] max-w-md p-8 text-center"
-      >
-        <h2 className="text-2xl font-bold mb-6">Mail Sent</h2>
-
-        <div className="flex justify-center mb-6">
-          <img src={sucesstickImg} alt="Mail Sent" className="w-16 h-16" />
-        </div>
-
-        <p className="text-sm text-gray-600">
-          Mail successfully sent to supplier registered <br />
-          email address.
-        </p>
-      </Modal>
     </div>
   );
+  type ActionType =
+  | "view"
+  | "edit"
+  | "delete"
+  | "resend"
+  | "download"
+  | "logs";
 }

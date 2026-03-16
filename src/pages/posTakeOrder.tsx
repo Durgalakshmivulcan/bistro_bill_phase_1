@@ -75,27 +75,28 @@ const POSPage: React.FC = () => {
   navigate(entryPath);
 };
   return (
-    <div className="min-h-screen bg-bb-bg p-3 sm:p-4 lg:p-6">
+    <div className="min-h-screen bg-[#F9F4E8]">
       {/* Header */}
-      <POSHeader />
-      <div className="flex items-center gap-3 mb-4">
-        <button
-          onClick={handleBack}
-          className="text-[#655016] hover:opacity-80 transition text-lg"
-          aria-label="Back"
-        >
-          ←
-        </button>
+      <div className="px-3 sm:px-4 lg:px-6">
+        <POSHeader />
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={handleBack}
+            className="text-[#655016] hover:opacity-80 transition text-lg"
+            aria-label="Back"
+          >
+            ←
+          </button>
 
-        <h1 className="text-sm sm:text-base lg:text-lg font-medium text-[#655016]">
-          Point Of Sale
-        </h1>
+          <h1 className="text-sm sm:text-base lg:text-lg font-medium text-[#655016]">
+            Point Of Sale
+          </h1>
+        </div>
       </div>
 
       {/* Main Layout */}
-      <div className="relative grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-[2.2fr_1fr]">
+      <div className="relative grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-[1.65fr_1fr] xl:grid-cols-[1.8fr_1fr] max-w-screen-2xl mx-auto px-3 sm:px-4 lg:px-6 pb-6">
         {/* Left Section */}
-
         <div className="space-y-4">
 
           <DiscountSection
@@ -114,7 +115,7 @@ const POSPage: React.FC = () => {
         </div>
 
         {/* Desktop / Tablet Order Panel */}
-        <div className="hidden xl:block h-[calc(100vh-120px)] sticky top-6 overflow-y-auto overflow-x-hidden min-w-0">
+        <div className="hidden lg:block h-[calc(100vh-140px)] sticky top-6 overflow-y-auto overflow-x-hidden min-w-0 bg-white rounded-2xl shadow-sm border border-[#EADFC2]">
           <OrderPanel />
         </div>
 
@@ -122,7 +123,7 @@ const POSPage: React.FC = () => {
         <button
           onClick={() => setOpenOrderPanel(true)}
           className="
-            fixed right-0 top-1/2 -translate-y-1/2 z-40 xl:hidden
+            fixed right-0 top-1/2 -translate-y-1/2 z-40 lg:hidden
             h-20 sm:h-24 w-8 bg-gray-700 text-white rounded-lg
             flex items-center justify-center shadow-lg
           "
@@ -133,7 +134,7 @@ const POSPage: React.FC = () => {
 
         {/* Mobile Order Panel Drawer */}
         {openOrderPanel && (
-          <div className="fixed inset-0 z-50 xl:hidden">
+          <div className="fixed inset-0 z-50 lg:hidden">
             <div
               className="absolute inset-0 bg-black/40"
               onClick={() => setOpenOrderPanel(false)}

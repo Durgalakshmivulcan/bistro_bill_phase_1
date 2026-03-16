@@ -5,7 +5,7 @@ import { getSupplierPerformance, updateSupplierRating } from '../controllers/sup
 import { listPurchaseOrders, getPurchaseOrderDetail, createPurchaseOrder, addPurchaseOrderItem, updatePurchaseOrderItem, deletePurchaseOrderItem, updatePurchaseOrderStatus, deletePurchaseOrder, importPurchaseOrders, resendPurchaseOrderEmail, downloadPurchaseOrderPdf } from '../controllers/purchaseOrder.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { tenantMiddleware } from '../middleware/tenant.middleware';
-import { requirePermission } from '../middleware/rbac.middleware';
+import { requireAnyPermission, requirePermission } from '../middleware/rbac.middleware';
 import { branchScopeMiddleware } from '../middleware/branchScope.middleware';
 import { csvUpload } from '../middleware/upload.middleware';
 
@@ -192,7 +192,17 @@ router.get('/purchase-orders/:id/download', authenticate, tenantMiddleware, requ
  * Recalculates PO grandTotal after adding
  * Only allowed when PO status is 'Pending'
  */
-router.post('/purchase-orders/:id/items', authenticate, tenantMiddleware, requirePermission('purchase_orders', 'create'), addPurchaseOrderItem);
+router.post(
+  '/purchase-orders/:id/items',
+  authenticate,
+  tenantMiddleware,
+  // Allow adding items during both create and edit flows
+  requireAnyPermission([
+    ['purchase_orders', 'create'],
+    ['purchase_orders', 'update'],
+  ]),
+  addPurchaseOrderItem
+);
 
 /**
  * PUT /api/v1/inventory/purchase-orders/:id/items/:itemId

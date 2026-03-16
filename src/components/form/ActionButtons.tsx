@@ -6,6 +6,7 @@ import {
   Star,
   Mail,
   Download,
+  FileText,
   RefreshCcw,
   Clock, // ✅ UNAVAILABLE ICON
   Package, // ✅ ADJUST STOCK ICON
@@ -21,35 +22,37 @@ type ActionType =
   | "updateStatus"
   | "favourite"
   | "download"
-  | "unavailable" // ✅ UNAVAILABLE ICON
-  | "adjustStock"; // ✅ ADD THIS
+  | "logs"        // ✅ ADD THIS
+  | "unavailable"
+  | "adjustStock";
+  interface ActionsMenuProps {
+    actions: ActionType[];
+    onView?: () => void;
+    onEdit?: () => void;
+    onDelete?: () => void;
+    onFavourite?: () => void;
+    onResend?: () => void;
+    onDownload?: () => void;
+    onUpdateStatus?: () => void;
+    onUnavailable?: () => void;
+    onAdjustStock?: () => void;
+    onLogs?: () => void; // ✅ ADD THIS
+  }
 
-interface ActionsMenuProps {
-  actions: ActionType[];
-  onView?: () => void;
-  onEdit?: () => void;
-  onDelete?: () => void;
-  onFavourite?: () => void;
-  onResend?: () => void;
-  onDownload?: () => void;
-  onUpdateStatus?: () => void;
-  onUnavailable?: () => void; // ✅ UNAVAILABLE ICON
-  onAdjustStock?: () => void; // ✅ ADD THIS
-}
-
-export default function ActionsMenu({
-  actions,
-  onView,
-  onEdit,
-  onDelete,
-  onResend,
-  onFavourite,
-  onDownload,
-  onUpdateStatus,
-  onUnavailable, // ✅ UNAVAILABLE ICON
-  onAdjustStock, // ✅ ADD THIS
-}: ActionsMenuProps) {
-  const [open, setOpen] = useState(false);
+  export default function ActionsMenu({
+    actions,
+    onView,
+    onEdit,
+    onDelete,
+    onResend,
+    onFavourite,
+    onDownload,
+    onUpdateStatus,
+    onUnavailable,
+    onAdjustStock,
+    onLogs, // ✅ ADD THIS
+  }: ActionsMenuProps){
+      const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   // close on outside click
@@ -155,7 +158,16 @@ export default function ActionsMenu({
               onClick={() => closeAndRun(onDownload)}
               className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100 w-full"
             >
-              <Download size={14} /> Logs & Transactions
+              <Download size={14} /> Download
+            </button>
+          )}
+
+          {actions.includes("logs") && (
+            <button
+              onClick={() => closeAndRun(onLogs)}
+              className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100 w-full"
+            >
+              <FileText size={14} /> Logs &amp; Transactions
             </button>
           )}
         </div>
