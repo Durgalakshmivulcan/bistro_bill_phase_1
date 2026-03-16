@@ -100,6 +100,12 @@ export function requireTenantContext(
   res: Response,
   next: NextFunction
 ): void {
+  // SuperAdmin can proceed without tenant context (controllers may choose to scope or return all)
+  if (req.user?.userType === 'SuperAdmin') {
+    next();
+    return;
+  }
+
   // Check if user is authenticated
   if (!req.user) {
     const response: ApiResponse = {

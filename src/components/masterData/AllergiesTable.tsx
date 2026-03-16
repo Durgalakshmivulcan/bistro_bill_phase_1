@@ -132,8 +132,16 @@ const AllergiesTable = ({ allergens, onDeleted }: Props) => {
             setShowSuccess(false);
             setDeleteItem(null);
           }}
-          className="w-[90%] max-w-md p-6 text-center z-[9999]"
+          className="w-[90%] max-w-md p-8 text-center z-[9999]"
         >
+          <button
+            onClick={() => setShowSuccess(false)}
+            className="absolute right-4 top-4 text-gray-500 hover:text-black"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+
           <h2 className="text-2xl font-bold mb-4">Deleted!</h2>
 
           <div className="flex justify-center mb-4">

@@ -19,6 +19,7 @@ const MasterTaxGroupPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
 
   // Modal state
   const [deleteItem, setDeleteItem] = useState<TaxGroup | null>(null);
@@ -75,11 +76,20 @@ const MasterTaxGroupPage = () => {
 
   // Filter tax groups based on search term
   const filteredTaxGroups = taxGroups.filter((group) =>
-    group.name.toLowerCase().includes(searchTerm.toLowerCase())
+    group.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (countryFilter ? group.taxGroupItems?.some(i => (i.tax.country || "").toLowerCase() === countryFilter.toLowerCase()) : true)
+  );
+
+  const countryOptions = Array.from(
+    new Set(
+      taxGroups.flatMap(g =>
+        g.taxGroupItems?.map(i => i.tax.country || "").filter(Boolean) || []
+      )
+    )
   );
 
   return (
-    <div className="space-y-6 bg-bb-bg min-h-screen p-4 sm:p-6">
+    <div className="space-y-6 min-h-screen p-4 sm:p-6">
       {/* TABS */}
       <MasterDataNavTabs />
 
@@ -100,10 +110,20 @@ const MasterTaxGroupPage = () => {
         </div>
 
         {/* ACTIONS */}
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto md:justify-end">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto md:justify-end items-stretch sm:items-center">
+          <select
+            value={countryFilter}
+            onChange={(e) => setCountryFilter(e.target.value)}
+            className="border border-gray-300 rounded-md px-4 py-2 text-sm bg-white min-w-[180px]"
+          >
+            <option value="">Filter by Country</option>
+            {countryOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
           <button
             className="bg-yellow-400 px-5 py-2 rounded-md border border-black text-sm font-medium w-full sm:w-auto"
-            onClick={() => setSearchTerm("")}
+            onClick={() => { setSearchTerm(""); setCountryFilter(""); }}
           >
             Clear
           </button>
@@ -133,7 +153,7 @@ const MasterTaxGroupPage = () => {
 
       {/* TABLE */}
       {!loading && !error && (
-        <div className="overflow-x-auto bg-white rounded-lg border">
+        <div className="overflow-x-auto bg-white rounded-lg border shadow-[0_1px_6px_rgba(0,0,0,0.05)]">
           {filteredTaxGroups.length === 0 ? (
             <div className="p-8 text-center text-gray-600">
               {searchTerm ? `No tax groups found matching "${searchTerm}"` : 'No tax groups found. Click "Add New" to create one.'}
@@ -143,9 +163,9 @@ const MasterTaxGroupPage = () => {
               <thead className="bg-yellow-400">
                 <tr>
                   <th className="px-4 py-3 text-left">Tax Group Name</th>
-                  <th className="px-4 py-3 text-left">Taxes</th>
-                  <th className="px-4 py-3 text-left">Total Percentage</th>
-                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Symbol</th>
+                  <th className="px-4 py-3 text-left">Percentage</th>
+                  <th className="px-4 py-3 text-left">Country</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -159,19 +179,15 @@ const MasterTaxGroupPage = () => {
                     <td className="px-4 py-3 font-medium">{item.name}</td>
 
                     <td className="px-4 py-3 font-medium">
-                      {item.taxGroupItems?.map(i => i.tax.name).join(', ') || '-'}
+                      {item.symbol || (item.taxGroupItems?.map(i => i.tax.symbol || i.tax.name).join(' + ') || '-')}
                     </td>
 
                     <td className="px-4 py-3 font-medium">
-                      {item.taxGroupItems?.reduce((sum, i) => sum + i.tax.percentage, 0) || 0}%
+                      {(item.percentage ?? item.taxGroupItems?.reduce((sum, i) => sum + i.tax.percentage, 0) ?? 0)}%
                     </td>
 
                     <td className="px-4 py-3 font-medium">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        item.status === 'active' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {item.status || 'active'}
-                      </span>
+                      {item.country || item.taxGroupItems?.[0]?.tax.country || "-"}
                     </td>
 
                     <td className="px-4 py-3 text-right">

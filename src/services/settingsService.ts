@@ -72,6 +72,11 @@ export interface TaxGroup {
   id: string;
   businessOwnerId: string;
   name: string;
+  symbol?: string | null;
+  percentage?: number | null;
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
   status: string; // 'active' | 'inactive'
   createdAt: string;
   updatedAt: string;
@@ -81,12 +86,22 @@ export interface TaxGroup {
 export interface CreateTaxGroupInput {
   name: string;
   status?: string;
+  symbol?: string;
+  percentage?: number;
+  country?: string;
+  state?: string;
+  city?: string;
   taxIds: string[]; // Array of tax IDs to include in the group
 }
 
 export interface UpdateTaxGroupInput {
   name?: string;
   status?: string;
+  symbol?: string;
+  percentage?: number;
+  country?: string;
+  state?: string;
+  city?: string;
   taxIds?: string[];
 }
 

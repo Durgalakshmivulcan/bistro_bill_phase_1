@@ -167,7 +167,7 @@ const MenuListView = ({ searchQuery, categoryId, menuId, barcode }: MenuListView
   }
 
   return (
-    <div className="mt-6 divide-y rounded-xl bg-white">
+    <div className="mt-6 divide-y rounded-xl bg-white border border-[#F0E6C7] shadow-[0_1px_6px_rgba(0,0,0,0.04)]">
 
       {products.map((item) => {
   const count = getCartQty(item.id);
@@ -176,10 +176,10 @@ const MenuListView = ({ searchQuery, categoryId, menuId, barcode }: MenuListView
     <div
       key={item.id}
       className="
-        grid grid-cols-[0.3fr_1.4fr_auto]
-        items-center
+        grid grid-cols-[1fr_auto]
+        md:grid-cols-[1fr_auto_auto]
+        items-center gap-4
         px-4 py-3
-        border-b
       "
     >
       {/* ================= LEFT: NAME ================= */}
@@ -190,20 +190,15 @@ const MenuListView = ({ searchQuery, categoryId, menuId, barcode }: MenuListView
       </div>
 
       {/* ================= CENTER: PRICE ================= */}
-      <div className="flex items-center gap-3 text-sm">
-
-        {item.discount && (
-          <span className="text-green-600 font-semibold text-xs">
-            {item.discount}
-          </span>
-        )}
-
-        <span className="font-semibold">
-          ₹{item.price.toFixed(2)}
+      <div className="flex items-center gap-3 text-sm text-right md:text-left">
+        <span className="text-green-600 font-semibold text-xs uppercase">
+          {item.discount || "20% OFF"}
         </span>
-
+        <span className="font-semibold text-gray-900">
+          ₹ {item.price.toFixed(2)}
+        </span>
         <span className="line-through text-gray-400 text-xs">
-          ₹{(item.price + 30).toFixed(2)}
+          ₹ {(item.price + 30).toFixed(2)}
         </span>
       </div>
 
@@ -215,11 +210,9 @@ const MenuListView = ({ searchQuery, categoryId, menuId, barcode }: MenuListView
             disabled
             className="
               flex items-center gap-2
-              rounded-lg
-              bg-yellow-100
-              px-4 py-1.5
-              text-xs
-              text-gray-400
+              rounded-lg border border-gray-200
+              bg-gray-100
+              px-4 py-1.5 text-xs text-gray-400
             "
           >
             ✕ Not Available

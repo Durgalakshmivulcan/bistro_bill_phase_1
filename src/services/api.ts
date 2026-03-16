@@ -2,6 +2,18 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResp
 import { getAccessToken, getRefreshToken, clearTokens, storeTokens, isTokenExpired } from '../utils/tokenManager';
 import { getSelectedBoId } from './saReportContext';
 
+// Fallback: read persisted tenant selection (used by some screens)
+function getPersistedTenantId(): string | null {
+  return (
+    getSelectedBoId() ||
+    localStorage.getItem('selectedBoId') ||
+    localStorage.getItem('selectedTenantId') ||
+    sessionStorage.getItem('selectedBoId') ||
+    sessionStorage.getItem('selectedTenantId') ||
+    null
+  );
+}
+
 
 /**
  * API Service Foundation
@@ -92,28 +104,18 @@ apiClient.interceptors.request.use(
  */
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const boId = getSelectedBoId();
+    const boId = getPersistedTenantId();
     if (!boId || !config.url) {
       return config;
     }
 
-    const isReportOrDashboardRoute =
-      config.url.includes('/reports/') || config.url.includes('/dashboard/');
-    const isPaymentsRoute =
-      config.url === '/payments' ||
-      config.url.startsWith('/payments/') ||
-      config.url.startsWith('/payments?');
-    const isTenantScopedContentRoute =
-      config.url.startsWith('/blog/') || config.url.startsWith('/resources/');
+    // Apply tenant hints broadly for SuperAdmin impersonation so create/update works (taxes, tax-groups, etc.)
+    config.params = { ...config.params, boId, tenantId: boId };
+    config.headers = config.headers ?? {};
+    config.headers['x-tenant-id'] = boId;
+    config.headers['x-business-owner-id'] = boId;
+    config.headers['x-bo-id'] = boId;
 
-    if (isReportOrDashboardRoute || isPaymentsRoute || isTenantScopedContentRoute) {
-      config.params = { ...config.params, boId, tenantId: boId };
-      config.headers = config.headers ?? {};
-      // Send tenant hints both as query and headers for APIs using header-based tenant resolution.
-      config.headers['x-tenant-id'] = boId;
-      config.headers['x-business-owner-id'] = boId;
-      config.headers['x-bo-id'] = boId;
-    }
     return config;
   }
 );

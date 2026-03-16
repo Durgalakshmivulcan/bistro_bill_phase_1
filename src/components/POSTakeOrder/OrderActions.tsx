@@ -54,7 +54,7 @@ const OrderActions = ({ onResetOrder, onHoldOrder, onCancelOrder, onSaveNotes, c
   return (
     <>
       {/* ACTION BUTTONS */}
-      <div className="mt-4 grid grid-cols-4 gap-3">
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
         {actions.map(({ label, icon: Icon, key }) => {
           const isActive = activeAction === key;
 
@@ -70,9 +70,8 @@ const OrderActions = ({ onResetOrder, onHoldOrder, onCancelOrder, onSaveNotes, c
                 if (key === "cancel") setCancelOpen(true);
               }}
               className={`
-                flex flex-col items-center justify-center gap-2
-                rounded-xl p-3 text-sm font-medium transition
-                active:scale-95
+                flex flex-col items-center justify-center gap-2 text-center
+                rounded-xl p-3 text-sm font-medium transition active:scale-95
                 ${
                   isActive
                     ? "bg-bb-primary text-black"

@@ -6,8 +6,9 @@ import { prisma } from '../services/db.service';
 export const getTaxes = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const tenantId = req.tenantId;
+    const isSuperAdmin = req.user?.userType === 'SuperAdmin';
 
-    if (!tenantId) {
+    if (!tenantId && !isSuperAdmin) {
       return res.status(403).json({
         success: false,
         error: {
@@ -20,9 +21,7 @@ export const getTaxes = async (req: AuthenticatedRequest, res: Response) => {
     // Optional status filter
     const { status } = req.query;
 
-    const where: any = {
-      businessOwnerId: tenantId,
-    };
+    const where: any = tenantId ? { businessOwnerId: tenantId } : {};
 
     if (status) {
       where.status = status as string;
@@ -269,8 +268,9 @@ export const deleteTax = async (req: AuthenticatedRequest, res: Response) => {
 export const getTaxGroups = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const tenantId = req.tenantId;
+    const isSuperAdmin = req.user?.userType === 'SuperAdmin';
 
-    if (!tenantId) {
+    if (!tenantId && !isSuperAdmin) {
       return res.status(403).json({
         success: false,
         error: {
@@ -281,9 +281,7 @@ export const getTaxGroups = async (req: AuthenticatedRequest, res: Response) => 
     }
 
     const taxGroups = await prisma.taxGroup.findMany({
-      where: {
-        businessOwnerId: tenantId,
-      },
+      where: tenantId ? { businessOwnerId: tenantId } : {},
       include: {
         taxGroupItems: {
           include: {
@@ -294,7 +292,6 @@ export const getTaxGroups = async (req: AuthenticatedRequest, res: Response) => 
       orderBy: { createdAt: 'desc' },
     });
 
-    // Calculate combined rate for each tax group
     const taxGroupsWithRate = taxGroups.map((group) => {
       const combinedRate = group.taxGroupItems.reduce((sum, item) => {
         return sum + Number(item.tax.percentage);
@@ -304,6 +301,11 @@ export const getTaxGroups = async (req: AuthenticatedRequest, res: Response) => 
         ...group,
         combinedRate,
         taxCount: group.taxGroupItems.length,
+        percentage: group.percentage ?? combinedRate,
+        symbol: group.symbol ?? group.taxGroupItems.map(i => i.tax.symbol || i.tax.name).join(' + '),
+        country: group.country ?? group.taxGroupItems[0]?.tax.country ?? null,
+        state: group.state ?? group.taxGroupItems[0]?.tax.state ?? null,
+        city: group.city ?? group.taxGroupItems[0]?.tax.city ?? null,
       };
     });
 
@@ -338,7 +340,7 @@ export const createTaxGroup = async (req: AuthenticatedRequest, res: Response) =
       });
     }
 
-    const { name, taxIds, status } = req.body;
+    const { name, taxIds, status, symbol, percentage, country, state, city } = req.body;
 
     // Validate required fields
     if (!name || !taxIds || !Array.isArray(taxIds)) {
@@ -374,6 +376,11 @@ export const createTaxGroup = async (req: AuthenticatedRequest, res: Response) =
       data: {
         businessOwnerId: tenantId,
         name,
+        symbol: symbol || null,
+        percentage: percentage !== undefined ? Number(percentage) : null,
+        country: country || null,
+        state: state || null,
+        city: city || null,
         status: status || 'active',
         taxGroupItems: {
           create: taxIds.map((taxId: string) => ({
@@ -449,12 +456,17 @@ export const updateTaxGroup = async (req: AuthenticatedRequest, res: Response) =
       });
     }
 
-    const { name, taxIds, status } = req.body;
+    const { name, taxIds, status, symbol, percentage, country, state, city } = req.body;
 
     // Update basic fields
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (status !== undefined) updateData.status = status;
+    if (symbol !== undefined) updateData.symbol = symbol;
+    if (percentage !== undefined) updateData.percentage = Number(percentage);
+    if (country !== undefined) updateData.country = country;
+    if (state !== undefined) updateData.state = state;
+    if (city !== undefined) updateData.city = city;
 
     // Update tax group
     await prisma.taxGroup.update({
@@ -518,6 +530,11 @@ export const updateTaxGroup = async (req: AuthenticatedRequest, res: Response) =
       data: {
         ...taxGroup,
         combinedRate,
+        percentage: taxGroup?.percentage ?? combinedRate,
+        symbol: taxGroup?.symbol ?? taxGroup?.taxGroupItems.map(i => i.tax.symbol || i.tax.name).join(' + '),
+        country: taxGroup?.country ?? taxGroup?.taxGroupItems[0]?.tax.country ?? null,
+        state: taxGroup?.state ?? taxGroup?.taxGroupItems[0]?.tax.state ?? null,
+        city: taxGroup?.city ?? taxGroup?.taxGroupItems[0]?.tax.city ?? null,
       },
       message: 'Tax group updated successfully',
     });

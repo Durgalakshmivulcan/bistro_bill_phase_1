@@ -1,7 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import Input from "../form/Input";
-import Modal from "../ui/Modal";
 import {
   getTaxGroups,
   getTaxes,
@@ -10,12 +8,6 @@ import {
   TaxGroup,
   Tax,
 } from "../../services/settingsService";
-
-// Images
-import createSuccessImg from "../../assets/tick.png";
-import updateSuccessImg from "../../assets/tick.png";
-
-type SuccessType = "create" | "edit" | null;
 
 const CreateTaxGroupPage = () => {
   const navigate = useNavigate();
@@ -27,15 +19,17 @@ const CreateTaxGroupPage = () => {
 
   // FORM STATE
   const [name, setName] = useState("");
+  const [symbol, setSymbol] = useState("");
+  const [percentage, setPercentage] = useState("");
+  const [country, setCountry] = useState("");
+  const [stateValue, setStateValue] = useState("");
+  const [city, setCity] = useState("");
   const [selectedTaxIds, setSelectedTaxIds] = useState<string[]>([]);
-  const [availableTaxes, setAvailableTaxes] = useState<Tax[]>([]);
 
   // UI STATE
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [successType, setSuccessType] = useState<SuccessType>(null);
 
   // Fetch available taxes and tax group data
   useEffect(() => {
@@ -47,14 +41,7 @@ const CreateTaxGroupPage = () => {
   }, [id, isEditMode, isViewMode]);
 
   const fetchTaxes = async () => {
-    try {
-      const response = await getTaxes({ status: 'active' });
-      if (response.success && response.data) {
-        setAvailableTaxes(response.data);
-      }
-    } catch (err) {
-      console.error('Error fetching taxes:', err);
-    }
+    // Keeping empty to satisfy call chain; taxes are not shown in UI per latest design.
   };
 
   const fetchTaxGroup = async (taxGroupId: string) => {
@@ -65,6 +52,12 @@ const CreateTaxGroupPage = () => {
         const taxGroup = response.data.find((t: TaxGroup) => t.id === taxGroupId);
         if (taxGroup) {
           setName(taxGroup.name);
+          setSymbol(taxGroup.taxGroupItems?.map(item => item.tax.symbol || item.tax.name).join(" + ") || "");
+          const totalPerc = taxGroup.taxGroupItems?.reduce((sum, i) => sum + i.tax.percentage, 0) || 0;
+          setPercentage(totalPerc.toString());
+          setCountry(taxGroup.taxGroupItems?.[0]?.tax.country || "");
+          setStateValue(taxGroup.taxGroupItems?.[0]?.tax.state || "");
+          setCity(taxGroup.taxGroupItems?.[0]?.tax.city || "");
           setSelectedTaxIds(taxGroup.taxGroupItems?.map(item => item.taxId) || []);
         } else {
           setError("Tax group not found");
@@ -86,8 +79,18 @@ const CreateTaxGroupPage = () => {
       return false;
     }
 
-    if (selectedTaxIds.length === 0) {
-      setError("Please select at least one tax.");
+    if (!symbol.trim()) {
+      setError("Please enter a tax symbol.");
+      return false;
+    }
+
+    if (!percentage || isNaN(Number(percentage))) {
+      setError("Please enter a valid percentage.");
+      return false;
+    }
+
+    if (!country.trim()) {
+      setError("Please select a country.");
       return false;
     }
 
@@ -104,26 +107,29 @@ const CreateTaxGroupPage = () => {
 
       const taxGroupData = {
         name,
+        symbol,
+        percentage: Number(percentage),
+        country,
+        state: stateValue,
+        city,
         taxIds: selectedTaxIds,
         status: 'active' as const
       };
 
       if (isEditMode && id) {
         const response = await updateTaxGroup(id, taxGroupData);
-        if (response.success) {
-          setSuccessType("edit");
-          setShowSuccess(true);
-        } else {
+        if (!response.success) {
           setError(response.message || "Failed to update tax group");
+          return;
         }
+        navigate("/master-data/taxgroup");
       } else {
         const response = await createTaxGroup(taxGroupData);
-        if (response.success) {
-          setSuccessType("create");
-          setShowSuccess(true);
-        } else {
+        if (!response.success) {
           setError(response.message || "Failed to create tax group");
+          return;
         }
+        navigate("/master-data/taxgroup");
       }
     } catch (err) {
       console.error('Error saving tax group:', err);
@@ -143,24 +149,6 @@ const CreateTaxGroupPage = () => {
 
   // ---------------- HELPERS ----------------
 
-  const getSuccessTitle = () => {
-    return isEditMode
-      ? "Tax Group Updated"
-      : "Tax Group Created";
-  };
-
-  const getSuccessMessage = () => {
-    return isEditMode
-      ? "Tax group updated successfully."
-      : "Tax group created successfully.";
-  };
-
-  const getSuccessImage = () => {
-    return isEditMode
-      ? updateSuccessImg
-      : createSuccessImg;
-  };
-
   // ---------------- RENDER ----------------
 
   if (loadingData) {
@@ -174,66 +162,99 @@ const CreateTaxGroupPage = () => {
   }
 
   return (
-    <div className="space-y-8 bg-bb-bg p-6 min-h-screen">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="space-y-8 bg-[#FBF7EE] p-6 min-h-screen">
+      <div className="max-w-5xl mx-auto space-y-6 pt-0">
         {/* TITLE */}
-        <h1 className="text-2xl md:text-3xl font-semibold">
+        <h1 className="text-3xl font-bold">
           {isViewMode
             ? "View Tax Group"
             : isEditMode
             ? "Edit Tax Group"
-            : "Create Tax Group"}
+            : "Create New Tax Group"}
         </h1>
 
-        {/* FORM CARD */}
-        <div className="bg-white rounded-xl border p-6 space-y-6">
+        {/* FORM */}
+        <div className="space-y-6">
           {error && (
             <p className="text-red-600 text-sm">
               {error}
             </p>
           )}
 
-          <div className="space-y-6">
-            <Input
-              label="Tax Group Name"
-              required
-              disabled={isViewMode}
-              value={name}
-              onChange={(val) => setName(val)}
-              placeholder="Tax Group Name"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-sm font-semibold">Tax Group Name<span className="text-red-500">*</span></label>
+              <input
+                className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm bg-[#FBF7EE] focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                placeholder="Tax Group Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isViewMode}
+              />
+            </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Select Taxes <span className="text-red-500">*</span>
-              </label>
-              <div className="border rounded-md p-4 max-h-64 overflow-y-auto">
-                {availableTaxes.length === 0 ? (
-                  <p className="text-sm text-gray-600">No taxes available. Please create taxes first.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {availableTaxes.map((tax) => (
-                      <label key={tax.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                        <input
-                          type="checkbox"
-                          checked={selectedTaxIds.includes(tax.id)}
-                          onChange={() => handleTaxToggle(tax.id)}
-                          disabled={isViewMode}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm">{tax.name} ({tax.percentage}%)</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {selectedTaxIds.length > 0 && (
-                <p className="text-sm text-gray-600 mt-2">
-                  Total: {availableTaxes
-                    .filter(t => selectedTaxIds.includes(t.id))
-                    .reduce((sum, t) => sum + t.percentage, 0)}%
-                </p>
-              )}
+            <div className="space-y-1">
+              <label className="text-sm font-semibold">Symbol<span className="text-red-500">*</span></label>
+              <input
+                className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm bg-[#FBF7EE] focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                placeholder="Tax Symbol"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                disabled={isViewMode}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-semibold">Percentage<span className="text-red-500">*</span></label>
+              <input
+                type="number"
+                className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm bg-[#FBF7EE] focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                placeholder="Percentage of Tax"
+                value={percentage}
+                onChange={(e) => setPercentage(e.target.value)}
+                disabled={isViewMode}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-semibold">Country<span className="text-red-500">*</span></label>
+              <select
+                className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm bg-[#FBF7EE] focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                disabled={isViewMode}
+              >
+                <option value="">Select Country</option>
+                <option value="India">India</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-semibold">State</label>
+              <select
+                className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm bg-[#FBF7EE] focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                value={stateValue}
+                onChange={(e) => setStateValue(e.target.value)}
+                disabled={isViewMode}
+              >
+                <option value="">Select State</option>
+                <option value="Telangana">Telangana</option>
+                <option value="Andhra Pradesh">Andhra Pradesh</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-semibold">City</label>
+              <select
+                className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm bg-[#FBF7EE] focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                disabled={isViewMode}
+              >
+                <option value="">Select City</option>
+                <option value="Hyderabad">Hyderabad</option>
+                <option value="Vijayawada">Vijayawada</option>
+              </select>
             </div>
           </div>
 
@@ -241,7 +262,7 @@ const CreateTaxGroupPage = () => {
           <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6">
             <button
               onClick={() => navigate(-1)}
-              className="border px-6 py-2 rounded-md text-sm"
+              className="border border-black px-7 py-2 rounded-md text-sm bg-white"
               disabled={loading}
             >
               Cancel
@@ -250,7 +271,7 @@ const CreateTaxGroupPage = () => {
             {!isViewMode && (
               <button
                 onClick={handleSubmit}
-                className="bg-yellow-400 px-6 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                className="bg-yellow-400 px-8 py-2 rounded-md text-sm font-medium disabled:opacity-50 border border-black"
                 disabled={loading}
               >
                 {loading ? 'Saving...' : (isEditMode ? "Update" : "Create")}
@@ -259,34 +280,6 @@ const CreateTaxGroupPage = () => {
           </div>
         </div>
       </div>
-
-      {/* SUCCESS MODAL */}
-      {showSuccess && successType && (
-        <Modal
-          open={showSuccess}
-          onClose={() => {
-            setShowSuccess(false);
-            navigate(-1);
-          }}
-          className="w-[90%] max-w-md p-6 text-center z-[9999]"
-        >
-          <h2 className="text-2xl font-bold mb-4">
-            {getSuccessTitle()}
-          </h2>
-
-          <div className="flex justify-center mb-4">
-            <img
-              src={getSuccessImage()}
-              alt="success"
-              className="w-16 h-16"
-            />
-          </div>
-
-          <p className="text-sm text-gray-600">
-            {getSuccessMessage()}
-          </p>
-        </Modal>
-      )}
     </div>
   );
 };

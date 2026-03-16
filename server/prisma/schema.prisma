@@ -1336,6 +1336,11 @@ model TaxGroup {
   id              String   @id @default(uuid())
   businessOwnerId String
   name            String
+  symbol          String?
+  percentage      Decimal? @db.Decimal(10, 2)
+  country         String?
+  state           String?
+  city            String?
   status          String   @default("active") // active, inactive
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

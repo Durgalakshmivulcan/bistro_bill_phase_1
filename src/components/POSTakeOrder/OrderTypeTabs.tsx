@@ -28,7 +28,7 @@ const OrderTypeTabs: React.FC<OrderTypeTabsProps> = ({
   onChange,
 }) => {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2">
+    <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
       {tabs.map(tab => {
         const Icon = tab.icon;
         const active = value === tab.key;
@@ -37,10 +37,10 @@ const OrderTypeTabs: React.FC<OrderTypeTabsProps> = ({
           <button
             key={tab.key}
             onClick={() => onChange(tab.key as OrderType)}
-            className={`px-4 py-2 rounded-full flex items-center gap-2 text-sm font-medium ${
+            className={`flex-1 min-w-[46%] sm:min-w-fit px-4 py-2 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition-all shadow-sm ${
               active
                 ? "bg-black text-white"
-                : "bg-gray-100 text-gray-700"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >
             <Icon size={16} />
