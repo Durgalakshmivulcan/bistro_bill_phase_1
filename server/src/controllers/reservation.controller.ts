@@ -111,7 +111,7 @@ export async function getReservation(
       where: { id },
       include: {
         customer: { select: { id: true, name: true, phone: true, email: true } },
-        table: { select: { id: true, label: true, chairs: true, floor: { select: { id: true, name: true, type: true } } } },
+        table: { select: { id: true, label: true, chairs: true, floorId: true, floor: { select: { id: true, name: true, type: true } } } },
         room: { select: { id: true, name: true, capacity: true } },
         branch: { select: { id: true, name: true } },
       },
@@ -128,7 +128,9 @@ export async function getReservation(
 
     const response: ApiResponse = {
       success: true,
-      data: reservation,
+      data: {
+        reservation
+      },
       message: 'Reservation retrieved successfully',
     };
     res.status(200).json(response);

@@ -97,9 +97,8 @@ const UpdateStatusModal: React.FC<Props> = ({ open, onClose, reservationId, onSt
             }}
             options={[
               { label: "Select Status", value: "" },
-              { label: "Confirm", value: "accepted" },
+              { label: "Accepted", value: "accepted" },
               { label: "Waiting", value: "waiting" },
-              { label: "Completed", value: "completed" },
               { label: "Cancelled", value: "cancelled" },
             ]}
           />

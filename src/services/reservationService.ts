@@ -132,14 +132,33 @@ export const getReservations = async (
  * GET /api/v1/reservations/:id
  */
 export const getReservation = async (id: string): Promise<ReservationResponse> => {
-  const response = await api.get<ApiResponse<{ reservation: Reservation }>>(`/reservations/${id}`);
+  try {
+    const response = await api.get<ApiResponse<{ reservation: Reservation }>>(
+      `/reservations/${id}`
+    );
 
-  return {
-    success: response.success,
-    data: response.data?.reservation as Reservation,
-  };
+    console.log("API getReservation response:", response);
+
+    if (!response || !response.success) {
+      return {
+        success: false,
+        data: undefined,
+      };
+    }
+
+    return {
+      success: true,
+      data: response.data?.reservation,
+    };
+  } catch (error) {
+    console.error("Error fetching reservation:", error);
+
+    return {
+      success: false,
+      data: undefined,
+    };
+  }
 };
-
 /**
  * Create a new reservation
  * POST /api/v1/reservations

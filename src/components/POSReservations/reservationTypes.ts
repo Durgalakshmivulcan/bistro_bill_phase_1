@@ -6,7 +6,7 @@ export type ReservationStatus =
   | "completed";
 
 export type Reservation = {
-  id: number;
+  id: string;
   customerName: string;
   date: string;
   time: string;

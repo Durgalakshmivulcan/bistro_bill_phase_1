@@ -15,6 +15,7 @@ type SelectProps = {
   className?: string;
   containerClassName?: string;
   disabled?: boolean; // ✅ ADD THIS
+  placeholder?: string;
 };
 
 export default function Select({
@@ -26,6 +27,7 @@ export default function Select({
   className = "",
   containerClassName = "",
   disabled = false, // ✅ ADD THIS
+  placeholder = "Select",
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -81,7 +83,7 @@ export default function Select({
         `}
       >
         <span className="truncate">
-          {selected?.label || "Select"}
+          {selected?.label || placeholder}
         </span>
         <ChevronDown size={14} />
       </button>

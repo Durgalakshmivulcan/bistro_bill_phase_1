@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { ReactNode } from "react";
 
 type InputProps = {
   label: string;
@@ -9,6 +10,7 @@ type InputProps = {
   value?: string;
   disabled?: boolean;
   onChange?: (value: string) => void;
+  rightIcon?: ReactNode;
 } & Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   "onChange" | "value" | "type"
@@ -22,6 +24,7 @@ const Input = ({
   value,
   disabled = false,
   onChange,
+  rightIcon,
   ...rest
 }: InputProps) => {
   const isPassword = type === "password";
@@ -62,6 +65,13 @@ const Input = ({
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
+        )}
+
+        {/* Optional right icon for non-password inputs */}
+        {!isPassword && rightIcon && (
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+            {rightIcon}
+          </span>
         )}
       </div>
     </div>

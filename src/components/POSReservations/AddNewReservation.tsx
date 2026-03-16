@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Clock } from "lucide-react";
 import DashboardLayout from "../../layout/DashboardLayout";
 import Input from "../form/Input";
 import Select from "../form/Select";
@@ -276,6 +276,7 @@ const AddNewReservation: React.FC = () => {
                 value={timeSlot}
                 placeholder="Select Time Slot"
                 readOnly
+                rightIcon={<Clock size={18} />}
               />
             </div>
 

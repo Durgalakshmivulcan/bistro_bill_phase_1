@@ -66,8 +66,11 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
       return `${String(hour12).padStart(2, '0')}:${minutes} ${ampm}`;
     };
 
+    const floorType = apiReservation.table?.floor?.type;
+    const floorLabel = floorType === 'NonAC' ? 'Non-AC' : floorType === 'AC' ? 'AC' : 'AC';
+
     return {
-      id: parseInt(apiReservation.id),
+      id: apiReservation.id,
       customerName: apiReservation.customerName,
       date: formatDate(apiReservation.date),
       time: formatTime(apiReservation.startTime),
@@ -75,7 +78,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
       email: apiReservation.customer?.email || '',
       source: 'POS' as const, // Default to POS, could be enhanced later
       guests: apiReservation.guestCount,
-      floor: (apiReservation.table?.floor?.type || 'AC') as 'AC' | 'Non-AC',
+      floor: floorLabel as 'AC' | 'Non-AC',
       tableNo: apiReservation.table?.label || apiReservation.room?.name || '-',
       status: statusMap[apiReservation.status] || 'new',
     };
@@ -112,8 +115,8 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
     loadReservations();
   }, [statusFilter, currentBranchId]);
 
-  const handleDeleteClick = (id: number) => {
-    setDeleteId(String(id));
+  const handleDeleteClick = (id: string) => {
+    setDeleteId(id);
     setShowConfirm(true);
   };
 
@@ -138,8 +141,8 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
     }
   };
 
-  const handleUpdateStatus = (id: number) => {
-    setSelectedReservationId(String(id));
+  const handleUpdateStatus = (id: string) => {
+    setSelectedReservationId(id);
     setStatusModalOpen(true);
   };
 
@@ -193,7 +196,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
       <div className="w-full overflow-x-auto">
         <div className="min-w-[1300px] rounded-xl border bg-white overflow-visible">
           {/* HEADER */}
-          <div className="grid grid-cols-12 bg-yellow-400 px-4 py-3 text-sm font-medium">
+          <div className="grid grid-cols-12 bg-[#F7C948] px-4 py-3 text-sm font-semibold">
             <span>Sl. No.</span>
             <span className="col-span-2">Customer Name</span>
             <span>Date & Time</span>
@@ -236,14 +239,16 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
 
                 <div className="flex flex-col gap-1">
                   <span
-                    className={`text-xs px-3 py-1 rounded-full w-fit ${
+                    className={`text-xs px-3 py-1 rounded-full w-fit capitalize ${
                       r.status === "new"
                         ? "bg-blue-100 text-blue-600"
                         : r.status === "accepted"
                           ? "bg-green-100 text-green-600"
                           : r.status === "completed"
                             ? "bg-purple-100 text-purple-600"
-                            : "bg-gray-100 text-gray-600"
+                            : r.status === "cancelled"
+                              ? "bg-red-100 text-red-600"
+                              : "bg-gray-100 text-gray-600"
                     }`}
                   >
                     {r.status}
@@ -283,7 +288,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
                 <div className="flex justify-center">
                   <ActionsMenu
                     actions={["view", "edit", "updateStatus", "delete"]}
-                    onView={() => navigate(`/reservations/view/${r.id}`)}
+                    onView={() => navigate(`/reservations/${r.id}`)}
                     onEdit={() => navigate(`/reservations/edit/${r.id}`)}
                     onUpdateStatus={() => handleUpdateStatus(r.id)}
                     onDelete={() => handleDeleteClick(r.id)}

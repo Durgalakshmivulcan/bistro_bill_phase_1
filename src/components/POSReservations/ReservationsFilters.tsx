@@ -113,14 +113,11 @@ const ReservationsFilters: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      {/* 🔹 TOP ROW : SEARCH + ACTIONS */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-        {/* Title */}
-        <h1 className="text-2xl font-bold">All Reservations List</h1>
+        <h1 className="text-[26px] font-bold">All Reservations List</h1>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto">
-          {/* Search */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-72">
             <Search
               size={16}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
@@ -129,23 +126,22 @@ const ReservationsFilters: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search here..."
-              className="w-full border rounded-md px-3 pr-10 py-2 text-sm"
+              className="w-full rounded-md border border-[#E5E5E5] bg-white px-3 pr-10 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-black/10"
             />
           </div>
 
-          {/* Buttons */}
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleExport}
               disabled={exporting}
-              className="border px-4 py-2 rounded text-sm disabled:opacity-50"
+              className="rounded-md border border-[#C7C7C7] bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
             >
               {exporting ? "Exporting..." : "Export"}
             </button>
 
             <button
               onClick={() => navigate("/reservations/add")}
-              className="bg-black text-white px-4 py-2 rounded text-sm"
+              className="rounded-md bg-black text-white px-4 py-2 text-sm font-medium hover:opacity-90"
             >
               Add New
             </button>
@@ -153,45 +149,33 @@ const ReservationsFilters: React.FC = () => {
         </div>
       </div>
 
-      {/* 🔹 SECOND ROW : FILTERS */}
       <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-3">
-        {/* Download QR */}
         <button
           onClick={handleDownloadQR}
-          className="flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm w-full sm:w-auto"
+          className="flex items-center justify-center gap-2 rounded-md border border-[#C7C7C7] bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
         >
           <Download size={16} />
           Download QR
         </button>
 
-        {/* Filter by Date */}
         <div className="w-full sm:w-60">
           <Select
             value={dateFilter}
             onChange={(value) => setDateFilter(value)}
             options={[
-              { label: "Filter by Date", value: "" },
               { label: "Today", value: "today" },
               { label: "Tomorrow", value: "tomorrow" },
               { label: "This Week", value: "week" },
               { label: "This Month", value: "month" },
             ]}
+            placeholder="Filter by Date"
           />
         </div>
 
-        {/* Clear */}
         <button
           onClick={handleClear}
-          disabled={!dateFilter && !search}
-          className="
-            flex items-center justify-center gap-2
-            rounded-lg bg-yellow-400
-            px-4 py-2 text-sm font-medium
-            w-full sm:w-auto
-            disabled:opacity-50
-          "
+          className="flex items-center justify-center gap-2 rounded-md bg-[#F7C948] px-4 py-2 text-sm font-semibold text-black hover:brightness-105"
         >
-          <X size={16} />
           Clear
         </button>
       </div>

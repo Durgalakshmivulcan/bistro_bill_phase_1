@@ -119,7 +119,7 @@ const ReservationForm: React.FC<Props> = ({ mode, data, onSubmit }) => {
 
         <div className="form-group">
           <label>Guest Count *</label>
-          <GuestCounter value={guestCount} onChange={setGuestCount} />
+          <GuestCounter value={guestCount} onChange={setGuestCount} disabled={isView} />
         </div>
 
         <div className="form-group">

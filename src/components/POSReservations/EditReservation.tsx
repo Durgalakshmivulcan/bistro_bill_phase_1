@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Clock } from "lucide-react";
 import DashboardLayout from "../../layout/DashboardLayout";
 import Input from "../form/Input";
 import Select from "../form/Select";
@@ -106,7 +106,7 @@ const EditReservation = () => {
           setTimeSlot(formatTimeTo12Hour(reservation.startTime));
           setGuestCount(reservation.guestCount);
           setTableId(reservation.tableId || "");
-          setFloorId(reservation.table?.floorId || "");
+          setFloorId(reservation.table?.floorId || reservation.table?.floor?.id || "");
           setNotes(reservation.notes || "");
         } else {
           setError("Reservation not found");
@@ -325,6 +325,7 @@ const EditReservation = () => {
                   required
                   value={timeSlot}
                   readOnly
+                  rightIcon={<Clock size={18} />}
                 />
               </div>
 
