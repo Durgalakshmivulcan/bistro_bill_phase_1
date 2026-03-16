@@ -55,7 +55,7 @@ const ReasonsTable = ({ title, reasonType }: Props) => {
 
   useEffect(() => {
     loadReasons();
-  }, []);
+  }, [reasonType]);
 
   const closeAll = () => {
     setMode(null);

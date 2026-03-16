@@ -1475,6 +1475,7 @@ CREATE TABLE public."Reason" (
     "businessOwnerId" text NOT NULL,
     type public."ReasonType" NOT NULL,
     text text NOT NULL,
+    description text,
     status text DEFAULT 'active'::text NOT NULL,
     "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updatedAt" timestamp(3) without time zone NOT NULL
@@ -2882,7 +2883,7 @@ c6f36d2d-2f72-49bd-91f5-cc6151beaa0e	e70dc0d6-3b09-4c40-bff7-92b9ecaa0ccd	f54213
 -- Data for Name: Reason; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public."Reason" (id, "businessOwnerId", type, text, status, "createdAt", "updatedAt") FROM stdin;
+COPY public."Reason" (id, "businessOwnerId", type, text, description, status, "createdAt", "updatedAt") FROM stdin;
 \.
 
 

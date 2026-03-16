@@ -1,9 +1,9 @@
 import { useState } from "react";
 import Modal from "../ui/Modal";
+import { ChevronDown } from "lucide-react";
 import {
   createPaymentOption,
   CreatePaymentOptionInput,
-  PaymentType,
 } from "../../services/settingsService";
 
 type Props = {
@@ -18,10 +18,16 @@ const AddPaymentModal: React.FC<Props> = ({
   onSuccess,
 }) => {
   const [name, setName] = useState("");
-  const [type, setType] = useState<PaymentType>("Cash");
   const [status, setStatus] = useState("active");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleClose = () => {
+    setName("");
+    setStatus("active");
+    setError(null);
+    onClose();
+  };
 
   const handleSubmit = async () => {
     // Validate
@@ -36,7 +42,9 @@ const AddPaymentModal: React.FC<Props> = ({
 
       const input: CreatePaymentOptionInput = {
         name: name.trim(),
-        type,
+        // UI matches design that only asks for name + status.
+        // Backend still requires type, so default to "Other".
+        type: "Other",
         status,
         isDefault: false,
       };
@@ -44,11 +52,7 @@ const AddPaymentModal: React.FC<Props> = ({
       const response = await createPaymentOption(input);
 
       if (response.success) {
-        // Reset form
-        setName("");
-        setType("Cash");
-        setStatus("active");
-        onClose();
+        handleClose();
         onSuccess();
       } else {
         setError(response.message || "Failed to create payment option");
@@ -62,82 +66,69 @@ const AddPaymentModal: React.FC<Props> = ({
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <h2 className="text-2xl font-bold mb-6">
-        Add New Payment Mode
-      </h2>
+    <Modal open={open} onClose={handleClose}>
+      <div className="w-[760px] px-10 py-8">
+        <h2 className="text-[30px] font-bold mb-8">
+          Add New Payment Mode
+        </h2>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
-          <p className="text-red-600 text-sm">{error}</p>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Payment Mode Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Gift Cards"
+              className="w-full h-[46px] border border-gray-300 rounded-md px-4 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Status
+            </label>
+            <div className="relative">
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full h-[46px] border border-gray-300 rounded-md px-4 pr-10 text-sm bg-white appearance-none"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+              <ChevronDown
+                size={18}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+              />
+            </div>
+          </div>
         </div>
-      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Payment Name */}
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Payment Mode Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Gift Cards"
-            className="w-full border rounded-md px-3 py-2"
-          />
-        </div>
-
-        {/* Payment Type */}
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Payment Type <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as PaymentType)}
-            className="w-full border rounded-md px-3 py-2"
+        <div className="flex justify-end gap-4 mt-10">
+          <button
+            onClick={handleClose}
+            className="px-8 h-[44px] border border-black rounded-md text-sm font-medium"
+            disabled={loading}
           >
-            <option value="Cash">Cash</option>
-            <option value="Card">Card</option>
-            <option value="UPI">UPI</option>
-            <option value="Wallet">Wallet</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
+            Cancel
+          </button>
 
-        {/* Status */}
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Status
-          </label>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="w-full border rounded-md px-3 py-2"
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="px-8 h-[44px] bg-yellow-400 rounded-md text-sm font-medium hover:bg-yellow-500 disabled:opacity-50"
           >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
+            {loading ? "Saving..." : "Save"}
+          </button>
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-3 mt-8">
-        <button
-          onClick={onClose}
-          className="border px-6 py-2 rounded-md"
-          disabled={loading}
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="bg-yellow-400 px-6 py-2 rounded-md font-medium disabled:opacity-50"
-        >
-          {loading ? "Saving..." : "Save"}
-        </button>
       </div>
     </Modal>
   );
