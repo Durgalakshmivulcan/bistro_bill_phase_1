@@ -3,68 +3,34 @@ import { useEffect, useState } from "react";
 import Modal from "../../ui/Modal";
 import tickImg from "../../../assets/tick.png";
 import deleteIcon from "../../../assets/deleteConformImg.png";
-import { BranchFormData } from "../CreateBranchModal";
-import { getStaff } from "../../../services/staffService";
+import { BranchFloorFormItem, BranchFormData } from "../CreateBranchModal";
 
 type Props = {
   data: BranchFormData;
   onChange: (data: Partial<BranchFormData>) => void;
 };
 
-type FloorArea = {
-  id: number;
-  name: string;
-  staff: string;
-  status: "active" | "inactive";
-  description: string;
-};
-
-const initialData: FloorArea[] = [
-  { id: 1, name: "Private Dining", staff: "Salman Khan", status: "inactive", description: "Private section" },
-  { id: 2, name: "Family Section", staff: "Aman", status: "active", description: "Family tables" },
-  { id: 3, name: "Bar", staff: "Salman Khan", status: "inactive", description: "Bar area" },
-  { id: 4, name: "Non-AC", staff: "Aman", status: "active", description: "Open seating" },
-  { id: 5, name: "Outdoor Seating", staff: "Salman Khan", status: "inactive", description: "Outdoor zone" },
-];
-
 export default function FloorAreaStep({ data, onChange }: Props) {
-  const [areas, setAreas] = useState<FloorArea[]>(
-    (data.floors as FloorArea[] | undefined)?.length ? (data.floors as FloorArea[]) : initialData
-  );
+  const [areas, setAreas] = useState<BranchFloorFormItem[]>(data.floors || []);
 
-  const syncFloors = (updated: FloorArea[]) => {
+  useEffect(() => {
+    setAreas(data.floors || []);
+  }, [data.floors]);
+
+  const syncFloors = (updated: BranchFloorFormItem[]) => {
     setAreas(updated);
     onChange({ floors: updated });
   };
 
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
+  const [openMenu, setOpenMenu] = useState<string | number | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editArea, setEditArea] = useState<FloorArea | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [editArea, setEditArea] = useState<BranchFloorFormItem | null>(null);
+  const [deleteId, setDeleteId] = useState<string | number | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  const [staffOptions, setStaffOptions] = useState<string[]>([]);
 
-  useEffect(() => {
-    const loadStaff = async () => {
-      try {
-        const response = await getStaff({ page: 1, limit: 100 });
-        if (response.success && response.data) {
-          const options = response.data.staff
-            .map((staff) => `${staff.firstName} ${staff.lastName}`.trim())
-            .filter(Boolean);
-          setStaffOptions(Array.from(new Set(options)));
-        }
-      } catch {
-        setStaffOptions([]);
-      }
-    };
-
-    loadStaff();
-  }, []);
-
-  const toggleStatus = (id: number) => {
+  const toggleStatus = (id: string | number) => {
     const updated = areas.map((a) =>
       a.id === id
         ? {
@@ -76,13 +42,13 @@ export default function FloorAreaStep({ data, onChange }: Props) {
     syncFloors(updated);
   };
 
-  const handleEdit = (area: FloorArea) => {
+  const handleEdit = (area: BranchFloorFormItem) => {
     setEditArea(area);
     setModalOpen(true);
     setOpenMenu(null);
   };
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = (id: string | number) => {
     setDeleteId(id);
     setShowConfirm(true);
     setOpenMenu(null);
@@ -96,8 +62,8 @@ export default function FloorAreaStep({ data, onChange }: Props) {
     setShowSuccess(true);
   };
 
-  const handleSave = (floorData: Omit<FloorArea, "id">) => {
-    let updated: FloorArea[];
+  const handleSave = (floorData: Omit<BranchFloorFormItem, "id">) => {
+    let updated: BranchFloorFormItem[];
     if (editArea) {
       updated = areas.map((a) => (a.id === editArea.id ? { ...a, ...floorData } : a));
       setSuccessMessage("Floor updated successfully.");
@@ -134,17 +100,22 @@ export default function FloorAreaStep({ data, onChange }: Props) {
             <thead className="bg-yellow-400">
               <tr>
                 <th className="px-4 py-3 text-left">Floor / Area Name</th>
-                <th className="px-4 py-3 text-left">Staff Assigned</th>
                 <th className="px-4 py-3 text-left">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
 
             <tbody>
+              {areas.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
+                    No floor or area added yet.
+                  </td>
+                </tr>
+              )}
               {areas.map((area, index) => (
                 <tr key={area.id} className={`border-t ${index % 2 === 1 ? "bg-[#FFF8E7]" : ""}`}>
                   <td className="px-4 py-3">{area.name}</td>
-                  <td className="px-4 py-3">{area.staff}</td>
 
                   <td className="px-4 py-3">
                     <button
@@ -196,7 +167,6 @@ export default function FloorAreaStep({ data, onChange }: Props) {
 
       {modalOpen && (
         <FloorModal
-          staffOptions={staffOptions}
           defaultValues={editArea}
           onClose={() => {
             setModalOpen(false);
@@ -248,17 +218,13 @@ function FloorModal({
   onClose,
   onSave,
   defaultValues,
-  staffOptions,
 }: {
   onClose: () => void;
-  onSave: (data: Omit<FloorArea, "id">) => void;
-  defaultValues: FloorArea | null;
-  staffOptions: string[];
+  onSave: (data: Omit<BranchFloorFormItem, "id">) => void;
+  defaultValues: BranchFloorFormItem | null;
 }) {
   const [name, setName] = useState(defaultValues?.name || "");
-  const [staff, setStaff] = useState(defaultValues?.staff || "");
   const [status, setStatus] = useState<"active" | "inactive">(defaultValues?.status || "active");
-  const [description, setDescription] = useState(defaultValues?.description || "");
 
   const isEdit = Boolean(defaultValues);
 
@@ -282,22 +248,6 @@ function FloorModal({
           </div>
 
           <div>
-            <label className="text-sm font-medium">Assigned Staff *</label>
-            <select
-              value={staff}
-              onChange={(e) => setStaff(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 mt-1"
-            >
-              <option value="">Select staff</option>
-              {staffOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
             <label className="text-sm font-medium">Status *</label>
             <select
               value={status}
@@ -309,15 +259,6 @@ function FloorModal({
             </select>
           </div>
 
-          <div>
-            <label className="text-sm font-medium">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 mt-1"
-              placeholder="Description"
-            />
-          </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
@@ -325,7 +266,7 @@ function FloorModal({
             Cancel
           </button>
           <button
-            onClick={() => onSave({ name, staff, status, description })}
+            onClick={() => onSave({ name, status })}
             className="bg-yellow-400 px-6 py-2 rounded font-medium"
           >
             {isEdit ? "Update" : "Create"}

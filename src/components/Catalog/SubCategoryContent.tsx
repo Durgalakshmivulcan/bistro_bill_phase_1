@@ -169,7 +169,7 @@ export default function SubCategoryContent() {
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-[#eadfca] bg-white p-4 lg:p-5">
+    <div className="min-w-0 space-y-4 rounded-xl border border-[#eadfca] bg-white p-4 lg:p-5">
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3">
         <h1 className="text-[28px] lg:text-[32px] font-bold">Sub-Category</h1>
 
@@ -282,7 +282,7 @@ export default function SubCategoryContent() {
 
       {!loading && !error && filteredAndSorted.length > 0 && view === "table" && (
         <>
-          <div className="bg-white border rounded-xl overflow-x-auto">
+          <div className="w-full overflow-x-auto rounded-xl border bg-white">
             <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-yellow-400">
                 <tr>

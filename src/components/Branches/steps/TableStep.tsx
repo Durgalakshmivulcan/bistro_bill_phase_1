@@ -3,47 +3,32 @@ import { useEffect, useMemo, useState } from "react";
 import Modal from "../../ui/Modal";
 import tickImg from "../../../assets/tick.png";
 import deleteIcon from "../../../assets/deleteConformImg.png";
-import { BranchFormData } from "../CreateBranchModal";
-import { getStaff } from "../../../services/staffService";
+import { BranchFormData, BranchTableFormItem } from "../CreateBranchModal";
 
 type Props = {
   data: BranchFormData;
   onChange: (data: Partial<BranchFormData>) => void;
 };
 
-type TableItem = {
-  id: number;
-  name: string;
-  capacity: number;
-  floor: string;
-  status: "active" | "inactive";
-  staff: string;
-  description: string;
-};
-
-const initialTables: TableItem[] = [
-  { id: 1, name: "Table-1", capacity: 4, floor: "Outdoor Seating", status: "inactive", staff: "Aman", description: "Near entrance" },
-  { id: 2, name: "Table-2", capacity: 6, floor: "Family Section", status: "active", staff: "Salman", description: "Family table" },
-];
-
 export default function TableStep({ data, onChange }: Props) {
-  const [tables, setTables] = useState<TableItem[]>(
-    (data.tables as TableItem[] | undefined)?.length ? (data.tables as TableItem[]) : initialTables
-  );
+  const [tables, setTables] = useState<BranchTableFormItem[]>(data.tables || []);
 
-  const syncTables = (updated: TableItem[]) => {
+  useEffect(() => {
+    setTables(data.tables || []);
+  }, [data.tables]);
+
+  const syncTables = (updated: BranchTableFormItem[]) => {
     setTables(updated);
     onChange({ tables: updated });
   };
 
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
+  const [openMenu, setOpenMenu] = useState<string | number | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editTable, setEditTable] = useState<TableItem | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [editTable, setEditTable] = useState<BranchTableFormItem | null>(null);
+  const [deleteId, setDeleteId] = useState<string | number | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  const [staffOptions, setStaffOptions] = useState<string[]>([]);
 
   const floorOptions = useMemo(() => {
     const floors = (data.floors || []) as Array<{ name?: string }>;
@@ -51,25 +36,7 @@ export default function TableStep({ data, onChange }: Props) {
     return Array.from(new Set(names));
   }, [data.floors]);
 
-  useEffect(() => {
-    const loadStaff = async () => {
-      try {
-        const response = await getStaff({ page: 1, limit: 100 });
-        if (response.success && response.data) {
-          const options = response.data.staff
-            .map((staff) => `${staff.firstName} ${staff.lastName}`.trim())
-            .filter(Boolean);
-          setStaffOptions(Array.from(new Set(options)));
-        }
-      } catch {
-        setStaffOptions([]);
-      }
-    };
-
-    loadStaff();
-  }, []);
-
-  const toggleStatus = (id: number) => {
+  const toggleStatus = (id: string | number) => {
     const updated = tables.map((t) =>
       t.id === id
         ? {
@@ -81,13 +48,13 @@ export default function TableStep({ data, onChange }: Props) {
     syncTables(updated);
   };
 
-  const handleEdit = (table: TableItem) => {
+  const handleEdit = (table: BranchTableFormItem) => {
     setEditTable(table);
     setModalOpen(true);
     setOpenMenu(null);
   };
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = (id: string | number) => {
     setDeleteId(id);
     setShowConfirm(true);
     setOpenMenu(null);
@@ -101,8 +68,8 @@ export default function TableStep({ data, onChange }: Props) {
     setShowSuccess(true);
   };
 
-  const handleSave = (tableData: Omit<TableItem, "id">) => {
-    let updated: TableItem[];
+  const handleSave = (tableData: Omit<BranchTableFormItem, "id">) => {
+    let updated: BranchTableFormItem[];
     if (editTable) {
       updated = tables.map((t) => (t.id === editTable.id ? { ...t, ...tableData } : t));
       setSuccessMessage("Table updated successfully.");
@@ -148,6 +115,13 @@ export default function TableStep({ data, onChange }: Props) {
             </thead>
 
             <tbody>
+              {tables.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                    No tables added yet.
+                  </td>
+                </tr>
+              )}
               {tables.map((table, index) => (
                 <tr key={table.id} className={`border-t ${index % 2 === 1 ? "bg-[#FFF8E7]" : ""}`}>
                   <td className="px-4 py-3">{index + 1}</td>
@@ -206,7 +180,6 @@ export default function TableStep({ data, onChange }: Props) {
       {modalOpen && (
         <TableModal
           floorOptions={floorOptions}
-          staffOptions={staffOptions}
           defaultValues={editTable}
           onClose={() => {
             setModalOpen(false);
@@ -251,20 +224,16 @@ function TableModal({
   onSave,
   defaultValues,
   floorOptions,
-  staffOptions,
 }: {
   onClose: () => void;
-  onSave: (data: Omit<TableItem, "id">) => void;
-  defaultValues: TableItem | null;
+  onSave: (data: Omit<BranchTableFormItem, "id">) => void;
+  defaultValues: BranchTableFormItem | null;
   floorOptions: string[];
-  staffOptions: string[];
 }) {
   const [name, setName] = useState(defaultValues?.name || "");
   const [capacity, setCapacity] = useState(defaultValues?.capacity || 1);
   const [floor, setFloor] = useState(defaultValues?.floor || "");
   const [status, setStatus] = useState<"active" | "inactive">(defaultValues?.status || "active");
-  const [staff, setStaff] = useState(defaultValues?.staff || "");
-  const [description, setDescription] = useState(defaultValues?.description || "");
 
   const isEdit = Boolean(defaultValues);
 
@@ -316,22 +285,6 @@ function TableModal({
           </div>
 
           <div>
-            <label className="text-sm font-medium">Assign Staff *</label>
-            <select
-              value={staff}
-              onChange={(e) => setStaff(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 mt-1"
-            >
-              <option value="">Select staff</option>
-              {staffOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
             <label className="text-sm font-medium">Status *</label>
             <select
               value={status}
@@ -343,15 +296,6 @@ function TableModal({
             </select>
           </div>
 
-          <div>
-            <label className="text-sm font-medium">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 mt-1"
-              placeholder="Description"
-            />
-          </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
@@ -365,8 +309,6 @@ function TableModal({
                 capacity,
                 floor,
                 status,
-                staff,
-                description,
               })
             }
             className="bg-yellow-400 px-6 py-2 rounded font-medium"

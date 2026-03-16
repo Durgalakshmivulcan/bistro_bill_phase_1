@@ -202,6 +202,9 @@ export interface UpdatePreferencesInput {
 export interface BusinessProfile {
   id: string;
   businessName: string;
+  restaurantName?: string;
+  ownerName?: string;
+  brandName?: string;
   email?: string;
   phone?: string;
   address?: string;
@@ -209,6 +212,7 @@ export interface BusinessProfile {
   state?: string;
   country?: string;
   postalCode?: string;
+  zipCode?: string;
   avatar?: string;
   logo?: string;
   website?: string;
@@ -220,6 +224,8 @@ export interface BusinessProfile {
 
 export interface UpdateProfileInput {
   businessName?: string;
+  restaurantName?: string;
+  ownerName?: string;
   email?: string;
   phone?: string;
   address?: string;
@@ -227,6 +233,8 @@ export interface UpdateProfileInput {
   state?: string;
   country?: string;
   postalCode?: string;
+  zipCode?: string;
+  brandName?: string;
   avatar?: string;
   logo?: string;
   website?: string;
@@ -614,10 +622,25 @@ export const updatePreferences = async (input: UpdatePreferencesInput): Promise<
  */
 export const getProfile = async (): Promise<ProfileResponse> => {
   const response = await api.get<ApiResponse<BusinessProfile>>('/settings/profile');
+  const rawProfile = response.data as BusinessProfile | undefined;
+
+  const normalizedProfile = rawProfile
+    ? {
+        ...rawProfile,
+        businessName: rawProfile.businessName || rawProfile.restaurantName || "",
+        restaurantName: rawProfile.restaurantName || rawProfile.businessName || "",
+        brandName: rawProfile.brandName || rawProfile.ownerName || "",
+        ownerName: rawProfile.ownerName || rawProfile.brandName || "",
+        postalCode: rawProfile.postalCode || rawProfile.zipCode || "",
+        zipCode: rawProfile.zipCode || rawProfile.postalCode || "",
+        logo: rawProfile.logo || rawProfile.avatar || "",
+        avatar: rawProfile.avatar || rawProfile.logo || "",
+      }
+    : undefined;
 
   return {
     success: response.success,
-    data: response.data as BusinessProfile,
+    data: normalizedProfile as BusinessProfile,
   };
 };
 
@@ -626,11 +649,41 @@ export const getProfile = async (): Promise<ProfileResponse> => {
  * PUT /api/v1/settings/profile
  */
 export const updateProfile = async (input: UpdateProfileInput): Promise<ProfileResponse> => {
-  const response = await api.put<ApiResponse<BusinessProfile>>('/settings/profile', input);
+  const payload = {
+    restaurantName: input.businessName ?? input.restaurantName,
+    ownerName: input.brandName ?? input.ownerName,
+    phone: input.phone,
+    businessType: input.businessType,
+    country: input.country,
+    state: input.state,
+    city: input.city,
+    zipCode: input.postalCode ?? input.zipCode,
+    address: input.address,
+    avatar: input.logo ?? input.avatar,
+    website: input.website,
+    description: input.description,
+    email: input.email,
+  };
+
+  const response = await api.put<ApiResponse<BusinessProfile>>('/settings/profile', payload);
+  const rawProfile = response.data as BusinessProfile | undefined;
+  const normalizedProfile = rawProfile
+    ? {
+        ...rawProfile,
+        businessName: rawProfile.businessName || rawProfile.restaurantName || payload.restaurantName || "",
+        restaurantName: rawProfile.restaurantName || rawProfile.businessName || payload.restaurantName || "",
+        brandName: rawProfile.brandName || rawProfile.ownerName || payload.ownerName || "",
+        ownerName: rawProfile.ownerName || rawProfile.brandName || payload.ownerName || "",
+        postalCode: rawProfile.postalCode || rawProfile.zipCode || payload.zipCode || "",
+        zipCode: rawProfile.zipCode || rawProfile.postalCode || payload.zipCode || "",
+        logo: rawProfile.logo || rawProfile.avatar || payload.avatar || "",
+        avatar: rawProfile.avatar || rawProfile.logo || payload.avatar || "",
+      }
+    : undefined;
 
   return {
     success: response.success,
-    data: response.data as BusinessProfile,
+    data: normalizedProfile as BusinessProfile,
     message: response.message,
   };
 };

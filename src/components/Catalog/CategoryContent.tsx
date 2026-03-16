@@ -161,7 +161,7 @@ export default function CategoryContent() {
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-[#eadfca] bg-white p-4 lg:p-5">
+    <div className="min-w-0 space-y-4 rounded-xl border border-[#eadfca] bg-white p-4 lg:p-5">
       {error && (
         <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded">{error}</div>
       )}
@@ -244,7 +244,7 @@ export default function CategoryContent() {
 
       {!loading && view === "table" && filteredAndSorted.length > 0 && (
         <>
-          <div className="bg-white border rounded-xl overflow-x-auto">
+          <div className="w-full overflow-x-auto rounded-xl border bg-white">
             <table className="w-full min-w-[800px] text-sm">
               <thead className="bg-yellow-400">
                 <tr>

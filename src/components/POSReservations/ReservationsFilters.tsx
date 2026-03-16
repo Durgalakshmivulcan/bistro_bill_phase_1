@@ -8,7 +8,11 @@ import { useBranch } from "../../contexts/BranchContext";
 
 const ReservationsFilters: React.FC = () => {
   const navigate = useNavigate();
-  const { currentBranchId } = useBranch();
+  const { currentBranchId, currentBranch, availableBranches, isAllLocationsSelected } = useBranch();
+  const branchId =
+    !isAllLocationsSelected && currentBranchId
+      ? currentBranchId
+      : currentBranch?.id || availableBranches[0]?.id || "";
   const [dateFilter, setDateFilter] = useState("");
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -46,7 +50,7 @@ const ReservationsFilters: React.FC = () => {
     try {
       setExporting(true);
       const response = await getReservations({
-        branchId: currentBranchId,
+        branchId,
         limit: 10000,
       });
 

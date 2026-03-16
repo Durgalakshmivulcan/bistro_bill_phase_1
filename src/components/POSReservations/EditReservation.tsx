@@ -14,10 +14,12 @@ import { getFloors, getTables, Floor, Table } from "../../services/tableService"
 const EditReservation = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { currentBranchId } = useBranch();
+  const { currentBranchId, currentBranch, availableBranches, isAllLocationsSelected } = useBranch();
 
-  // Use branchId from BranchContext
-  const branchId = currentBranchId;
+  const branchId =
+    !isAllLocationsSelected && currentBranchId
+      ? currentBranchId
+      : currentBranch?.id || availableBranches[0]?.id || "";
 
   // Form state
   const [customerId, setCustomerId] = useState("");
@@ -61,6 +63,8 @@ const EditReservation = () => {
   };
 
   const timeSlots = generateTimeSlots();
+  const formatTableStatus = (status: string) =>
+    status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown";
 
   // Convert 24-hour time to 12-hour AM/PM format
   const formatTimeTo12Hour = (time24: string): string => {
@@ -171,14 +175,14 @@ const EditReservation = () => {
       try {
         const response = await getTables(floorId);
         if (response.success && response.data?.tables) {
-          const availableTables = response.data.tables.filter((table) => {
+          const branchTables = response.data.tables.filter((table) => {
             const meetsCapacity = table.capacity >= guestCount;
             const canUseStatus =
-              table.status === "available" ||
+              table.status !== "maintenance" ||
               table.id === tableId;
             return meetsCapacity && canUseStatus;
           });
-          setTables(availableTables);
+          setTables(branchTables);
         }
       } catch (err) {
         console.error('Failed to fetch tables:', err);
@@ -381,7 +385,7 @@ const EditReservation = () => {
                     : [
                         { label: "-- Select Table --", value: "" },
                         ...tables.map((t) => ({
-                          label: `${t.tableNumber} (Capacity: ${t.capacity})`,
+                          label: `${t.tableNumber} (Capacity: ${t.capacity}) - ${formatTableStatus(t.status)}`,
                           value: t.id,
                         })),
                       ]

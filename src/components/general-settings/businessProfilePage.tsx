@@ -50,8 +50,8 @@ const BusinessProfilePage = () => {
         setProfile({ ...response.data, logo: mergedLogo });
         // Initialize form data with profile data
         setFormData({
-          businessName: response.data.businessName || "",
-          brandName: response.data.brandName || "",
+          businessName: response.data.businessName || response.data.restaurantName || "",
+          brandName: response.data.brandName || response.data.ownerName || "",
           businessType: response.data.businessType || "",
           email: response.data.email || "",
           phone: response.data.phone || "",
@@ -59,7 +59,7 @@ const BusinessProfilePage = () => {
           city: response.data.city || "",
           state: response.data.state || "",
           country: response.data.country || "",
-          postalCode: response.data.postalCode || "",
+          postalCode: response.data.postalCode || response.data.zipCode || "",
           logo: mergedLogo,
           website: response.data.website || "",
           description: response.data.description || "",
@@ -237,8 +237,8 @@ const BusinessProfilePage = () => {
   {/* Business Info */}
   <div className="lg:col-span-2 grid grid-cols-2 gap-6 text-sm">
 
-    <ProfileField label="Restaurant Name" value={profile?.businessName} />
-    <ProfileField label="Brand Name" value={profile?.brandName} />
+    <ProfileField label="Restaurant Name" value={profile?.businessName || profile?.restaurantName} />
+    <ProfileField label="Brand Name" value={profile?.brandName || profile?.ownerName} />
 
     <ProfileField label="Website URL" value={profile?.website} />
     <ProfileField label="Business Type" value={profile?.businessType} />
@@ -250,7 +250,7 @@ const BusinessProfilePage = () => {
     <ProfileField label="State" value={profile?.state} />
 
     <ProfileField label="City" value={profile?.city} />
-    <ProfileField label="Zip/Pin Code" value={profile?.postalCode} />
+    <ProfileField label="Zip/Pin Code" value={profile?.postalCode || profile?.zipCode} />
 
     <div className="col-span-2">
       <p className="font-medium">Address:</p>

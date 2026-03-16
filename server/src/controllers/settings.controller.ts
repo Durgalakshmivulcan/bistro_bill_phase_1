@@ -1574,6 +1574,7 @@ export const getProfile = async (req: AuthenticatedRequest, res: Response) => {
       },
       include: {
         plan: true,
+        businessPreference: true,
         branches: {
           where: {
             status: 'active',
@@ -1592,12 +1593,29 @@ export const getProfile = async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
+    const profileSettings =
+      businessOwner.businessPreference &&
+      businessOwner.businessPreference.settings &&
+      typeof businessOwner.businessPreference.settings === 'object' &&
+      !Array.isArray(businessOwner.businessPreference.settings)
+        ? (businessOwner.businessPreference.settings as Record<string, any>)
+        : {};
+
     // Remove password from response
     const { password, ...profileWithoutPassword } = businessOwner;
 
     return res.status(200).json({
       success: true,
-      data: profileWithoutPassword,
+      data: {
+        ...profileWithoutPassword,
+        businessName: profileWithoutPassword.restaurantName,
+        brandName: profileWithoutPassword.ownerName,
+        postalCode: profileWithoutPassword.zipCode,
+        logo: profileWithoutPassword.avatar,
+        website: typeof profileSettings.website === 'string' ? profileSettings.website : null,
+        description:
+          typeof profileSettings.description === 'string' ? profileSettings.description : null,
+      },
     });
   } catch (error) {
     console.error('Error fetching profile:', error);
@@ -1645,7 +1663,9 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response) =>
 
     const {
       ownerName,
+      brandName,
       restaurantName,
+      businessName,
       phone,
       businessType,
       tinGstNumber,
@@ -1653,20 +1673,29 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response) =>
       state,
       city,
       zipCode,
+      postalCode,
       address,
+      website,
+      description,
     } = req.body;
 
     // Build update data with only provided fields
     const updateData: any = {};
-    if (ownerName !== undefined) updateData.ownerName = ownerName;
-    if (restaurantName !== undefined) updateData.restaurantName = restaurantName;
+    if (ownerName !== undefined || brandName !== undefined) {
+      updateData.ownerName = ownerName ?? brandName;
+    }
+    if (restaurantName !== undefined || businessName !== undefined) {
+      updateData.restaurantName = restaurantName ?? businessName;
+    }
     if (phone !== undefined) updateData.phone = phone;
     if (businessType !== undefined) updateData.businessType = businessType;
     if (tinGstNumber !== undefined) updateData.tinGstNumber = tinGstNumber;
     if (country !== undefined) updateData.country = country;
     if (state !== undefined) updateData.state = state;
     if (city !== undefined) updateData.city = city;
-    if (zipCode !== undefined) updateData.zipCode = zipCode;
+    if (zipCode !== undefined || postalCode !== undefined) {
+      updateData.zipCode = zipCode ?? postalCode;
+    }
     if (address !== undefined) updateData.address = address;
 
     // Handle avatar upload if file is present
@@ -1691,6 +1720,7 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response) =>
       data: updateData,
       include: {
         plan: true,
+        businessPreference: true,
         branches: {
           where: {
             status: 'active',
@@ -1699,12 +1729,92 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response) =>
       },
     });
 
+    if (website !== undefined || description !== undefined) {
+      const existingProfileSettings =
+        businessOwner.businessPreference &&
+        businessOwner.businessPreference.settings &&
+        typeof businessOwner.businessPreference.settings === 'object' &&
+        !Array.isArray(businessOwner.businessPreference.settings)
+          ? (businessOwner.businessPreference.settings as Record<string, any>)
+          : {};
+
+      const nextProfileSettings: Record<string, any> = {
+        ...existingProfileSettings,
+      };
+
+      if (website !== undefined) {
+        nextProfileSettings.website = typeof website === 'string' ? website.trim() || null : website;
+      }
+
+      if (description !== undefined) {
+        nextProfileSettings.description =
+          typeof description === 'string' ? description.trim() || null : description;
+      }
+
+      await prisma.businessPreference.upsert({
+        where: {
+          businessOwnerId: tenantId,
+        },
+        update: {
+          settings: nextProfileSettings,
+        },
+        create: {
+          businessOwnerId: tenantId,
+          currency: 'INR',
+          timezone: 'Asia/Kolkata',
+          dateFormat: 'DD/MM/YYYY',
+          invoicePrefix: 'INV',
+          kotPrefix: 'KOT',
+          autoAcceptOrders: true,
+          enableReservations: true,
+          settings: nextProfileSettings,
+        },
+      });
+    }
+
+    const refreshedBusinessOwner = await prisma.businessOwner.findUnique({
+      where: {
+        id: tenantId,
+      },
+      include: {
+        plan: true,
+        businessPreference: true,
+        branches: {
+          where: {
+            status: 'active',
+          },
+        },
+      },
+    });
+
+    const refreshedProfileSettings =
+      refreshedBusinessOwner?.businessPreference &&
+      refreshedBusinessOwner.businessPreference.settings &&
+      typeof refreshedBusinessOwner.businessPreference.settings === 'object' &&
+      !Array.isArray(refreshedBusinessOwner.businessPreference.settings)
+        ? (refreshedBusinessOwner.businessPreference.settings as Record<string, any>)
+        : {};
+
     // Remove password from response
-    const { password, ...profileWithoutPassword } = businessOwner;
+    const { password, ...profileWithoutPassword } = refreshedBusinessOwner || businessOwner;
 
     return res.status(200).json({
       success: true,
-      data: profileWithoutPassword,
+      data: {
+        ...profileWithoutPassword,
+        businessName: profileWithoutPassword.restaurantName,
+        brandName: profileWithoutPassword.ownerName,
+        postalCode: profileWithoutPassword.zipCode,
+        logo: profileWithoutPassword.avatar,
+        website:
+          typeof refreshedProfileSettings.website === 'string'
+            ? refreshedProfileSettings.website
+            : null,
+        description:
+          typeof refreshedProfileSettings.description === 'string'
+            ? refreshedProfileSettings.description
+            : null,
+      },
       message: 'Profile updated successfully',
     });
   } catch (error) {

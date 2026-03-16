@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import GuestCounter from "./GuestCounter";
+import { useBranch } from "../../contexts/BranchContext";
+import { getFloors, getTables } from "../../services/tableService";
 
 interface Props {
   mode: "add" | "edit" | "view";
@@ -9,6 +11,11 @@ interface Props {
 
 const ReservationForm: React.FC<Props> = ({ mode, data, onSubmit }) => {
   const isView = mode === "view";
+  const { currentBranchId, currentBranch, availableBranches, isAllLocationsSelected } = useBranch();
+  const branchId =
+    !isAllLocationsSelected && currentBranchId
+      ? currentBranchId
+      : currentBranch?.id || availableBranches[0]?.id || "";
 
   const [form, setForm] = useState({
     customerName: data?.customerName || "",
@@ -22,15 +29,19 @@ const ReservationForm: React.FC<Props> = ({ mode, data, onSubmit }) => {
   });
 
   const [guestCount, setGuestCount] = useState<number>(data?.guests || 1);
+  const [floors, setFloors] = useState<Array<{ id: string; name: string }>>([]);
+  const [tables, setTables] = useState<Array<{ id: string; name: string }>>([]);
 
-  const handleChange = (e: any) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     setForm({
       ...form,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handleSubmit = (e: any) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (onSubmit) {
       onSubmit({
@@ -40,6 +51,55 @@ const ReservationForm: React.FC<Props> = ({ mode, data, onSubmit }) => {
     }
   };
 
+  useEffect(() => {
+    if (!branchId) {
+      setFloors([]);
+      return;
+    }
+
+    const loadFloors = async () => {
+      const response = await getFloors(branchId, "active");
+      if (response.success && response.data?.floors) {
+        setFloors(
+          response.data.floors.map((floor) => ({
+            id: floor.id,
+            name: floor.name,
+          }))
+        );
+      } else {
+        setFloors([]);
+      }
+    };
+
+    void loadFloors();
+  }, [branchId]);
+
+  useEffect(() => {
+    if (!form.floor) {
+      setTables([]);
+      setForm((prev) => ({ ...prev, table: "" }));
+      return;
+    }
+
+    const loadTables = async () => {
+      const response = await getTables(form.floor);
+      if (response.success && response.data?.tables) {
+        setTables(
+          response.data.tables
+            .filter((table) => table.capacity >= guestCount && table.status !== "maintenance")
+            .map((table) => ({
+              id: table.id,
+              name: table.tableNumber,
+            }))
+        );
+      } else {
+        setTables([]);
+      }
+    };
+
+    void loadTables();
+  }, [form.floor, guestCount]);
+
   return (
     <form className="reservation-form-card" onSubmit={handleSubmit}>
       <h2 className="form-title">
@@ -47,7 +107,6 @@ const ReservationForm: React.FC<Props> = ({ mode, data, onSubmit }) => {
       </h2>
 
       <div className="form-grid">
-
         <div className="form-group">
           <label>Customer Name *</label>
           <input
@@ -112,8 +171,11 @@ const ReservationForm: React.FC<Props> = ({ mode, data, onSubmit }) => {
             onChange={handleChange}
           >
             <option value="">Select Floor/Area</option>
-            <option value="AC">AC</option>
-            <option value="Non-AC">Non‑AC</option>
+            {floors.map((floor) => (
+              <option key={floor.id} value={floor.id}>
+                {floor.name}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -131,15 +193,13 @@ const ReservationForm: React.FC<Props> = ({ mode, data, onSubmit }) => {
             onChange={handleChange}
           >
             <option value="">Select Table</option>
-            <option>T-01</option>
-            <option>T-02</option>
-            <option>T-03</option>
-            <option>T-04</option>
-            <option>T-05</option>
-            <option>T-06</option>
+            {tables.map((table) => (
+              <option key={table.id} value={table.id}>
+                {table.name}
+              </option>
+            ))}
           </select>
         </div>
-
       </div>
 
       <div className="form-group full">

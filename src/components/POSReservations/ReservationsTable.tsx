@@ -27,7 +27,11 @@ interface ReservationsTableProps {
 
 const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'All' }) => {
   const navigate = useNavigate();
-  const { currentBranchId } = useBranch();
+  const { currentBranchId, currentBranch, availableBranches, isAllLocationsSelected } = useBranch();
+  const branchId =
+    !isAllLocationsSelected && currentBranchId
+      ? currentBranchId
+      : currentBranch?.id || availableBranches[0]?.id || "";
 
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +97,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
       setError(null);
       const apiStatus = TAB_STATUS_MAP[statusFilter];
       const response = await getReservations({
-        branchId: currentBranchId,
+        branchId,
         status: apiStatus,
         page: 1,
         limit: 10
@@ -115,7 +119,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
 
   useEffect(() => {
     loadReservations();
-  }, [statusFilter, currentBranchId]);
+  }, [statusFilter, branchId]);
 
   const handleDeleteClick = (id: string) => {
     setDeleteId(id);

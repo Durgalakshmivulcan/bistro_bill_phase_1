@@ -13,10 +13,12 @@ import { getFloors, getTables, Floor, Table } from "../../services/tableService"
 
 const AddNewReservation: React.FC = () => {
   const navigate = useNavigate();
-  const { currentBranchId } = useBranch();
+  const { currentBranchId, currentBranch, availableBranches, isAllLocationsSelected } = useBranch();
 
-  // Use branchId from BranchContext
-  const branchId = currentBranchId;
+  const branchId =
+    !isAllLocationsSelected && currentBranchId
+      ? currentBranchId
+      : currentBranch?.id || availableBranches[0]?.id || "";
 
   // Form state
   const [customerId, setCustomerId] = useState("");
@@ -61,6 +63,8 @@ const AddNewReservation: React.FC = () => {
   };
 
   const timeSlots = generateTimeSlots();
+  const formatTableStatus = (status: string) =>
+    status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown";
 
   // Fetch customers on mount
   useEffect(() => {
@@ -113,12 +117,12 @@ const AddNewReservation: React.FC = () => {
     const fetchTables = async () => {
       setLoadingTables(true);
       try {
-        const response = await getTables(floorId, 'available');
+        const response = await getTables(floorId);
         if (response.success && response.data?.tables) {
-          const availableTables = response.data.tables.filter(
-            (table) => table.capacity >= guestCount
+          const branchTables = response.data.tables.filter(
+            (table) => table.capacity >= guestCount && table.status !== "maintenance"
           );
-          setTables(availableTables);
+          setTables(branchTables);
         }
       } catch (err) {
         console.error('Failed to fetch tables:', err);
@@ -329,7 +333,7 @@ const AddNewReservation: React.FC = () => {
               options={[
                 { label: loadingTables ? "Loading..." : "Select Table", value: "" },
                 ...tables.map((t) => ({
-                  label: `${t.tableNumber} (Capacity: ${t.capacity})`,
+                  label: `${t.tableNumber} (Capacity: ${t.capacity}) - ${formatTableStatus(t.status)}`,
                   value: t.id,
                 })),
               ]}

@@ -22,6 +22,10 @@ import {
   UpdateBranchData,
   BusinessHoursInput,
 } from "../../services/branchService";
+import {
+  getFloors as getBranchFloors,
+  getTables as getFloorTables,
+} from "../../services/tableService";
 
 const steps = [
   "Branch Detail's",
@@ -39,6 +43,20 @@ type Props = {
   onClose: () => void;
   onSave: () => void;
 };
+
+export interface BranchFloorFormItem {
+  id: string | number;
+  name: string;
+  status: "active" | "inactive";
+}
+
+export interface BranchTableFormItem {
+  id: string | number;
+  name: string;
+  capacity: number;
+  floor: string;
+  status: "active" | "inactive";
+}
 
 export interface BranchFormData {
   // Branch Details
@@ -63,9 +81,9 @@ export interface BranchFormData {
   // Kitchen
   kitchens?: any[];
   // Floor / Area
-  floors?: any[];
+  floors?: BranchFloorFormItem[];
   // Table
-  tables?: any[];
+  tables?: BranchTableFormItem[];
   // Room
   rooms?: any[];
 }
@@ -83,6 +101,11 @@ interface CreationSummary {
 const toApiStatus = (status: unknown): "active" | "inactive" => {
   if (status === "active" || status === true) return "active";
   return "inactive";
+};
+
+const toTableFormStatus = (status: unknown): "active" | "inactive" => {
+  if (status === "maintenance" || status === "inactive" || status === false) return "inactive";
+  return "active";
 };
 
 export default function CreateBranchModal({ defaultValues, onClose, onSave }: Props) {
@@ -115,6 +138,58 @@ export default function CreateBranchModal({ defaultValues, onClose, onSave }: Pr
         zipCode: defaultValues.zipCode || "",
       });
     }
+  }, [defaultValues]);
+
+  useEffect(() => {
+    if (!defaultValues) return;
+
+    const loadBranchResources = async () => {
+      try {
+        const floorsResponse = await getBranchFloors(defaultValues.id);
+        const fetchedFloors = floorsResponse.success && floorsResponse.data
+          ? floorsResponse.data.floors
+          : [];
+
+        const mappedFloors: BranchFloorFormItem[] = fetchedFloors.map((floor) => ({
+          id: floor.id,
+          name: floor.name,
+          status: toApiStatus(floor.status),
+        }));
+
+        const tableResponses = await Promise.all(
+          fetchedFloors.map(async (floor) => ({
+            floorName: floor.name,
+            response: await getFloorTables(floor.id),
+          }))
+        );
+
+        const mappedTables: BranchTableFormItem[] = tableResponses.flatMap(({ floorName, response }) =>
+          response.success && response.data
+            ? response.data.tables.map((table) => ({
+                id: table.id,
+                name: table.tableNumber,
+                capacity: table.capacity,
+                floor: floorName,
+                status: toTableFormStatus(table.status),
+              }))
+            : []
+        );
+
+        setFormData((prev) => ({
+          ...prev,
+          floors: mappedFloors,
+          tables: mappedTables,
+        }));
+      } catch {
+        setFormData((prev) => ({
+          ...prev,
+          floors: prev.floors || [],
+          tables: prev.tables || [],
+        }));
+      }
+    };
+
+    void loadBranchResources();
   }, [defaultValues]);
 
   useEffect(() => {

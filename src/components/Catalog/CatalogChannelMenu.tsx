@@ -12,7 +12,6 @@ import {
   Trash2,
   Star,
   X,
-  Check,
 } from "lucide-react";
 import { getBranches, Branch } from "../../services/branchService";
 import {
@@ -27,6 +26,7 @@ import {
   Aggregator,
 } from "../../services/settingsService";
 import { getErrorMessage } from "../../utils/errorHandler";
+import { showSuccessToast } from "../../utils/toast";
 import { LoadingSpinner } from "../Common";
 import Pagination from "../Common/Pagination";
 import ProductQuickViewModal from "./products/ProductQuickViewModal";
@@ -142,7 +142,6 @@ export default function CatalogChannelMenu() {
   const [selectedUnavailableTimeSlots, setSelectedUnavailableTimeSlots] = useState<string[]>([]);
   const [unavailableModalStep, setUnavailableModalStep] = useState<"channels" | "slots">("channels");
   const [channelUnavailableMap, setChannelUnavailableMap] = useState<ChannelUnavailableMap>({});
-  const [successModalMessage, setSuccessModalMessage] = useState<string | null>(null);
   const groupsPerPage = 4;
   const productsPerPage = 20;
 
@@ -438,8 +437,7 @@ export default function CatalogChannelMenu() {
     persistChannelUnavailableMap(nextMap);
     setUnavailableTarget(null);
     setUnavailableModalStep("channels");
-
-    setSuccessModalMessage(
+    showSuccessToast(
       `Product Marked as Unavailable from ${selectedUnavailableTimeSlots[0]} to ${
         selectedUnavailableTimeSlots[selectedUnavailableTimeSlots.length - 1]
       } Successfully!`
@@ -849,7 +847,7 @@ export default function CatalogChannelMenu() {
         <div className="relative px-8 pt-8 pb-8 text-center">
           <button
             type="button"
-            className="absolute right-5 top-5 text-[#555] text-xl leading-none"
+            className="absolute right-5 top-5 text-[#555] leading-none"
             onClick={() => {
               setUnavailableTarget(null);
               setSelectedUnavailableChannels([]);
@@ -857,7 +855,7 @@ export default function CatalogChannelMenu() {
               setUnavailableModalStep("channels");
             }}
           >
-            ×
+            <X size={16} />
           </button>
 
           {unavailableModalStep === "channels" ? (
@@ -940,26 +938,6 @@ export default function CatalogChannelMenu() {
           </div>
         </div>
       </Modal>
-      <Modal
-        open={!!successModalMessage}
-        onClose={() => setSuccessModalMessage(null)}
-        className="w-[92%] max-w-[430px] p-0 overflow-hidden"
-      >
-        <div className="relative px-8 pt-8 pb-9 text-center">
-          <button
-            type="button"
-            className="absolute right-5 top-5 text-[#555] text-xl leading-none"
-            onClick={() => setSuccessModalMessage(null)}
-          >
-            ×
-          </button>
-          <h2 className="text-[26px] font-bold mb-5">Saved Changes</h2>
-          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#2eb872] text-white">
-            ✓
-          </div>
-          <p className="mx-auto max-w-[300px] text-[14px] leading-5 text-[#444]">{successModalMessage}</p>
-        </div>
-      </Modal>
       {activeActionItem &&
         actionMenuPosition &&
         createPortal(
@@ -1032,3 +1010,4 @@ export default function CatalogChannelMenu() {
     </div>
   );
 }
+

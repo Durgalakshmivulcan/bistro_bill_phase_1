@@ -142,18 +142,18 @@ export default function BrandContent() {
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-[#eadfca] bg-white p-4 lg:p-5">
+    <div className="min-w-0 space-y-4 rounded-xl border border-[#eadfca] bg-white p-4 lg:p-5">
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>}
 
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
         <h1 className="text-[32px] font-bold">Brand</h1>
 
         <div className="flex flex-wrap gap-2">
-          <div className="relative">
+          <div className="relative w-full sm:w-[220px]">
             <Search size={16} className="absolute right-3 top-3 text-gray-500" />
             <input
               placeholder="Search here..."
-              className="border rounded-md px-3 pr-8 py-2 text-sm bg-gray-50"
+              className="w-full border rounded-md px-3 pr-8 py-2 text-sm bg-gray-50"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -162,10 +162,10 @@ export default function BrandContent() {
             />
           </div>
 
-          <button className="border px-4 py-2 rounded" onClick={() => showInfoToast("CSV import coming soon")}>
+          <button className="w-full rounded border px-4 py-2 sm:w-auto" onClick={() => showInfoToast("CSV import coming soon")}>
             Import
           </button>
-          <button className="border px-4 py-2 rounded" onClick={handleExport}>
+          <button className="w-full rounded border px-4 py-2 sm:w-auto" onClick={handleExport}>
             Export
           </button>
           <button
@@ -173,16 +173,16 @@ export default function BrandContent() {
               setActiveItem(null);
               setModal("add");
             }}
-            className="bg-black text-white px-4 py-2 rounded"
+            className="w-full rounded bg-black px-4 py-2 text-white sm:w-auto"
           >
             Add New
           </button>
         </div>
       </div>
 
-      <div className="flex justify-end items-center gap-2">
+      <div className="flex flex-wrap justify-end items-center gap-2">
         <select
-          className="border px-3 py-2 rounded text-sm bg-white"
+          className="w-full rounded border px-3 py-2 text-sm bg-white sm:w-auto"
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value);
@@ -195,7 +195,7 @@ export default function BrandContent() {
         </select>
 
         <button
-          className="border px-4 py-2 rounded"
+          className="w-full rounded border px-4 py-2 sm:w-auto"
           onClick={() => {
             setSearchQuery("");
             setStatusFilter("");
@@ -228,8 +228,8 @@ export default function BrandContent() {
 
       {!loading && filteredAndSorted.length > 0 && view === "table" && (
         <>
-          <div className="bg-white border rounded-xl overflow-hidden">
-            <table className="w-full text-sm min-w-[850px]">
+          <div className="w-full overflow-x-auto rounded-xl border bg-white">
+            <table className="w-full min-w-[850px] text-sm">
               <thead className="bg-yellow-400">
                 <tr>
                   <th className="p-3">

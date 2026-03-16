@@ -12,7 +12,7 @@ export default function CatalogConfiguration() {
   const menuItems: MenuType[] = ["Category", "Sub-Category", "Menu", "Brand", "Tags"];
 
   return (
-    <div className="flex flex-col lg:flex-row rounded-xl border border-[#eadfca] bg-[#fffdf7] font-inter overflow-hidden">
+    <div className="min-w-0 flex flex-col lg:flex-row rounded-xl border border-[#eadfca] bg-[#fffdf7] font-inter overflow-hidden">
       {/* CONFIGURATION SIDE MENU */}
       <aside className="w-full lg:w-56 border-b lg:border-b-0 lg:border-r border-[#eadfca] p-4 space-y-2 bg-[#fffdf7]">
         {menuItems.map((item) => (
@@ -31,7 +31,7 @@ export default function CatalogConfiguration() {
       </aside>
 
       {/* CONTENT AREA */}
-      <main className="flex-1 p-5 lg:p-6 bg-[#fffdf7]">
+      <main className="min-w-0 flex-1 overflow-hidden p-5 lg:p-6 bg-[#fffdf7]">
         {activeMenu === "Category" && <CategoryContent />}
         {activeMenu === "Sub-Category" && <SubCategoryContent />}
         {activeMenu === "Menu" && <MenuContent />}
