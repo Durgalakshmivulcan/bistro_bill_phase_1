@@ -150,6 +150,22 @@ export interface StaffPerformance {
   avgOrderValue: number;
 }
 
+const mapAnalyticsLeaderboardToStaffPerformance = (
+  data: StaffPerformanceAnalyticsResponse
+): StaffPerformance[] =>
+  data.leaderboard.map((entry) => ({
+    staff: {
+      id: entry.staffId,
+      name: entry.name,
+      email: entry.email,
+      branch: entry.branch,
+      role: entry.role,
+    },
+    ordersProcessed: entry.ordersProcessed,
+    totalSales: entry.totalRevenue,
+    avgOrderValue: entry.avgOrderValue,
+  }));
+
 // Enhanced Staff Performance Analytics
 export interface StaffMetrics {
   staffId: string;
@@ -494,7 +510,20 @@ export const getStaffPerformance = async (
 ): Promise<ApiResponse<StaffPerformance[]>> => {
   const params: any = { startDate, endDate };
   if (branchId) params.branchId = branchId;
-  return api.get<ApiResponse<StaffPerformance[]>>('/reports/staff/performance', { params });
+  const response = await api.get<
+    ApiResponse<StaffPerformance[] | StaffPerformanceAnalyticsResponse>
+  >('/reports/staff/performance', { params });
+
+  const normalizedData = Array.isArray(response.data)
+    ? response.data
+    : response.data?.leaderboard
+      ? mapAnalyticsLeaderboardToStaffPerformance(response.data)
+      : [];
+
+  return {
+    ...response,
+    data: normalizedData,
+  };
 };
 
 /**

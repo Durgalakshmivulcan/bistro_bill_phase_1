@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useBranch } from '../../contexts/BranchContext';
 import {
   getStockoutPredictions,
   type StockoutPredictionResponse,
@@ -8,21 +9,33 @@ import {
 
 const StockoutPredictions = () => {
   const { user } = useAuth();
+  const { currentBranchId, currentBranch, availableBranches, isAllLocationsSelected } = useBranch();
   const [data, setData] = useState<StockoutPredictionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const businessOwnerFallbackBranchId =
+    user && 'branches' in user ? user.branches?.[0]?.id : undefined;
 
   const branchId =
     user?.userType === 'Staff'
       ? user.branch?.id
-      : user?.userType === 'BusinessOwner'
-        ? user.branches?.[0]?.id
-        : undefined;
+      : !isAllLocationsSelected && currentBranchId
+        ? currentBranchId
+        : currentBranch?.id || availableBranches[0]?.id || businessOwnerFallbackBranchId;
 
   useEffect(() => {
-    if (!branchId) return;
-
     const fetchPredictions = async () => {
+      if (!branchId) {
+        setData(null);
+        setError(
+          isAllLocationsSelected
+            ? 'Select a branch to view stockout predictions.'
+            : 'No branch selected for stockout predictions.'
+        );
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
@@ -42,7 +55,7 @@ const StockoutPredictions = () => {
 
     fetchPredictions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchId]);
+  }, [branchId, isAllLocationsSelected]);
 
   const getStatusBadge = (status: StockoutPrediction['status']) => {
     switch (status) {
