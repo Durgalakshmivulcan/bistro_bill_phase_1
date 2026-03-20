@@ -6,7 +6,12 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { ApiResponse, ApiError } from './types';
-import { connectDatabase, ensureProductCatalogColumns, isDatabaseHealthy } from './services/db.service';
+import {
+  connectDatabase,
+  ensureProductCatalogColumns,
+  ensureTaxGroupMetaColumns,
+  isDatabaseHealthy,
+} from './services/db.service';
 // import { cacheService } from './services/cache.service'; // Uncomment when Redis is configured
 import { initializeWebSocket } from './websocket/websocket.server';
 import authRoutes from './routes/auth.routes';
@@ -157,6 +162,7 @@ async function startServer() {
     // Connect to database
     await connectDatabase();
     await ensureProductCatalogColumns();
+    await ensureTaxGroupMetaColumns();
 
     // Connect to Redis cache (optional - app continues without cache if Redis unavailable)
     // Temporarily disabled - uncomment when Redis is available

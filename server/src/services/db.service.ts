@@ -62,6 +62,28 @@ export async function ensureProductCatalogColumns(): Promise<void> {
 }
 
 /**
+ * Ensure TaxGroup metadata columns exist for master-data and pricing flows.
+ * This keeps older databases compatible with the current Prisma schema.
+ */
+export async function ensureTaxGroupMetaColumns(): Promise<void> {
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE public."TaxGroup"
+      ADD COLUMN IF NOT EXISTS "symbol" text,
+      ADD COLUMN IF NOT EXISTS "percentage" decimal(10, 2),
+      ADD COLUMN IF NOT EXISTS "country" text,
+      ADD COLUMN IF NOT EXISTS "state" text,
+      ADD COLUMN IF NOT EXISTS "city" text;
+    `);
+
+    console.log('TaxGroup metadata columns verified');
+  } catch (error) {
+    console.error('Failed to ensure TaxGroup metadata columns:', error);
+    throw error;
+  }
+}
+
+/**
  * Disconnect from the database
  * @returns Promise that resolves when disconnected
  */

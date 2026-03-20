@@ -6,6 +6,13 @@ import DashboardLayout from "../layout/DashboardLayout";
 
 const ReservationsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+
+  const handleClearFilters = () => {
+    setSearch("");
+    setDateFilter("");
+  };
 
   return (
     <DashboardLayout>
@@ -28,12 +35,22 @@ const ReservationsPage: React.FC = () => {
         <ReservationsHeader activeTab={statusFilter} onTabChange={setStatusFilter} />
 
         {/* Filters */}
-        <ReservationsFilters />
+        <ReservationsFilters
+          search={search}
+          dateFilter={dateFilter}
+          onSearchChange={setSearch}
+          onDateFilterChange={setDateFilter}
+          onClear={handleClearFilters}
+        />
 
         {/* Table Wrapper (ONLY SCROLL AREA) */}
         <div className="flex-1 overflow-auto">
           <div className="w-full min-w-max">
-            <ReservationsTable statusFilter={statusFilter} />
+            <ReservationsTable
+              statusFilter={statusFilter}
+              searchQuery={search}
+              dateFilter={dateFilter}
+            />
           </div>
         </div>
       </div>

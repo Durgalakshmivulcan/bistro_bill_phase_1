@@ -9,8 +9,10 @@ import POSHeader from "../layout/POSHeader";
 const ReservationsPage = () => {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
- const handleBack = () => {
+  const handleBack = () => {
   const entryPath =
     sessionStorage.getItem("posEntry") ||
     sessionStorage.getItem("lastNonPOS") ||
@@ -19,6 +21,11 @@ const ReservationsPage = () => {
   sessionStorage.removeItem("posEntry");
   navigate(entryPath);
 };
+
+  const handleClearFilters = () => {
+    setSearch("");
+    setDateFilter("");
+  };
   return (
     <div className="min-h-screen bg-bb-bg p-3 sm:p-4 lg:p-6">
       <POSHeader />
@@ -39,8 +46,18 @@ const ReservationsPage = () => {
       <div>
         <POSActionsBar/>
         <ReservationsHeader activeTab={statusFilter} onTabChange={setStatusFilter} />
-        <ReservationsFilters />
-        <ReservationsTable statusFilter={statusFilter} />
+        <ReservationsFilters
+          search={search}
+          dateFilter={dateFilter}
+          onSearchChange={setSearch}
+          onDateFilterChange={setDateFilter}
+          onClear={handleClearFilters}
+        />
+        <ReservationsTable
+          statusFilter={statusFilter}
+          searchQuery={search}
+          dateFilter={dateFilter}
+        />
       </div>
     </div>
   );

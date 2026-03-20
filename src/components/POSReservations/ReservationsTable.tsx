@@ -23,9 +23,62 @@ const TAB_STATUS_MAP: Record<string, ReservationStatus | undefined> = {
 
 interface ReservationsTableProps {
   statusFilter?: string;
+  searchQuery?: string;
+  dateFilter?: string;
 }
 
-const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'All' }) => {
+const getDateRangeParams = (filter: string): { date?: string; startDate?: string; endDate?: string } => {
+  if (!filter) {
+    return {};
+  }
+
+  const today = new Date();
+  const formatDate = (value: Date) => value.toISOString().split("T")[0];
+
+  if (filter === "today") {
+    return { date: formatDate(today) };
+  }
+
+  if (filter === "tomorrow") {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return { date: formatDate(tomorrow) };
+  }
+
+  if (filter === "week") {
+    const start = new Date(today);
+    start.setHours(0, 0, 0, 0);
+    const day = start.getDay();
+    const diffToMonday = (day + 6) % 7;
+    start.setDate(start.getDate() - diffToMonday);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+
+    return {
+      startDate: formatDate(start),
+      endDate: formatDate(end),
+    };
+  }
+
+  if (filter === "month") {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    return {
+      startDate: formatDate(start),
+      endDate: formatDate(end),
+    };
+  }
+
+  return {};
+};
+
+const ReservationsTable: React.FC<ReservationsTableProps> = ({
+  statusFilter = 'All',
+  searchQuery = "",
+  dateFilter = "",
+}) => {
   const navigate = useNavigate();
   const { currentBranchId, currentBranch, availableBranches, isAllLocationsSelected } = useBranch();
   const branchId =
@@ -96,11 +149,14 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
       setLoading(true);
       setError(null);
       const apiStatus = TAB_STATUS_MAP[statusFilter];
+      const dateParams = getDateRangeParams(dateFilter);
       const response = await getReservations({
         branchId,
         status: apiStatus,
+        search: searchQuery.trim() || undefined,
+        ...dateParams,
         page: 1,
-        limit: 10
+        limit: 100
       });
 
       if (response.success && response.data) {
@@ -119,7 +175,7 @@ const ReservationsTable: React.FC<ReservationsTableProps> = ({ statusFilter = 'A
 
   useEffect(() => {
     loadReservations();
-  }, [statusFilter, branchId]);
+  }, [statusFilter, branchId, searchQuery, dateFilter]);
 
   const handleDeleteClick = (id: string) => {
     setDeleteId(id);

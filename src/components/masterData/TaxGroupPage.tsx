@@ -6,6 +6,12 @@ import MasterDataNavTabs from "../NavTabs/MasterDataNavTabs";
 import { useState, useEffect } from "react";
 import Modal from "../ui/Modal";
 import { getTaxGroups, deleteTaxGroup, TaxGroup } from "../../services/settingsService";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  getBusinessOwners,
+  BusinessOwnerListItem,
+} from "../../services/superAdminService";
+import { getSelectedBoId, setSelectedBoId } from "../../services/saReportContext";
 
 // Images
 import deleteConfirmImg from "../../assets/deleteConformImg.png";
@@ -13,6 +19,8 @@ import deleteSuccessImg from "../../assets/deleteSuccessImg.png";
 
 const MasterTaxGroupPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.userType === "SuperAdmin";
 
   // Data state
   const [taxGroups, setTaxGroups] = useState<TaxGroup[]>([]);
@@ -20,6 +28,9 @@ const MasterTaxGroupPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [countryFilter, setCountryFilter] = useState("");
+  const [selectedBo, setSelectedBo] = useState<string>(getSelectedBoId() || "");
+  const [boList, setBoList] = useState<BusinessOwnerListItem[]>([]);
+  const [boLoading, setBoLoading] = useState(false);
 
   // Modal state
   const [deleteItem, setDeleteItem] = useState<TaxGroup | null>(null);
@@ -29,10 +40,34 @@ const MasterTaxGroupPage = () => {
 
   // Fetch tax groups from API
   useEffect(() => {
+    const loadBusinessOwners = async () => {
+      if (!isSuperAdmin) return;
+      setBoLoading(true);
+      try {
+        const res = await getBusinessOwners({ limit: 100 });
+        if (res.success && res.data) {
+          setBoList(res.data.businessOwners);
+        }
+      } finally {
+        setBoLoading(false);
+      }
+    };
+
+    loadBusinessOwners();
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
     fetchTaxGroups();
-  }, []);
+  }, [isSuperAdmin, selectedBo]);
 
   const fetchTaxGroups = async () => {
+    if (isSuperAdmin && !selectedBo) {
+      setTaxGroups([]);
+      setError("Select a restaurant context to load tax groups.");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -43,7 +78,7 @@ const MasterTaxGroupPage = () => {
         setError(response.message || 'Failed to fetch tax groups');
       }
     } catch (err) {
-      setError('An error occurred while fetching tax groups');
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching tax groups');
       console.error('Error fetching tax groups:', err);
     } finally {
       setLoading(false);
@@ -66,12 +101,17 @@ const MasterTaxGroupPage = () => {
         setShowConfirm(false);
       }
     } catch (err) {
-      setError('An error occurred while deleting tax group');
+      setError(err instanceof Error ? err.message : 'An error occurred while deleting tax group');
       console.error('Error deleting tax group:', err);
       setShowConfirm(false);
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleBusinessOwnerChange = (boId: string) => {
+    setSelectedBo(boId);
+    setSelectedBoId(boId || null);
   };
 
   // Filter tax groups based on search term
@@ -92,6 +132,27 @@ const MasterTaxGroupPage = () => {
     <div className="space-y-6 min-h-screen p-4 sm:p-6">
       {/* TABS */}
       <MasterDataNavTabs />
+
+      {isSuperAdmin && (
+        <div className="bg-white border rounded-lg p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Restaurant Context
+          </label>
+          <select
+            value={selectedBo}
+            onChange={(e) => handleBusinessOwnerChange(e.target.value)}
+            className="w-full md:w-80 border rounded-md px-3 py-2 text-sm bg-white"
+            disabled={boLoading}
+          >
+            <option value="">-- Select a Restaurant --</option>
+            {boList.map((bo) => (
+              <option key={bo.id} value={bo.id}>
+                {bo.restaurantName} ({bo.ownerName})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* SEARCH + ACTIONS */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -130,6 +191,8 @@ const MasterTaxGroupPage = () => {
 
           <button
             className="bg-black text-white px-5 py-2 rounded-md text-sm font-medium w-full sm:w-auto"
+            disabled={isSuperAdmin && !selectedBo}
+            title={isSuperAdmin && !selectedBo ? "Select a restaurant first" : undefined}
             onClick={() => navigate("/master-data/taxgroup/create")}
           >
             Add New

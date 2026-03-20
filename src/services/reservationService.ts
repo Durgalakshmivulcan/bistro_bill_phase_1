@@ -92,6 +92,7 @@ export interface UpdateReservationStatusInput {
 export interface ReservationFilters extends PaginationParams {
   branchId?: string;
   status?: ReservationStatus;
+  search?: string;
   date?: string; // Filter by specific date
   startDate?: string; // Filter by date range
   endDate?: string;

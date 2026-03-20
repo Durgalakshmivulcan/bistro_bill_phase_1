@@ -1,20 +1,79 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, X, Upload, Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import QRCode from "react-qr-code";
 import Select from "../form/Select";
 import { getReservations, Reservation } from "../../services/reservationService";
 import { useBranch } from "../../contexts/BranchContext";
 
-const ReservationsFilters: React.FC = () => {
+interface ReservationsFiltersProps {
+  search: string;
+  dateFilter: string;
+  onSearchChange: (value: string) => void;
+  onDateFilterChange: (value: string) => void;
+  onClear: () => void;
+}
+
+const getDateRangeParams = (filter: string): { date?: string; startDate?: string; endDate?: string } => {
+  if (!filter) {
+    return {};
+  }
+
+  const today = new Date();
+  const formatDate = (value: Date) => value.toISOString().split("T")[0];
+
+  if (filter === "today") {
+    return { date: formatDate(today) };
+  }
+
+  if (filter === "tomorrow") {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return { date: formatDate(tomorrow) };
+  }
+
+  if (filter === "week") {
+    const start = new Date(today);
+    start.setHours(0, 0, 0, 0);
+    const day = start.getDay();
+    const diffToMonday = (day + 6) % 7;
+    start.setDate(start.getDate() - diffToMonday);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+
+    return {
+      startDate: formatDate(start),
+      endDate: formatDate(end),
+    };
+  }
+
+  if (filter === "month") {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    return {
+      startDate: formatDate(start),
+      endDate: formatDate(end),
+    };
+  }
+
+  return {};
+};
+
+const ReservationsFilters: React.FC<ReservationsFiltersProps> = ({
+  search,
+  dateFilter,
+  onSearchChange,
+  onDateFilterChange,
+  onClear,
+}) => {
   const navigate = useNavigate();
   const { currentBranchId, currentBranch, availableBranches, isAllLocationsSelected } = useBranch();
   const branchId =
     !isAllLocationsSelected && currentBranchId
       ? currentBranchId
       : currentBranch?.id || availableBranches[0]?.id || "";
-  const [dateFilter, setDateFilter] = useState("");
-  const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
 
@@ -49,8 +108,11 @@ const ReservationsFilters: React.FC = () => {
   const handleExport = async () => {
     try {
       setExporting(true);
+      const dateParams = getDateRangeParams(dateFilter);
       const response = await getReservations({
         branchId,
+        search: search.trim() || undefined,
+        ...dateParams,
         limit: 10000,
       });
 
@@ -110,11 +172,6 @@ const ReservationsFilters: React.FC = () => {
     }
   };
 
-  const handleClear = () => {
-    setDateFilter("");
-    setSearch("");
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
@@ -128,7 +185,7 @@ const ReservationsFilters: React.FC = () => {
             />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search here..."
               className="w-full rounded-md border border-[#E5E5E5] bg-white px-3 pr-10 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-black/10"
             />
@@ -165,7 +222,7 @@ const ReservationsFilters: React.FC = () => {
         <div className="w-full sm:w-60">
           <Select
             value={dateFilter}
-            onChange={(value) => setDateFilter(value)}
+            onChange={(value) => onDateFilterChange(value)}
             options={[
               { label: "Today", value: "today" },
               { label: "Tomorrow", value: "tomorrow" },
@@ -177,7 +234,7 @@ const ReservationsFilters: React.FC = () => {
         </div>
 
         <button
-          onClick={handleClear}
+          onClick={onClear}
           className="flex items-center justify-center gap-2 rounded-md bg-[#F7C948] px-4 py-2 text-sm font-semibold text-black hover:brightness-105"
         >
           Clear

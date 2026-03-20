@@ -16,7 +16,7 @@ const router = Router();
  * @route GET /api/v1/reservations
  * @description List reservations with optional filters
  * @access Private
- * @query { branchId?, date?, status?, search?, page?, limit? }
+ * @query { branchId?, date?, startDate?, endDate?, status?, search?, page?, limit? }
  */
 router.get('/', authenticate, tenantMiddleware, requireTenantContext, listReservations);
 

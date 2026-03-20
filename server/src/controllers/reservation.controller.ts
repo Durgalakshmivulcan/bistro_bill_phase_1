@@ -4,7 +4,7 @@ import { prisma } from '../services/db.service';
 
 /**
  * GET /api/v1/reservations
- * List reservations with optional filters: branchId, date, status
+ * List reservations with optional filters: branchId, date, startDate, endDate, status, search
  * Returns paginated results with customer and table relations
  */
 export async function listReservations(
@@ -22,7 +22,7 @@ export async function listReservations(
       return;
     }
 
-    const { branchId, date, status, page, limit, search } = req.query;
+    const { branchId, date, startDate, endDate, status, page, limit, search } = req.query;
 
     const currentPage = page && typeof page === 'string' ? parseInt(page, 10) : 1;
     const pageSize = limit && typeof limit === 'string' ? parseInt(limit, 10) : 20;
@@ -37,12 +37,27 @@ export async function listReservations(
       where.branchId = { in: req.branchScope };
     }
 
-    // Date filter
+    // Exact date filter
     if (date && typeof date === 'string') {
       const d = new Date(date);
       const nextDay = new Date(d);
       nextDay.setDate(nextDay.getDate() + 1);
       where.date = { gte: d, lt: nextDay };
+    } else if (
+      (startDate && typeof startDate === 'string') ||
+      (endDate && typeof endDate === 'string')
+    ) {
+      where.date = {};
+
+      if (startDate && typeof startDate === 'string') {
+        where.date.gte = new Date(startDate);
+      }
+
+      if (endDate && typeof endDate === 'string') {
+        const rangeEnd = new Date(endDate);
+        rangeEnd.setHours(23, 59, 59, 999);
+        where.date.lte = rangeEnd;
+      }
     }
 
     // Status filter
