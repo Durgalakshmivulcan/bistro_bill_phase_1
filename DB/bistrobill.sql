@@ -2207,6 +2207,8 @@ COPY public."Customer" (id, "businessOwnerId", name, phone, email, gender, dob, 
 c109960a-4560-4c1c-8c0b-c58c1cbe526d	111bd836-595b-4982-bb3d-a24ade82c52a	Elizabeth Brink	+91 7243657890	elizabeth@gmail.com	Female	2000-02-09 00:00:00	Regular	\N	1250.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	\N	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	0
 a619748d-1246-429e-83ec-eda1bb9413d2	7fdfb940-d78a-4609-a441-fd28eb9f9869	Mark Taylor	+91 9564123574	mark@gmail.com	Male	2001-03-06 00:00:00	Corporate	\N	1450.00	84cd5023-9049-4ca8-8610-efc21d17125b	\N	2026-02-07 03:29:58.565	2026-02-07 03:29:58.565	0
 4e0a84ae-3429-4681-8015-e8f54e86263d	7fdfb940-d78a-4609-a441-fd28eb9f9869	Jessica John	+91 7894561230	jessica@gmail.com	Female	2000-07-08 00:00:00	VIP	\N	1850.00	6a891362-7338-4f89-b931-34db31b76afc	\N	2026-02-07 03:29:58.565	2026-02-07 03:29:58.565	0
+9f7c1c8b-bf40-4f12-9e2d-1c5c0a94d0a9	7fdfb940-d78a-4609-a441-fd28eb9f9869	Rahul Mehta	+91 9000012345	rahul.mehta@example.com	Male	1992-05-17 00:00:00	Regular	\N	620.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	Loves extra spice	2026-03-17 03:29:58.565	2026-03-17 03:29:58.565	0
+1b2df2f9-88c3-4d0e-9b6c-0c6b6dfcae77	7fdfb940-d78a-4609-a441-fd28eb9f9869	Priya Nair	+91 9888899999	priya.nair@example.com	Female	1995-11-30 00:00:00	Corporate	\N	940.00	84cd5023-9049-4ca8-8610-efc21d17125b	Prefers window seating	2026-03-17 03:29:58.566	2026-03-17 03:29:58.566	0
 \.
 
 
@@ -2256,6 +2258,8 @@ c281e122-56f5-437c-931c-ba6df90456e1	7fdfb940-d78a-4609-a441-fd28eb9f9869	BOGO20
 1df3e01a-039e-4389-8ccb-6f3958148a2f	111bd836-595b-4982-bb3d-a24ade82c52a	HOLIDAY25	Holiday Special	\N	ProductCategory	Fixed	25.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
 5dd29ecd-1f4c-4936-8e90-5de20ce1f0a1	111bd836-595b-4982-bb3d-a24ade82c52a	FEST35	Festival Offers	\N	OrderType	Percentage	35.00	\N	150.00	2025-03-08 00:00:00	2025-04-08 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
 d0681287-b9bd-468a-a189-85ea0f9696c9	111bd836-595b-4982-bb3d-a24ade82c52a	MIDNIGHT15	Mid-Night Cravings	\N	ProductCategory	Percentage	15.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
+d7b8a6fb-0f2c-42e1-9af8-8e51e9a6d4f5	7fdfb940-d78a-4609-a441-fd28eb9f9869	TODAY20	Today Veg Saver	10% off on popular veg dishes for today only	Custom	Percentage	20.00	\N	150.00	2026-03-17 00:00:00	2026-03-18 23:59:59	\N	0	active	2026-03-17 00:00:00	2026-03-17 00:00:00
+8f1c6c42-9d33-4fd8-8e68-e7d2b0b1b92e	7fdfb940-d78a-4609-a441-fd28eb9f9869	MEAL50	Lunch Combo Deal	Flat ₹50 off on select mains when ordered today	Custom	Fixed	50.00	300.00	\N	2026-03-17 00:00:00	2026-03-18 23:59:59	\N	0	active	2026-03-17 00:00:00	2026-03-17 00:00:00
 \.
 
 
@@ -2272,6 +2276,10 @@ COPY public."DiscountCategory" ("discountId", "categoryId") FROM stdin;
 --
 
 COPY public."DiscountProduct" ("discountId", "productId") FROM stdin;
+d7b8a6fb-0f2c-42e1-9af8-8e51e9a6d4f5	1a8e83a5-bb4b-4d78-8ccf-cf48c5ef5aa4
+d7b8a6fb-0f2c-42e1-9af8-8e51e9a6d4f5	283433b6-4c6d-4a61-af0d-44278a75d223
+8f1c6c42-9d33-4fd8-8e68-e7d2b0b1b92e	539490f7-c7e1-4129-83a9-1bebdb7095e4
+8f1c6c42-9d33-4fd8-8e68-e7d2b0b1b92e	283433b6-4c6d-4a61-af0d-44278a75d223
 \.
 
 
@@ -2944,6 +2952,7 @@ d6d01f6e-82e5-497a-88dc-95f4302b171a	7fdfb940-d78a-4609-a441-fd28eb9f9869	Suppor
 28f8eede-d6e5-4a70-9ab3-482eb7f3ca6b	7fdfb940-d78a-4609-a441-fd28eb9f9869	Branch Manager	Manager of a specific branch with full operational access	{}	t	134af9e8-ce05-4cd1-8378-46f54506c1d7	3	active	2026-02-07 03:29:58.641	2026-02-07 03:29:58.641
 0c0be0db-b6ff-4311-88e3-8b05bd40865d	7fdfb940-d78a-4609-a441-fd28eb9f9869	Kitchen Manager	Manager of a kitchen area with KDS, inventory, and staff access	{}	t	28f8eede-d6e5-4a70-9ab3-482eb7f3ca6b	4	active	2026-02-07 03:29:58.646	2026-02-07 03:29:58.646
 c2daf791-e946-4f73-9e99-894bdcb173fb	7fdfb940-d78a-4609-a441-fd28eb9f9869	Waiter	Front-of-house staff with POS order and table management access	{}	t	28f8eede-d6e5-4a70-9ab3-482eb7f3ca6b	5	active	2026-02-07 03:29:58.648	2026-02-07 03:29:58.648
+5c3f918b-5d8d-4aa9-8a0c-d78b3f1ad8b7	7fdfb940-d78a-4609-a441-fd28eb9f9869	Captain	Front-of-house lead with table assignment and order oversight	{}	t	28f8eede-d6e5-4a70-9ab3-482eb7f3ca6b	5	active	2026-02-07 03:29:58.649	2026-02-07 03:29:58.649
 eb3b1da4-5430-4689-88da-c0f8500e08e7	7fdfb940-d78a-4609-a441-fd28eb9f9869	Cashier	Payment processing staff with access to payments and invoices	{}	t	28f8eede-d6e5-4a70-9ab3-482eb7f3ca6b	5	active	2026-02-07 03:29:58.65	2026-02-07 03:29:58.65
 \.
 
@@ -3428,6 +3437,8 @@ COPY public."Staff" (id, "businessOwnerId", "branchId", "roleId", "firstName", "
 45c2b7ae-d8eb-48b9-a81e-cefaddd1b9a8	7fdfb940-d78a-4609-a441-fd28eb9f9869	aa1ce36f-4934-44a1-8f4d-d45f345030a5	ea4502e2-8119-4fe5-8089-0f05f90a285a	Priya	Verma	priya.verma@example.com	$2a$10$6HP2gotaiZc.2kA.aMG2FuqrXyPgJvRI0iNeoo5dVnwxRAjAcV.ze	+91 9123456789	/images/staff2.jpg	\N	\N	active	2026-02-07 03:29:58.547	2026-02-07 03:29:58.547
 de2da6d3-e110-4b21-9cbd-b9183c599bd7	7fdfb940-d78a-4609-a441-fd28eb9f9869	aa1ce36f-4934-44a1-8f4d-d45f345030a5	422396ab-73d6-4b9d-b051-645119f67d31	Amit	Kumar	amit.kumar@example.com	$2a$10$6HP2gotaiZc.2kA.aMG2FuqrXyPgJvRI0iNeoo5dVnwxRAjAcV.ze	+91 9988776655	/images/staff3.jpg	\N	\N	inactive	2026-02-07 03:29:58.548	2026-02-07 03:29:58.548
 ef944f11-8f30-47d1-8641-32e509406dc9	7fdfb940-d78a-4609-a441-fd28eb9f9869	d3ee3575-ad4b-41fc-89d1-682a2cbcdf11	ea4502e2-8119-4fe5-8089-0f05f90a285a	Neha	Singh	neha.singh@example.com	$2a$10$6HP2gotaiZc.2kA.aMG2FuqrXyPgJvRI0iNeoo5dVnwxRAjAcV.ze	+91 9090909090	/images/staff4.jpg	\N	\N	active	2026-02-07 03:29:58.548	2026-02-07 03:29:58.548
+f3b9b3d8-1d9d-4f6f-95f5-0a4c4f9c1f10	7fdfb940-d78a-4609-a441-fd28eb9f9869	aa1ce36f-4934-44a1-8f4d-d45f345030a5	5c3f918b-5d8d-4aa9-8a0c-d78b3f1ad8b7	Arjun	Rao	arjun.rao@example.com	$2a$10$6HP2gotaiZc.2kA.aMG2FuqrXyPgJvRI0iNeoo5dVnwxRAjAcV.ze	+91 9876501234	/images/staff5.jpg	\N	\N	active	2026-02-07 03:29:58.549	2026-02-07 03:29:58.549
+7a59f4c4-8c8e-4b50-82c5-f32e6f53682c	7fdfb940-d78a-4609-a441-fd28eb9f9869	d3ee3575-ad4b-41fc-89d1-682a2cbcdf11	5c3f918b-5d8d-4aa9-8a0c-d78b3f1ad8b7	Sneha	Iyer	sneha.iyer@example.com	$2a$10$6HP2gotaiZc.2kA.aMG2FuqrXyPgJvRI0iNeoo5dVnwxRAjAcV.ze	+91 9123409876	/images/staff6.jpg	\N	\N	active	2026-02-07 03:29:58.55	2026-02-07 03:29:58.55
 \.
 
 

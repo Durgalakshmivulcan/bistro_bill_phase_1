@@ -131,7 +131,7 @@ const OrderPanel = () => {
   };
 
   // ✅ CANCEL ORDER HANDLER
-  const handleCancelOrder = async (reason: string, remarks?: string) => {
+  const handleCancelOrder = async (reason: string, remarks?: string): Promise<boolean> => {
     try {
       setCancelling(true);
       setCancelError("");
@@ -139,7 +139,7 @@ const OrderPanel = () => {
       // Validate: Check if order has been created (currentOrderId exists)
       if (!orderContext.currentOrderId) {
         setCancelError("Cannot cancel order. No order exists to cancel.");
-        return;
+        return false;
       }
 
       // Call cancel order API
@@ -173,12 +173,15 @@ const OrderPanel = () => {
         setDraftOrderId("");
 
         // Success message is shown by the ActionAlertModal in OrderActions
+        return true;
       } else {
         setCancelError(response.error?.message || "Failed to cancel order. Please try again.");
+        return false;
       }
     } catch (error: any) {
       console.error("Failed to cancel order:", error);
       setCancelError(error.message || "Failed to cancel order. Please try again.");
+      return false;
     } finally {
       setCancelling(false);
     }
@@ -203,32 +206,38 @@ const OrderPanel = () => {
       }
 
       // Extract branchId based on user type
-      let branchId: string | undefined;
-      let staffId: string;
+let branchId: string | undefined;
+let staffId: string;
 
-      if (user.userType === 'Staff') {
-        branchId = user.branch?.id;
-        staffId = user.id;
-      } else if (user.userType === 'BusinessOwner') {
-        // For business owner, use the first branch or main branch
-        branchId = user.branches?.find(b => b.isMainBranch)?.id || user.branches?.[0]?.id;
-        staffId = user.id;
-      } else {
-        // SuperAdmin - shouldn't be creating orders typically, but handle it
-        staffId = user.id;
-      }
+if (user.userType === 'Staff') {
+  branchId = user.branch?.id;
+  staffId = user.id;
+} else if (user.userType === 'BusinessOwner') {
+  // ✅ FIX: Use backend-provided branchId if available
+  branchId = (user as any).branchId || user.branches?.[0]?.id;
+  staffId = user.id;
+} else {
+  staffId = user.id;
+}
 
       if (!branchId) {
         setSaveError("Branch information is missing. Please select a branch.");
         return;
       }
 
+      // Determine staff: prefer selected captain; otherwise fall back to the logged-in user we already resolved above
+      staffId = orderContext.table.captainId || staffId;
+      if (!staffId) {
+        setSaveError("Please select a captain/staff before saving the order.");
+        return;
+      }
+
       // Map order type from UI to API format
-      const orderTypeMap: Record<OrderType, "DineIn" | "Takeaway" | "Delivery" | "Online"> = {
-        "dinein": "DineIn",
-        "takeaway": "Takeaway",
-        "catering": "Delivery", // Map catering to Delivery for now
-        "subscription": "Online", // Map subscription to Online for now
+      const orderTypeMap: Record<OrderType, "DineIn" | "TakeAway" | "Delivery" | "Catering" | "Subscription"> = {
+        dinein: "DineIn",
+        takeaway: "TakeAway",
+        catering: "Catering",
+        subscription: "Subscription",
       };
 
       // Create order via API
@@ -318,6 +327,7 @@ const OrderPanel = () => {
             onCancelOrder={handleCancelOrder}
             onSaveNotes={(note) => orderContext.setOrderNotes(note)}
             currentNotes={orderContext.orderNotes}
+            canCancel={!!orderContext.currentOrderId}
           />
         </div>
 
@@ -423,11 +433,17 @@ const OrderPanel = () => {
       <PaymentModal
         open={openPayment}
         onClose={() => setOpenPayment(false)}
-        order={orderContext.currentOrderId ? {
-          id: orderContext.currentOrderId,
-          orderNumber: draftOrderId,
-          branchId: getBranchId(),
-          type: orderType === 'dinein' ? 'DineIn' : orderType === 'takeaway' ? 'Takeaway' : orderType === 'catering' ? 'Delivery' : 'Online',
+          order={orderContext.currentOrderId ? {
+            id: orderContext.currentOrderId,
+            orderNumber: draftOrderId,
+            branchId: getBranchId(),
+          type: orderType === 'dinein'
+            ? 'DineIn'
+            : orderType === 'takeaway'
+            ? 'TakeAway'
+            : orderType === 'catering'
+            ? 'Catering'
+            : 'Subscription',
           status: 'Draft',
           paymentStatus: 'Unpaid',
           staffId: user?.id || '',
@@ -507,7 +523,7 @@ const OrderPanel = () => {
         open={holdSuccess}
         image={holdImg}
         title="Order On Hold"
-        description={`Order has been placed on hold. Hold Ticket ID: ${holdTicketId}`}
+        description={`Order has been placed on hold. Order No.: #${holdTicketId}`}
         cancelText="Close"
         onClose={() => {
           setHoldSuccess(false);
@@ -552,13 +568,14 @@ const OrderPanel = () => {
           orderContext.setCurrentOrderId(order.id);
 
           // Set order type based on the retrieved order
-          const orderTypeMap: Record<typeof order.type, OrderType> = {
-            "DineIn": "dinein",
-            "Takeaway": "takeaway",
-            "Delivery": "catering",
-            "Online": "subscription",
+          const orderTypeMap: Partial<Record<string, OrderType>> = {
+            DineIn: "dinein",
+            TakeAway: "takeaway",
+            Delivery: "catering",
+            Catering: "catering",
+            Subscription: "subscription",
           };
-          setOrderType(orderTypeMap[order.type]);
+          setOrderType(orderTypeMap[order.type] || "dinein");
 
           // Load customer info
           if (order.customerName || order.customerPhone || order.customerId) {
@@ -667,5 +684,4 @@ const OrderPanel = () => {
     </>
   );
 };
-
 export default OrderPanel;

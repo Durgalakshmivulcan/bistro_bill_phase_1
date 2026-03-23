@@ -140,113 +140,100 @@ export default function MenuItemModal({ open, onClose, item }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center">
-      <div
-        className="
-          bg-white w-full sm:max-w-3xl
-          max-h-[90vh]
-          rounded-t-2xl sm:rounded-2xl
-          flex flex-col
-        "
-      >
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[1px] flex items-center justify-center px-3">
+      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="p-4 sm:p-6 border-b relative">
-          <h2 className="text-lg sm:text-2xl font-semibold">{item.name}</h2>
-          <button onClick={onClose} className="absolute top-4 right-4">
-            <X />
-          </button>
-        </div>
+        <div className="flex items-start gap-4 sm:gap-6 p-4 sm:p-6 border-b relative">
+          <div className="relative rounded-lg overflow-hidden w-32 h-28 sm:w-36 sm:h-32 flex-shrink-0">
+            <img
+              src={item.image || "/images/menu/biryani.jpg"}
+              alt={item.name}
+              className="w-full h-full object-cover"
+            />
+            {item.discount && (
+              <span className="absolute top-2 left-2 bg-green-500 text-white text-xs font-semibold px-2 py-0.5 rounded">
+                {item.discount}
+              </span>
+            )}
+          </div>
 
-        {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-          {/* Top Section */}
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-            {/* Image */}
-            <div className="relative mx-auto sm:mx-0">
-              <img
-                src={item.image || "/images/menu/biryani.jpg"}
-                alt={item.name}
-                className="w-full sm:w-44 h-48 sm:h-32 rounded-lg object-cover"
-              />
-              {item.discount && (
-                <span className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  {item.discount}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-2xl font-semibold text-gray-900 leading-tight">{item.name}</h2>
+            <p className="mt-2 text-sm text-gray-600 leading-relaxed line-clamp-3">
+              {description || item.name}
+            </p>
+
+            <div className="mt-4 flex items-center gap-3">
+              <span className="text-lg font-semibold text-gray-900">₹ {unitPrice.toFixed(2)}</span>
+              {(item.originalPrice && item.originalPrice > item.price) || variantAdditionalPrice > 0 || addonTotal > 0 ? (
+                <span className="text-sm line-through text-gray-400">
+                  ₹ {(item.originalPrice && item.originalPrice > item.price ? item.originalPrice : item.price).toFixed(2)}
                 </span>
-              )}
+              ) : null}
             </div>
 
-            {/* Description & Qty */}
-            <div className="flex-1">
-              {description && (
-                <p className="text-sm text-gray-600 mb-3">{description}</p>
-              )}
-              {!description && (
-                <p className="text-sm text-gray-600 mb-3">
-                  {item.name}
-                </p>
-              )}
-
-              <div className="flex items-center gap-3">
-                <span className="text-lg font-semibold">
-                  ₹ {unitPrice.toFixed(2)}
-                </span>
-                {item.originalPrice && item.originalPrice > item.price && (
-                  <span className="text-sm line-through text-gray-400">
-                    ₹ {item.originalPrice.toFixed(2)}
-                  </span>
-                )}
-                {!item.originalPrice && (variantAdditionalPrice > 0 || addonTotal > 0) && (
-                  <span className="text-sm line-through text-gray-400">
-                    ₹ {item.price.toFixed(2)}
-                  </span>
-                )}
-              </div>
-
-              {/* Quantity Controller */}
-              <div className="mt-3 inline-flex items-center bg-yellow-400 rounded-lg overflow-hidden">
+            {/* Mini line item pill with quantity control */}
+            <div className="mt-3 inline-flex items-center gap-3 bg-gray-100 rounded-full pl-3 pr-2 py-1 text-sm">
+              <span className="font-medium text-gray-800">{item.name}</span>
+              <div className="inline-flex items-center bg-yellow-400 rounded-full overflow-hidden">
                 <button
                   onClick={decrement}
-                  className="px-4 py-1 text-lg font-semibold hover:bg-yellow-500"
+                  className="px-3 text-base font-semibold hover:bg-yellow-500"
                 >
                   -
                 </button>
-                <span className="px-5 font-medium">
+                <span className="px-4 font-semibold tracking-wide">
                   {qty.toString().padStart(2, "0")}
                 </span>
                 <button
                   onClick={increment}
-                  className="px-4 py-1 text-lg font-semibold hover:bg-yellow-500"
+                  className="px-3 text-base font-semibold hover:bg-yellow-500"
                 >
                   +
                 </button>
               </div>
+              <span className="font-semibold text-gray-800">₹ {item.price.toFixed(2)}</span>
             </div>
           </div>
 
-          {/* Variants */}
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 text-gray-500 hover:text-black"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {loading ? (
             <div className="text-sm text-gray-400">Loading options...</div>
           ) : (
             <>
+              {/* Variants */}
               {variants.length > 0 && (
                 <div>
-                  <div className="flex justify-between font-medium mb-2">
+                  <div className="flex justify-between items-center font-semibold text-gray-900 mb-3">
                     <span>Variants</span>
-                    <span>₹ {variantAdditionalPrice.toFixed(2)}</span>
+                    <span className="text-sm text-gray-700">₹ {variantAdditionalPrice.toFixed(2)}</span>
                   </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                     {variants.map(variant => (
-                      <label key={variant.id} className="flex items-center gap-2 cursor-pointer">
+                      <label
+                        key={variant.id}
+                        className="flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer hover:border-gray-300"
+                      >
                         <input
                           type="radio"
                           name="variant"
+                          className="accent-black"
                           checked={selectedVariant === variant.id}
                           onChange={() => setSelectedVariant(variant.id)}
                         />
-                        {variant.name}
+                        <span className="flex-1 text-gray-800">{variant.name}</span>
                         {variant.additionalPrice > 0 && (
-                          <span className="text-gray-500">+₹{variant.additionalPrice.toFixed(2)}</span>
+                          <span className="text-gray-600 text-xs">+₹{variant.additionalPrice.toFixed(2)}</span>
                         )}
                       </label>
                     ))}
@@ -257,66 +244,72 @@ export default function MenuItemModal({ open, onClose, item }: Props) {
               {/* Addons */}
               {addons.length > 0 && (
                 <div>
-                  <div className="flex justify-between font-medium mb-2">
+                  <div className="flex justify-between items-center font-semibold text-gray-900 mb-3">
                     <span>Addons</span>
-                    <span>₹ {addonTotal.toFixed(2)}</span>
+                    <span className="text-sm text-gray-700">₹ {addonTotal.toFixed(2)}</span>
                   </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3 text-sm flex-wrap">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     {addons.map(addon => (
-                      <label key={addon.id} className="flex items-center gap-2 cursor-pointer">
+                      <label
+                        key={addon.id}
+                        className="flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer hover:border-gray-300"
+                      >
                         <input
                           type="checkbox"
+                          className="accent-black"
                           checked={selectedAddons.includes(addon.id)}
                           onChange={() => handleToggleAddon(addon.id)}
                         />
-                        {addon.name} ₹{addon.price.toFixed(2)}
+                        <span className="flex-1 text-gray-800">{addon.name}</span>
+                        <span className="text-gray-700 text-xs">₹{addon.price.toFixed(2)}</span>
                       </label>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* Discount */}
+              {item.discount && (
+                <div className="flex justify-between text-sm font-semibold text-gray-900">
+                  <span>Discount</span>
+                  <span className="text-red-500">{item.discount}</span>
+                </div>
+              )}
+
+              <hr className="border-gray-200" />
+
+              {/* Total */}
+              <div className="flex justify-between text-lg font-semibold text-gray-900">
+                <span>Total</span>
+                <span>₹ {total.toFixed(2)}</span>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="text-sm font-semibold text-gray-900">Preparation Notes</label>
+                <textarea
+                  placeholder="Add Description"
+                  value={prepNotes}
+                  onChange={(e) => setPrepNotes(e.target.value)}
+                  className="mt-2 w-full border rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300"
+                  rows={3}
+                />
+              </div>
             </>
           )}
-
-          {item.discount && (
-            <div className="flex justify-between text-sm font-medium">
-              <span>Discount</span>
-              <span className="text-red-500">{item.discount}</span>
-            </div>
-          )}
-
-          <hr />
-
-          {/* Total */}
-          <div className="flex justify-between text-lg font-semibold">
-            <span>Total</span>
-            <span>₹ {total.toFixed(2)}</span>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="text-sm font-medium">Preparation Notes</label>
-            <textarea
-              placeholder="Add Description"
-              value={prepNotes}
-              onChange={(e) => setPrepNotes(e.target.value)}
-              className="mt-1 w-full border rounded-lg p-3 text-sm"
-            />
-          </div>
         </div>
 
         {/* Footer */}
-        <div className="border-t p-4 flex gap-3 justify-end bg-white">
+        <div className="border-t px-4 sm:px-6 py-4 flex items-center justify-end gap-3 bg-white">
           <button
             onClick={onClose}
-            className="border rounded-lg px-6 py-2"
+            className="h-11 px-6 rounded-lg border border-gray-400 text-gray-800 text-sm font-medium hover:bg-gray-50"
           >
             Cancel
           </button>
           <button
             onClick={handleAddToCart}
-            className="bg-yellow-400 rounded-lg px-6 py-2 font-medium"
+            className="h-11 px-6 rounded-lg bg-yellow-400 text-black text-sm font-semibold hover:bg-yellow-500"
           >
             Add to Cart
           </button>

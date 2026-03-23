@@ -490,7 +490,7 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
 
     res.status(201).json({
       success: true,
-      data: order,
+      data: { order },
       message: 'Order created successfully',
     } as ApiResponse);
   } catch (error) {
@@ -686,6 +686,7 @@ export const addOrderItem = async (req: AuthenticatedRequest, res: Response): Pr
                 id: true,
                 name: true,
                 isVeg: true,
+                categoryId: true,
               },
             },
             variant: {
@@ -964,6 +965,7 @@ export const updateOrderItem = async (req: AuthenticatedRequest, res: Response):
                 id: true,
                 name: true,
                 isVeg: true,
+                categoryId: true,
               },
             },
             variant: {
@@ -1134,6 +1136,7 @@ export const removeOrderItem = async (req: AuthenticatedRequest, res: Response):
                 id: true,
                 name: true,
                 isVeg: true,
+                categoryId: true,
               },
             },
             variant: {
@@ -1288,6 +1291,7 @@ export const updateOrderItemStatus = async (req: AuthenticatedRequest, res: Resp
                 id: true,
                 name: true,
                 isVeg: true,
+                categoryId: true,
               },
             },
             variant: {
@@ -1396,6 +1400,18 @@ export const applyDiscount = async (req: AuthenticatedRequest, res: Response): P
 
     let discountAmount = 0;
     let discountIdToUse: string | null = null;
+
+    // Enforce single discount per order
+    if (order.discountId) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'DISCOUNT_ALREADY_APPLIED',
+          message: 'Only one discount can be applied. Remove the existing discount before applying another.',
+        },
+      } as ApiResponse);
+      return;
+    }
 
     // Handle discount by ID
     if (discountId) {
@@ -1595,6 +1611,7 @@ export const applyDiscount = async (req: AuthenticatedRequest, res: Response): P
                 id: true,
                 name: true,
                 isVeg: true,
+                categoryId: true,
               },
             },
             variant: {
@@ -1740,6 +1757,7 @@ export const removeDiscount = async (req: AuthenticatedRequest, res: Response): 
                 id: true,
                 name: true,
                 isVeg: true,
+                categoryId: true,
               },
             },
             variant: {
@@ -1968,6 +1986,7 @@ export const addPayment = async (req: AuthenticatedRequest, res: Response): Prom
                 id: true,
                 name: true,
                 isVeg: true,
+                categoryId: true,
               },
             },
             variant: {
@@ -2108,8 +2127,37 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
     const { orderId } = req.params;
     const { status, reason } = req.body;
 
+    // Debug log to trace incoming payload and user context
+    console.log('UPDATE STATUS REQUEST:', {
+      orderId,
+      status,
+      user: req.user ? { id: req.user.id, type: (req.user as any).userType } : null,
+    });
+
+    // Normalize incoming status to canonical enum values
+    const normalizedStatus = typeof status === 'string' ? status.trim() : status;
+    const statusMap: Record<string, string> = {
+      hold: 'OnHold',
+      onhold: 'OnHold',
+      'on_hold': 'OnHold',
+      'on-hold': 'OnHold',
+      cancelled: 'Cancelled',
+      canceled: 'Cancelled',
+      completed: 'Completed',
+      draft: 'Draft',
+      pending: 'Pending',
+      confirmed: 'Confirmed',
+      preparing: 'Preparing',
+      ready: 'Ready',
+      served: 'Served',
+    };
+    const mappedStatus =
+      typeof normalizedStatus === 'string'
+        ? statusMap[normalizedStatus.toLowerCase()] || normalizedStatus
+        : normalizedStatus;
+
     // Validate required fields
-    if (!status) {
+    if (!mappedStatus) {
       res.status(400).json({
         success: false,
         error: {
@@ -2121,13 +2169,16 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
     }
 
     // Validate status value
-    const validStatuses = ['Pending', 'Confirmed', 'Preparing', 'Ready', 'Served', 'Completed', 'Cancelled'];
-    if (!validStatuses.includes(status)) {
+    const validStatuses = [
+      'Draft', 'Pending', 'Confirmed', 'Preparing',
+      'OnHold', 'Ready', 'Served', 'Completed', 'Cancelled',
+    ];
+    if (!validStatuses.includes(mappedStatus as string)) {
       res.status(400).json({
         success: false,
         error: {
           code: 'INVALID_STATUS',
-          message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+          message: `Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`,
         },
       } as ApiResponse);
       return;
@@ -2160,19 +2211,19 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
 
     // Cannot change status from Completed or Cancelled back to earlier states
     if ((currentStatus === 'Completed' || currentStatus === 'Cancelled') &&
-        status !== currentStatus) {
+        mappedStatus !== currentStatus) {
       res.status(400).json({
         success: false,
         error: {
           code: 'INVALID_STATUS_TRANSITION',
-          message: `Cannot change status from ${currentStatus} to ${status}`,
+          message: `Cannot change status from ${currentStatus} to ${mappedStatus}`,
         },
       } as ApiResponse);
       return;
     }
 
     // Business logic validations
-    if (status === 'Completed') {
+    if (mappedStatus === 'Completed') {
       // Require payment to be completed before marking order as completed
       if (order.paymentStatus !== 'Paid') {
         res.status(400).json({
@@ -2186,7 +2237,7 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
       }
     }
 
-    if (status === 'Cancelled' && !reason) {
+    if (mappedStatus === 'Cancelled' && !reason) {
       res.status(400).json({
         success: false,
         error: {
@@ -2201,7 +2252,7 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: {
-        orderStatus: status,
+        orderStatus: mappedStatus as any,
       },
       include: {
         items: {
@@ -2212,6 +2263,7 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
                 id: true,
                 name: true,
                 isVeg: true,
+                categoryId: true,
               },
             },
             variant: {
@@ -2282,7 +2334,7 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
     });
 
     // Release table if order is completed or cancelled (for DineIn orders)
-    if ((status === 'Completed' || status === 'Cancelled') && order.tableId) {
+    if ((mappedStatus === 'Completed' || mappedStatus === 'Cancelled') && order.tableId) {
       await prisma.table.update({
         where: { id: order.tableId },
         data: {
@@ -2308,21 +2360,25 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
     }
 
     // Add OrderTimeline entry
-    const timelineDescription = status === 'Cancelled'
+    const timelineDescription = mappedStatus === 'Cancelled'
       ? `Order cancelled. Reason: ${reason}`
-      : `Order status updated to ${status}`;
+      : `Order status updated to ${mappedStatus}`;
 
-    await prisma.orderTimeline.create({
-      data: {
-        orderId,
-        action: 'order_status_update',
-        description: timelineDescription,
-        staffId: req.user!.id,
-      },
-    });
+    try {
+      await prisma.orderTimeline.create({
+        data: {
+          orderId,
+          action: 'order_status_update',
+          description: timelineDescription,
+          staffId: req.user?.id || null,
+        },
+      });
+    } catch (timelineError) {
+      console.error('Timeline error:', timelineError);
+    }
 
     // Invalidate dashboard cache when order status changes to Completed or Cancelled
-    if (status === 'Completed' || status === 'Cancelled') {
+    if (mappedStatus === 'Completed' || mappedStatus === 'Cancelled') {
       await cacheService.invalidateDashboardCache(tenantId);
     }
 
@@ -2331,7 +2387,7 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
       const payload: OrderUpdatedPayload = {
         orderId: updatedOrder.id,
         orderNumber: updatedOrder.orderNumber,
-        status,
+        status: mappedStatus as any,
         previousStatus: currentStatus,
         updatedAt: new Date().toISOString(),
       };
@@ -2376,7 +2432,7 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
 
     res.status(200).json({
       success: true,
-      data: updatedOrder,
+      data: { order: updatedOrder },
       message: 'Order status updated successfully',
     } as ApiResponse);
   } catch (error) {
@@ -2415,6 +2471,7 @@ export const getOrderDetail = async (req: AuthenticatedRequest, res: Response): 
                 id: true,
                 name: true,
                 isVeg: true,
+                categoryId: true,
               },
             },
             variant: {
@@ -2588,12 +2645,61 @@ export const getOrderDetail = async (req: AuthenticatedRequest, res: Response): 
       });
     }
 
+    // Build eligible discounts for payment summary
+    const now = new Date();
+    const activeDiscounts = await prisma.discount.findMany({
+      where: {
+        businessOwnerId: tenantId,
+        status: 'active',
+      },
+      include: {
+        discountProducts: { select: { productId: true } },
+        discountCategories: { select: { categoryId: true } },
+      },
+    });
+
+    const orderProductIds = order.items.map((item) => item.productId);
+    const orderCategoryIds = order.items
+      .map((item) => item.product?.categoryId)
+      .filter((id): id is string => Boolean(id));
+
+    const eligibleDiscounts = activeDiscounts
+      .filter((discount) => {
+        if (discount.startDate && now < discount.startDate) return false;
+        if (discount.endDate && now > discount.endDate) return false;
+        if (discount.usageLimit && discount.usedCount >= discount.usageLimit) return false;
+        if (discount.minOrderAmount && Number(order.subtotal) < Number(discount.minOrderAmount)) return false;
+
+        if (discount.type === 'ProductCategory') {
+          const matchesProduct = discount.discountProducts.some((dp) => orderProductIds.includes(dp.productId));
+          const matchesCategory = discount.discountCategories.some((dc) => orderCategoryIds.includes(dc.categoryId));
+          if (!matchesProduct && !matchesCategory) return false;
+        }
+
+        return true;
+      })
+      .map((discount) => ({
+        id: discount.id,
+        code: discount.code,
+        name: discount.name,
+        type: discount.type,
+        valueType: discount.valueType,
+        value: discount.value,
+        maxDiscount: discount.maxDiscount,
+        minOrderAmount: discount.minOrderAmount,
+        startDate: discount.startDate,
+        endDate: discount.endDate,
+        usageLimit: discount.usageLimit,
+        usedCount: discount.usedCount,
+      }));
+
     res.status(200).json({
       success: true,
       data: {
         ...order,
         taxBreakdown,
         chargesBreakdown,
+        eligibleDiscounts,
       },
       message: 'Order details retrieved successfully',
     } as ApiResponse);
@@ -2654,8 +2760,11 @@ export const getOrders = async (req: AuthenticatedRequest, res: Response): Promi
       whereClause.branchId = branchId as string;
     }
 
-    // Default to today's orders if no date range and no branchId specified
-    if (!branchId && !startDate && !endDate) {
+    // Default to today's orders only when no filters are supplied
+    const hasDateFilter = Boolean(startDate || endDate);
+    const hasStatusFilter = Boolean(status);
+    const hasOtherFilters = Boolean(paymentStatus || type);
+    if (!branchId && !hasDateFilter && !hasStatusFilter && !hasOtherFilters) {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date();
@@ -2667,19 +2776,75 @@ export const getOrders = async (req: AuthenticatedRequest, res: Response): Promi
       };
     }
 
-    // Apply status filter
-    if (status) {
-      whereClause.orderStatus = status as any;
+    // Helper to turn comma-separated values into Prisma filters
+    const parseList = (value?: unknown) =>
+      typeof value === 'string' && value.includes(',')
+        ? value.split(',').map((v) => v.trim()).filter(Boolean)
+        : value;
+
+    // Apply status filter (supports comma-separated list) and always use { in: [] }
+    const statusList = parseList(status);
+    if (statusList) {
+      const statuses = Array.isArray(statusList) ? statusList : [statusList];
+      const validStatuses = [
+        'Draft',
+        'Pending',
+        'Confirmed',
+        'Preparing',
+        'OnHold',
+        'Ready',
+        'Served',
+        'Completed',
+        'Cancelled',
+      ];
+
+      const filteredStatuses = statuses.filter((s) => validStatuses.includes(s as string));
+
+      if (filteredStatuses.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_ORDER_STATUS',
+            message: `Invalid order status. Must be one of: ${validStatuses.join(', ')}`,
+          },
+        } as ApiResponse);
+        return;
+      }
+
+      whereClause.orderStatus = { in: filteredStatuses as any[] };
     }
 
-    // Apply payment status filter
-    if (paymentStatus) {
-      whereClause.paymentStatus = paymentStatus as any;
+    // Apply payment status filter (supports comma-separated list)
+    const paymentList = parseList(paymentStatus);
+    if (Array.isArray(paymentList)) {
+      whereClause.paymentStatus = { in: paymentList as any[] };
+    } else if (paymentList) {
+      whereClause.paymentStatus = paymentList as any;
     }
 
-    // Apply order type filter
-    if (type) {
-      whereClause.type = type as any;
+    // Apply order type filter (supports comma-separated list) with UI→backend mapping
+    const typeMap: Record<string, string> = {
+      Online: 'Delivery', // UI label "Online Orders" maps to Delivery in enum
+      Delivery: 'Delivery',
+      TakeAway: 'TakeAway',
+      DineIn: 'DineIn',
+      Catering: 'Catering',
+      Subscription: 'Subscription',
+    };
+    const validTypes = new Set(Object.values(typeMap));
+    const typeList = parseList(type);
+    if (Array.isArray(typeList)) {
+      const mapped = typeList
+        .map((t) => typeMap[t] || t)
+        .filter((t) => validTypes.has(t));
+      if (mapped.length > 0) {
+        whereClause.type = { in: mapped as any[] };
+      }
+    } else if (typeList) {
+      const mapped = typeMap[typeList as string] || typeList;
+      if (validTypes.has(mapped as string)) {
+        whereClause.type = mapped as any;
+      }
     }
 
     // Apply date range filter
@@ -2757,14 +2922,14 @@ export const getOrders = async (req: AuthenticatedRequest, res: Response): Promi
 
     res.status(200).json({
       success: true,
-      data: ordersWithItemCount,
-      message: 'Orders retrieved successfully',
-      pagination: {
+      data: {
+        orders: ordersWithItemCount,
+        total: totalCount,
         page: pageNum,
         limit: limitNum,
-        total: totalCount,
         totalPages: Math.ceil(totalCount / limitNum),
       },
+      message: 'Orders retrieved successfully',
     } as ApiResponse);
   } catch (error) {
     console.error('Error fetching orders:', error);

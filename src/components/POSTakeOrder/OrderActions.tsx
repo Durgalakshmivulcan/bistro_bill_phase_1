@@ -26,12 +26,13 @@ const actions = [
 interface OrderActionsProps {
   onResetOrder?: () => void;
   onHoldOrder?: () => void;
-  onCancelOrder?: (reason: string, remarks?: string) => void;
+  onCancelOrder?: (reason: string, remarks?: string) => Promise<boolean> | boolean;
   onSaveNotes?: (note: string) => void;
   currentNotes?: string;
+  canCancel?: boolean;
 }
 
-const OrderActions = ({ onResetOrder, onHoldOrder, onCancelOrder, onSaveNotes, currentNotes = "" }: OrderActionsProps) => {
+const OrderActions = ({ onResetOrder, onHoldOrder, onCancelOrder, onSaveNotes, currentNotes = "", canCancel = true }: OrderActionsProps) => {
   const [showNotes, setShowNotes] = useState(false);
 
   const [resetOpen, setResetOpen] = useState(false);
@@ -57,11 +58,13 @@ const OrderActions = ({ onResetOrder, onHoldOrder, onCancelOrder, onSaveNotes, c
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
         {actions.map(({ label, icon: Icon, key }) => {
           const isActive = activeAction === key;
+          const isDisabled = key === "cancel" && !canCancel;
 
           return (
             <button
               key={key}
               onClick={() => {
+                if (isDisabled) return;
                 setActiveAction(key as ActionKey);
 
                 if (key === "notes") setShowNotes(true);
@@ -69,6 +72,7 @@ const OrderActions = ({ onResetOrder, onHoldOrder, onCancelOrder, onSaveNotes, c
                 if (key === "hold") setHoldOpen(true);
                 if (key === "cancel") setCancelOpen(true);
               }}
+              disabled={isDisabled}
               className={`
                 flex flex-col items-center justify-center gap-2 text-center
                 rounded-xl p-3 text-sm font-medium transition active:scale-95
@@ -77,7 +81,9 @@ const OrderActions = ({ onResetOrder, onHoldOrder, onCancelOrder, onSaveNotes, c
                     ? "bg-bb-primary text-black"
                     : "bg-gray-100 hover:bg-gray-200"
                 }
+                ${isDisabled ? "cursor-not-allowed" : ""}
               `}
+              title={isDisabled ? "Save or load an order before cancelling" : ""}
             >
               <Icon
                 size={20}
@@ -140,13 +146,13 @@ const OrderActions = ({ onResetOrder, onHoldOrder, onCancelOrder, onSaveNotes, c
       <CancelOrderModal
         open={cancelOpen}
         onClose={closeAll}
-        onSubmit={(reason, remarks) => {
-          // Call the cancel handler passed from parent
-          if (onCancelOrder) {
-            onCancelOrder(reason, remarks);
-          }
+        onSubmit={async (reason, remarks) => {
+          if (!onCancelOrder) return;
+          const result = await onCancelOrder(reason, remarks);
           setCancelOpen(false);
-          setCancelSuccess(true);
+          if (result) {
+            setCancelSuccess(true);
+          }
         }}
       />
 

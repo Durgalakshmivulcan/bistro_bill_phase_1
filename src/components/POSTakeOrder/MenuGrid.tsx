@@ -29,7 +29,7 @@ const MenuGrid = ({ searchQuery, categoryId, menuId, barcode }: MenuGridProps) =
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-  const { addCartItem } = useOrder();
+  const { cartItems, addCartItem, updateCartItem, removeCartItem } = useOrder();
 
   const handleAddToCart = (item: MenuItem) => {
     const cartItem: CartItem = {
@@ -41,6 +41,29 @@ const MenuGrid = ({ searchQuery, categoryId, menuId, barcode }: MenuGridProps) =
       taxAmount: 0,
     };
     addCartItem(cartItem);
+  };
+
+  const getCartQty = (productId: string) => {
+    const item = cartItems.find((i) => i.productId === productId);
+    return item?.quantity || 0;
+  };
+
+  const inc = (item: MenuItem) => {
+    const existing = cartItems.find((i) => i.productId === item.id);
+    if (existing) {
+      updateCartItem(item.id, { quantity: existing.quantity + 1 });
+    } else {
+      handleAddToCart(item);
+    }
+  };
+
+  const dec = (item: MenuItem) => {
+    const existing = cartItems.find((i) => i.productId === item.id);
+    if (existing && existing.quantity > 1) {
+      updateCartItem(item.id, { quantity: existing.quantity - 1 });
+    } else if (existing) {
+      removeCartItem(item.id);
+    }
   };
 
   // Fetch products from API
@@ -169,7 +192,10 @@ const MenuGrid = ({ searchQuery, categoryId, menuId, barcode }: MenuGridProps) =
             disabled={item.disabled}
             image={item.image}
             onImageClick={() => setSelectedItem(item)}
+            quantity={getCartQty(item.id)}
             onAddToCart={() => handleAddToCart(item)}
+            onIncrement={() => inc(item)}
+            onDecrement={() => dec(item)}
           />
         ))}
       </div>

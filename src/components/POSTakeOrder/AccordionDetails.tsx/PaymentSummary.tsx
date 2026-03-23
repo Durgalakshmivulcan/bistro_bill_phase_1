@@ -8,6 +8,7 @@ const PaymentSummary = () => {
   const [showCharges, setShowCharges] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
   const orderContext = useOrder();
+  const captainName = orderContext.table.captainName;
 
   // Format currency with fallback to ₹0.00
   const formatCurrency = (amount: number | undefined) => {
@@ -37,6 +38,13 @@ const PaymentSummary = () => {
 
         {/* Summary */}
         <div className="pt-2 space-y-2">
+          {captainName && (
+            <div className="flex justify-between text-gray-700">
+              <span>Captain</span>
+              <span className="font-medium">{captainName}</span>
+            </div>
+          )}
+
           <div className="flex justify-between">
             <span>Subtotal</span>
             <span>{formatCurrency(orderContext.summary.subtotal)}</span>

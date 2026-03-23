@@ -3,7 +3,7 @@ import { useState } from "react";
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (reason: string, remarks?: string) => void;
+  onSubmit: (reason: string, remarks?: string) => Promise<void> | void;
 };
 
 const reasons = [
@@ -18,15 +18,21 @@ const reasons = [
 const CancelOrderModal = ({ open, onClose, onSubmit }: Props) => {
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [remarks, setRemarks] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
 
   if (!open) return null;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedReason) {
       alert("Please select a reason for cancellation");
       return;
     }
-    onSubmit(selectedReason, remarks || undefined);
+    setSubmitting(true);
+    try {
+      await onSubmit(selectedReason, remarks || undefined);
+    } finally {
+      setSubmitting(false);
+    }
     // Reset form
     setSelectedReason("");
     setRemarks("");
@@ -95,9 +101,10 @@ const CancelOrderModal = ({ open, onClose, onSubmit }: Props) => {
 
           <button
             onClick={handleSubmit}
-            className="rounded-lg bg-[#FFC533] px-5 py-2 text-sm font-medium"
+            className="rounded-lg bg-[#FFC533] px-5 py-2 text-sm font-medium disabled:opacity-60"
+            disabled={submitting}
           >
-            Yes
+            {submitting ? "Processing..." : "Yes"}
           </button>
         </div>
       </div>

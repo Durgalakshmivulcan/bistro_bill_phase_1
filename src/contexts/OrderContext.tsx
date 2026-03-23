@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { OrderType, OrderItem } from '../services/orderService';
 
 /**
@@ -135,6 +135,20 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     total: 0,
   });
 
+  // Recalculate summary whenever cart items change
+  useEffect(() => {
+    const subtotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const taxAmount = cartItems.reduce((sum, item) => sum + item.taxAmount, 0);
+
+    setSummary(prev => ({
+      ...prev,
+      subtotal,
+      taxAmount,
+      total: subtotal - prev.discountAmount + taxAmount + prev.additionalCharges,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartItems]);
+
   // Add item to cart
   const addCartItem = (item: CartItem) => {
     setCartItems(prev => {
@@ -153,9 +167,6 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // Add new item
       return [...prev, item];
     });
-
-    // Recalculate summary
-    recalculateSummary();
   };
 
   // Update cart item
@@ -171,17 +182,11 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           : item
       )
     );
-
-    // Recalculate summary
-    recalculateSummary();
   };
 
   // Remove cart item
   const removeCartItem = (productId: string) => {
     setCartItems(prev => prev.filter(item => item.productId !== productId));
-
-    // Recalculate summary
-    recalculateSummary();
   };
 
   // Clear all cart items
@@ -205,19 +210,6 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         - (updates.discountAmount ?? prev.discountAmount)
         + (updates.taxAmount ?? prev.taxAmount)
         + (updates.additionalCharges ?? prev.additionalCharges),
-    }));
-  };
-
-  // Recalculate summary based on cart items
-  const recalculateSummary = () => {
-    const subtotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
-    const taxAmount = cartItems.reduce((sum, item) => sum + item.taxAmount, 0);
-
-    setSummary(prev => ({
-      ...prev,
-      subtotal,
-      taxAmount,
-      total: subtotal - prev.discountAmount + taxAmount + prev.additionalCharges,
     }));
   };
 

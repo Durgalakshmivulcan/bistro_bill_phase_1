@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { getDraftOrders, loadDraftOrder } from "../../../services/orderService";
 import type { Order } from "../../../services/orderService";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useBranch } from "../../../contexts/BranchContext";
 
 interface LoadDraftOrderModalProps {
   open: boolean;
@@ -16,6 +17,7 @@ const LoadDraftOrderModal = ({
   onLoad,
 }: LoadDraftOrderModalProps) => {
   const { user } = useAuth();
+  const { currentBranchId } = useBranch();
   const [draftOrders, setDraftOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,12 +33,14 @@ const LoadDraftOrderModal = ({
     setError(null);
     try {
       // Extract branchId from user context
-      let branchId: string | undefined;
+      let branchId: string | undefined = currentBranchId;
 
-      if (user?.userType === 'Staff') {
-        branchId = user.branch.id;
-      } else if (user?.userType === 'BusinessOwner') {
-        branchId = user.branches[0]?.id;
+      if (!branchId) {
+        if (user?.userType === 'Staff') {
+          branchId = user.branch?.id;
+        } else if (user?.userType === 'BusinessOwner') {
+          branchId = user.branches?.find(b => b.isMainBranch)?.id || user.branches?.[0]?.id;
+        }
       }
 
       // Handle case when branchId is undefined
@@ -127,7 +131,7 @@ const LoadDraftOrderModal = ({
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="font-semibold text-lg">
-                        {order.orderNumber}
+                        Order No.: #{order.orderNumber}
                       </div>
                       <div className="text-sm text-gray-600 mt-1">
                         {order.customerName || "Walk-in Customer"}

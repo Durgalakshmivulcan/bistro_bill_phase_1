@@ -24,9 +24,14 @@ function getPersistedTenantId(): string | null {
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
 
+const rawBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001/api/v1';
+const normalizedBaseUrl = rawBaseUrl.endsWith('/api/v1')
+  ? rawBaseUrl
+  : `${rawBaseUrl.replace(/\/$/, '')}/api/v1`;
+
 // Create axios instance with base configuration
 const apiClient: AxiosInstance = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001/api/v1',
+  baseURL: normalizedBaseUrl,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -64,10 +69,7 @@ apiClient.interceptors.request.use(
       if (refreshToken && !isRefreshing) {
         isRefreshing = true;
         try {
-          const refreshResponse = await axios.post(
-            `${process.env.REACT_APP_API_URL || 'http://localhost:5001/api/v1'}/auth/refresh`,
-            { refreshToken }
-          );
+          const refreshResponse = await axios.post(`${normalizedBaseUrl}/auth/refresh`, { refreshToken });
 
           if (refreshResponse.data.success) {
             const { accessToken, refreshToken: newRefreshToken, expiresIn } = refreshResponse.data.data;
@@ -157,10 +159,7 @@ apiClient.interceptors.response.use(
               isRefreshing = true;
 
               try {
-                const refreshResponse = await axios.post(
-                  `${process.env.REACT_APP_API_URL || 'http://localhost:5001/api/v1'}/auth/refresh`,
-                  { refreshToken }
-                );
+                const refreshResponse = await axios.post(`${normalizedBaseUrl}/auth/refresh`, { refreshToken });
 
                 if (refreshResponse.data.success) {
                   const { accessToken, refreshToken: newRefreshToken, expiresIn } = refreshResponse.data.data;

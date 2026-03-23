@@ -4,7 +4,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { useBranch } from "../../../contexts/BranchContext";
 import { useOrder } from "../../../contexts/OrderContext";
 import { getFloors, getTables, Floor, Table, FloorListResponse, TableListResponse } from "../../../services/tableService";
-import { getStaff, Staff, StaffListResponse } from "../../../services/staffService";
+import { getStaff, getRoles, Staff, StaffListResponse } from "../../../services/staffService";
 
 const TableCaptainDetails = () => {
   const { user } = useAuth();
@@ -12,7 +12,7 @@ const TableCaptainDetails = () => {
   const { table, setTable } = useOrder();
 
   // Local state
-  const [guestCount, setGuestCount] = useState<number>(table.guestCount || 4);
+  const [guestCount, setGuestCount] = useState<number | null>(table.guestCount ?? null);
   const [selectedFloorId, setSelectedFloorId] = useState<string>(table.floorId || "");
   const [selectedTableId, setSelectedTableId] = useState<string>(table.tableId || "");
   const [selectedCaptainId, setSelectedCaptainId] = useState<string>(table.captainId || "");
@@ -21,6 +21,7 @@ const TableCaptainDetails = () => {
   const [floors, setFloors] = useState<Floor[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
   const [captains, setCaptains] = useState<Staff[]>([]);
+  const [captainRoleId, setCaptainRoleId] = useState<string | null>(null);
 
   // Loading states
   const [loadingFloors, setLoadingFloors] = useState<boolean>(false);
@@ -35,8 +36,13 @@ const TableCaptainDetails = () => {
   // Table dropdown open state
   const [tableDropdownOpen, setTableDropdownOpen] = useState<boolean>(false);
 
-  // Use branchId from BranchContext
-  const branchId = currentBranchId || undefined;
+  // Use branchId from BranchContext, fall back to user branch selection
+  const branchId =
+    currentBranchId ||
+    (user?.userType === 'Staff' ? user.branch?.id : undefined) ||
+    (user?.userType === 'BusinessOwner'
+      ? user.branches?.find(b => b.isMainBranch)?.id || user.branches?.[0]?.id
+      : undefined);
 
   // Fetch floors on mount
   useEffect(() => {
@@ -74,10 +80,16 @@ const TableCaptainDetails = () => {
       setLoadingTables(true);
       setTableError(null);
 
-      const response = await getTables(selectedFloorId, 'active');
+      const response = await getTables(selectedFloorId);
 
       if (response.success && response.data) {
-        setTables(response.data.tables);
+        const minCapacity = guestCount ?? 0;
+        const availableTables = response.data.tables.filter(
+          (table) =>
+            table.capacity >= minCapacity &&
+            table.status?.toLowerCase() !== 'maintenance'
+        );
+        setTables(availableTables);
       } else {
         setTableError(response.error?.message || "Failed to load tables");
       }
@@ -86,9 +98,27 @@ const TableCaptainDetails = () => {
     };
 
     fetchTables();
-  }, [selectedFloorId]);
+  }, [selectedFloorId, guestCount]);
 
-  // Fetch captains on mount
+  // Fetch captain role id on mount
+  useEffect(() => {
+    const fetchCaptainRole = async () => {
+      try {
+        const resp = await getRoles("active");
+        if (resp.success && resp.data?.roles) {
+          const captainRole = resp.data.roles.find(
+            (r) => r.name.toLowerCase() === "captain" || r.name.toLowerCase() === "waiter"
+          );
+          if (captainRole) setCaptainRoleId(captainRole.id);
+        }
+      } catch (err) {
+        console.error("Failed to load roles for captain filter", err);
+      }
+    };
+    fetchCaptainRole();
+  }, []);
+
+  // Fetch captains when branch ready (do not hard-filter by missing role)
   useEffect(() => {
     if (!branchId) {
       setCaptainError("Branch ID not available");
@@ -99,16 +129,19 @@ const TableCaptainDetails = () => {
       setLoadingCaptains(true);
       setCaptainError(null);
 
-      // Note: We need to filter by role. Assuming "Captain" or "Waiter" role names.
-      // If roleId is available from a role lookup, use that instead.
-      const response = await getStaff({ branchId, status: 'active' });
+      const response = await getStaff({
+        branchId,
+        status: 'active',
+        // avoid roleId filter that might exclude custom role names
+      });
 
       if (response.success && response.data) {
-        // Filter for Captain or Waiter roles
-        const filteredStaff = response.data.staff.filter(
-          (s) => s.roleName === 'Captain' || s.roleName === 'Waiter'
-        );
-        setCaptains(filteredStaff);
+        const staffList = response.data.staff;
+        const filteredStaff = staffList.filter((s) => {
+          const role = (s.roleName || "").toLowerCase();
+          return role.includes("captain") || role.includes("waiter");
+        });
+        setCaptains(filteredStaff.length > 0 ? filteredStaff : staffList);
       } else {
         setCaptainError(response.error?.message || "Failed to load staff");
       }
@@ -130,7 +163,7 @@ const TableCaptainDetails = () => {
       floorName: selectedFloor?.name || undefined,
       tableId: selectedTableId || undefined,
       tableName: selectedTable?.tableNumber || undefined,
-      guestCount: guestCount,
+      guestCount: guestCount ?? undefined,
       captainId: selectedCaptainId || undefined,
       captainName: selectedCaptain ? `${selectedCaptain.firstName} ${selectedCaptain.lastName}` : undefined,
     });
@@ -138,8 +171,11 @@ const TableCaptainDetails = () => {
   }, [selectedFloorId, selectedTableId, selectedCaptainId, guestCount, floors, tables, captains]);
 
   // Guest count handlers
-  const incrementGuests = () => setGuestCount((prev) => prev + 1);
-  const decrementGuests = () => setGuestCount((prev) => Math.max(1, prev - 1));
+  const incrementGuests = () => setGuestCount((prev) => (prev ? prev + 1 : 1));
+  const decrementGuests = () => setGuestCount((prev) => {
+    if (!prev) return null;
+    return Math.max(1, prev - 1);
+  });
 
   // Floor change handler
   const handleFloorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -180,6 +216,18 @@ const TableCaptainDetails = () => {
   // Get selected table name for display
   const selectedTableName = tables.find((t) => t.id === selectedTableId)?.tableNumber || "Select Table";
 
+  const formatTableStatus = (status: string) =>
+    status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown";
+
+  // Drop table selection if guest count now exceeds capacity of chosen table
+  useEffect(() => {
+    if (!selectedTableId || guestCount == null) return;
+    const selected = tables.find((t) => t.id === selectedTableId);
+    if (selected && selected.capacity < guestCount) {
+      setSelectedTableId("");
+    }
+  }, [guestCount, selectedTableId, tables]);
+
   return (
     <div className="space-y-4">
 
@@ -197,8 +245,14 @@ const TableCaptainDetails = () => {
             −
           </button>
 
-          <div className="h-10 w-14 flex items-center justify-center bg-white text-gray-700 font-medium">
-            {guestCount.toString().padStart(2, '0')}
+          <div className="h-10 min-w-[104px] px-3 flex items-center justify-center bg-white font-medium">
+            {guestCount === null ? (
+              <span className="text-gray-500 text-sm">Guest Count</span>
+            ) : (
+              <span className="text-gray-700">
+                {guestCount.toString().padStart(2, '0')}
+              </span>
+            )}
           </div>
 
           <button
@@ -281,14 +335,19 @@ const TableCaptainDetails = () => {
                     onChange={() => handleTableSelect(table.id)}
                     className="accent-black"
                   />
-                  <span className="flex-1">{table.tableNumber}</span>
+                  <span className="flex-1">
+                    {table.tableNumber}
+                    <span className="ml-2 text-xs text-gray-500">
+                      • {table.capacity} seats
+                    </span>
+                  </span>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
                     table.currentStatus.toLowerCase() === 'available' ? 'bg-green-200 text-green-800' :
                     table.currentStatus.toLowerCase() === 'occupied' || table.currentStatus.toLowerCase() === 'running' ? 'bg-red-200 text-red-800' :
                     table.currentStatus.toLowerCase() === 'reserved' ? 'bg-yellow-200 text-yellow-800' :
                     'bg-gray-200 text-gray-800'
                   }`}>
-                    {table.currentStatus}
+                    {formatTableStatus(table.currentStatus)}
                   </span>
                 </label>
               ))}

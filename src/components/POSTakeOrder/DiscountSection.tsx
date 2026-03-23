@@ -153,8 +153,7 @@ const DiscountSection = ({ viewMode, setViewMode }: Props) => {
   const [discountExpired, setDiscountExpired] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams({});
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || searchParams.get('barcode') || '');
-  const [addedProductId, setAddedProductId] = useState<string | null>(null);
-  const { addCartItem } = useOrder();
+  const { cartItems, addCartItem, updateCartItem, removeCartItem } = useOrder();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -167,10 +166,31 @@ const DiscountSection = ({ viewMode, setViewMode }: Props) => {
       totalPrice: item.discountedPrice,
       taxAmount: 0,
     });
-    setAddedProductId(item.productId);
     showSuccessToast(`${item.productName} added to cart`);
-    setTimeout(() => setAddedProductId(null), 1500);
   }, [addCartItem]);
+
+  const getCartQty = (productId: string) => {
+    const item = cartItems.find((i) => i.productId === productId);
+    return item?.quantity || 0;
+  };
+
+  const inc = useCallback((item: DiscountedProduct) => {
+    const existing = cartItems.find((i) => i.productId === item.productId);
+    if (existing) {
+      updateCartItem(item.productId, { quantity: existing.quantity + 1 });
+    } else {
+      handleAddToCart(item);
+    }
+  }, [cartItems, updateCartItem, handleAddToCart]);
+
+  const dec = useCallback((item: DiscountedProduct) => {
+    const existing = cartItems.find((i) => i.productId === item.productId);
+    if (existing && existing.quantity > 1) {
+      updateCartItem(item.productId, { quantity: existing.quantity - 1 });
+    } else if (existing) {
+      removeCartItem(item.productId);
+    }
+  }, [cartItems, updateCartItem, removeCartItem]);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearchChange = (value: string) => {
@@ -440,62 +460,92 @@ const DiscountSection = ({ viewMode, setViewMode }: Props) => {
                   setSelectedDiscountProduct(item);
                   setOpen(true);
                 }}
+                quantity={getCartQty(item.productId)}
                 onAddToCart={() => handleAddToCart(item)}
+                onIncrement={() => inc(item)}
+                onDecrement={() => dec(item)}
               />
             ))}
           </div>
         ) : (
           <div className="mt-4 divide-y rounded-xl bg-white">
-            {discountedProducts.map((item) => (
-              <div
-                key={item.productId}
-                className="
-                  grid
-                  grid-cols-[0.3fr_1.4fr_auto]
-                  md:grid-cols-[0.3fr_1.3fr_auto]
-                  items-center
-                  px-4 py-3
-                "
-              >
-                {/* LEFT — NAME */}
-                <p className="text-sm font-medium text-[#4A3B10]">
-                  {item.productName}
-                </p>
+            {discountedProducts.map((item) => {
+              const quantity = getCartQty(item.productId);
 
-                {/* CENTER — PRICE */}
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="text-green-600 font-semibold text-xs">
-                    {item.discountLabel}
-                  </span>
+              return (
+                <div
+                  key={item.productId}
+                  className="
+                    grid
+                    grid-cols-[0.3fr_1.4fr_auto]
+                    md:grid-cols-[0.3fr_1.3fr_auto]
+                    items-center
+                    px-4 py-3
+                  "
+                >
+                  {/* LEFT — NAME */}
+                  <p className="text-sm font-medium text-[#4A3B10]">
+                    {item.productName}
+                  </p>
 
-                  <span className="font-semibold">
-                    ₹{item.discountedPrice.toFixed(2)}
-                  </span>
+                  {/* CENTER — PRICE */}
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-green-600 font-semibold text-xs">
+                      {item.discountLabel}
+                    </span>
 
-                  <span className="text-xs text-gray-400 line-through">
-                    ₹{item.originalPrice.toFixed(2)}
-                  </span>
+                    <span className="font-semibold">
+                      ₹{item.discountedPrice.toFixed(2)}
+                    </span>
+
+                    <span className="text-xs text-gray-400 line-through">
+                      ₹{item.originalPrice.toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* RIGHT — ACTION */}
+                  <div className="flex justify-end min-w-[150px]">
+                    {quantity > 0 ? (
+                      <div className="flex items-center rounded-lg bg-yellow-400 overflow-hidden">
+                        <button
+                          onClick={() => dec(item)}
+                          className="px-3 py-1"
+                          aria-label="Decrease quantity"
+                        >
+                          –
+                        </button>
+
+                        <span className="px-4 text-sm font-semibold tabular-nums">
+                          {quantity.toString().padStart(2, "0")}
+                        </span>
+
+                        <button
+                          onClick={() => inc(item)}
+                          className="px-3 py-1"
+                          aria-label="Increase quantity"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleAddToCart(item)}
+                        className="
+                          rounded-lg
+                          bg-yellow-400
+                          px-5 py-1.5
+                          text-sm font-medium
+                          transition-colors
+                          hover:bg-yellow-500
+                        "
+                      >
+                        + Add to cart
+                      </button>
+                    )}
+                  </div>
                 </div>
-
-                {/* RIGHT — ACTION */}
-                <div className="flex justify-end min-w-[150px]">
-                  <button
-                    onClick={() => handleAddToCart(item)}
-                    className={`
-                      rounded-lg
-                      px-5 py-1.5
-                      text-sm font-medium
-                      transition-colors
-                      ${addedProductId === item.productId
-                        ? 'bg-green-500 text-white'
-                        : 'bg-yellow-400 hover:bg-yellow-500'}
-                    `}
-                  >
-                    {addedProductId === item.productId ? 'Added!' : '+ Add to cart'}
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )
       )}

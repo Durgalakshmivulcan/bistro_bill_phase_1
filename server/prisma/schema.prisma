@@ -1101,9 +1101,11 @@ enum PaymentStatus {
 
 // Order status enum
 enum OrderStatus {
+  Draft
   Pending
   Confirmed
   Preparing
+  OnHold
   Ready
   Served
   Completed

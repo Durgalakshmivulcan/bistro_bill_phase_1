@@ -5,7 +5,7 @@ import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import successIcon from "../../../assets/tick.png";
 import { useOrder } from "../../../contexts/OrderContext";
-import { getCustomers, createCustomer, Customer } from "../../../services/customerService";
+import { getCustomers, getCustomer, createCustomer, Customer } from "../../../services/customerService";
 import { showSuccessToast, showErrorToast } from "../../../utils/toast";
 
 const CustomerDetails = () => {
@@ -45,28 +45,40 @@ const CustomerDetails = () => {
       const res = await getCustomers({ search: trimmed, limit: 1 });
       if (res.success && res.data?.customers?.length) {
         const c = res.data.customers[0];
+        let resolvedAddress = "";
+        try {
+          const detail = await getCustomer(c.id);
+          if (detail.success && detail.data) {
+            resolvedAddress = detail.data.address || "";
+          }
+        } catch {
+          resolvedAddress = "";
+        }
         setFoundCustomer(c);
         setCustomerName(c.name);
+        setAddress(resolvedAddress);
         setLookupDone(true);
         setCustomer({
           customerId: c.id,
           customerName: c.name,
           customerPhone: c.phone,
-          address: address || undefined,
+          address: resolvedAddress || undefined,
         });
       } else {
         setFoundCustomer(null);
         setCustomerName("");
+        setAddress("");
         setLookupDone(true);
       }
     } catch {
       setFoundCustomer(null);
       setCustomerName("");
+      setAddress("");
       setLookupDone(true);
     } finally {
       setLookupLoading(false);
     }
-  }, [address, setCustomer]);
+  }, [setCustomer]);
 
   /* ================= VIEW MODE ================= */
   if (mode === "view") {
@@ -136,25 +148,16 @@ const CustomerDetails = () => {
           </p>
         )}
 
-        <div>
-          <label className="text-sm font-medium">Address</label>
-          <input
-            className="w-full h-10 border rounded-lg px-3 mt-1"
-            placeholder="Enter Address"
-            value={address}
-            onChange={(e) => {
-              setAddress(e.target.value);
-              if (foundCustomer) {
-                setCustomer({
-                  customerId: foundCustomer.id,
-                  customerName: foundCustomer.name,
-                  customerPhone: foundCustomer.phone,
-                  address: e.target.value,
-                });
-              }
-            }}
-          />
-        </div>
+      <div>
+        <label className="text-sm font-medium">Address</label>
+        <input
+          className="w-full h-10 border rounded-lg px-3 mt-1 bg-gray-100 text-gray-700"
+          placeholder={foundCustomer ? "Auto-filled address" : "Lookup customer to auto-fill"}
+          disabled
+          readOnly
+          value={address}
+        />
+      </div>
       </div>
     );
   }

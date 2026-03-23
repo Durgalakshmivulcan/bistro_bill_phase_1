@@ -38,10 +38,10 @@ const BistroBillPOS = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Top Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+        <div className="flex flex-wrap items-center gap-3 justify-between mb-4">
           <h1 className="text-2xl font-semibold text-gray-800">Bistro Bill</h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button className="text-gray-600 hover:text-gray-800">
               <Headphones className="w-5 h-5" />
             </button>
@@ -56,7 +56,7 @@ const BistroBillPOS = () => {
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-6">
           <button className="flex items-center gap-2 text-gray-800">
             <ArrowLeft className="w-5 h-5" />
             <div className="w-6 h-6 bg-gradient-to-r from-orange-400 via-yellow-500 to-orange-500 rounded"></div>
@@ -70,11 +70,11 @@ const BistroBillPOS = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col lg:flex-row overflow-hidden">
         {/* Left Section */}
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
           {/* Order Type Tabs */}
-          <div className="flex items-center gap-2 mb-6 bg-white border-2 border-blue-600 rounded-full p-1 inline-flex">
+          <div className="flex flex-wrap items-center gap-2 mb-6 bg-white border-2 border-blue-600 rounded-full p-1 inline-flex">
             {['Dine In', 'Takeaway', 'Subscription', 'Catering'].map((tab) => (
               <button
                 key={tab}
@@ -91,7 +91,7 @@ const BistroBillPOS = () => {
           </div>
 
           {/* Search and View Controls */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -100,7 +100,7 @@ const BistroBillPOS = () => {
                 className="w-full bg-bb-bg border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <div className="flex gap-2 bg-white border border-gray-300 rounded-lg p-1">
+            <div className="flex gap-2 bg-white border border-gray-300 rounded-lg p-1 self-start">
               <button className="p-2 bg-blue-600 text-white rounded">
                 <Grid3x3 className="w-5 h-5" />
               </button>
@@ -114,9 +114,9 @@ const BistroBillPOS = () => {
           </div>
 
           {/* Categories and Menu */}
-          <div className="flex gap-6">
+          <div className="flex flex-col lg:flex-row gap-6">
             {/* Left Sidebar */}
-            <div className="w-48 flex-shrink-0">
+            <div className="w-full lg:w-48 flex-shrink-0">
               {/* Meal Time Filter */}
               <div className="bg-blue-600 rounded-2xl p-1 mb-4">
                 {['Recommended', 'Breakfast', 'Lunch', 'Dinner'].map((time) => (
@@ -150,7 +150,7 @@ const BistroBillPOS = () => {
 
             {/* Menu Grid */}
             <div className="flex-1">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {menuItems.map((item) => (
                   <div
                     key={item.id}
@@ -178,7 +178,7 @@ const BistroBillPOS = () => {
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-96 bg-white border-l border-gray-200 p-6 flex flex-col">
+        <div className="w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-gray-200 p-4 sm:p-6 flex flex-col">
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-blue-600 mb-1">Table Details</h2>
             <p className="text-sm text-gray-500">Enter table details to proceed</p>

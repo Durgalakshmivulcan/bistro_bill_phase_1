@@ -2,6 +2,7 @@ import { X, BadgePercent } from "lucide-react";
 import { useState } from "react";
 import SuccessModal from "./SuccessModal";
 import { applyDiscount as applyDiscountAPI } from "../../../services/orderService";
+import { useOrder } from "../../../contexts/OrderContext";
 
 type Props = {
   orderId?: string;
@@ -14,22 +15,25 @@ const DiscountModal = ({ orderId, onClose, onDiscountApplied }: Props) => {
   const [couponCode, setCouponCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { summary, updateSummary } = useOrder();
 
   const applyDiscount = async () => {
-    if (!orderId) {
-      setError("No order selected");
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      // Apply discount using coupon code
-      // For now, using reason field for coupon code since discountId is optional
-      await applyDiscountAPI(orderId, {
-        reason: couponCode || "Flat 10% Off",
-      });
+      if (orderId) {
+        // Apply discount on saved order via API
+        await applyDiscountAPI(orderId, {
+          reason: couponCode || "Flat 10% Off",
+        });
+      } else {
+        // Fallback: apply locally to current cart summary
+        const discountAmount = Number(((summary.subtotal || 0) * 0.1).toFixed(2));
+        updateSummary({
+          discountAmount,
+        });
+      }
 
       setShowSuccess(true);
       onDiscountApplied?.();
@@ -80,7 +84,7 @@ const DiscountModal = ({ orderId, onClose, onDiscountApplied }: Props) => {
               <button
                 onClick={applyDiscount}
                 className="h-11 px-5 rounded-lg bg-black text-white text-sm disabled:opacity-50"
-                disabled={loading || !orderId}
+                disabled={loading}
               >
                 {loading ? "Applying..." : "Apply"}
               </button>
@@ -101,7 +105,7 @@ const DiscountModal = ({ orderId, onClose, onDiscountApplied }: Props) => {
               <button
                 onClick={applyDiscount}
                 className="px-4 py-2 bg-black text-white rounded-md text-sm disabled:opacity-50"
-                disabled={loading || !orderId}
+                disabled={loading}
               >
                 {loading ? "Applying..." : "Apply"}
               </button>

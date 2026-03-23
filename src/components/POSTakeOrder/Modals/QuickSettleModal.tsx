@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { CreditCard, Wallet, Banknote } from "lucide-react";
 import { addPayment, updateOrderStatus } from "../../../services/orderService";
 import { getPaymentOptions, PaymentOption } from "../../../services/settingsService";
 
@@ -15,6 +16,16 @@ const QuickSettleModal = ({ open, orderId, amount, onClose, onPaymentSuccess }: 
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentOptions, setPaymentOptions] = useState<PaymentOption[]>([]);
+
+  const formattedAmount = useMemo(
+    () =>
+      new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 2,
+      }).format(amount || 0),
+    [amount]
+  );
 
   // Fetch payment options when modal opens
   useEffect(() => {
@@ -76,25 +87,25 @@ const QuickSettleModal = ({ open, orderId, amount, onClose, onPaymentSuccess }: 
     <div className="fixed inset-0 z-50 flex items-center justify-center">
 
       <div
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
         onClick={onClose}
       />
 
-      <div className="relative w-[360px] rounded-2xl bg-white p-6 text-center">
+      <div className="relative w-[440px] max-w-[92vw] rounded-2xl bg-white p-7 text-center shadow-2xl">
 
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 text-gray-400 disabled:opacity-50"
+          className="absolute right-4 top-4 text-gray-400 hover:text-gray-500 disabled:opacity-50"
           disabled={loading}
         >
           ✕
         </button>
 
-        <h3 className="text-lg font-semibold">
-          Quick Settle ₹{amount.toFixed(2)}
+        <h3 className="text-3xl font-semibold text-gray-900">
+          Quick Settle <span className="font-bold">{formattedAmount}</span>
         </h3>
 
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-3 text-sm text-gray-600">
           Select any one of the Payment Method from below
         </p>
 
@@ -104,28 +115,36 @@ const QuickSettleModal = ({ open, orderId, amount, onClose, onPaymentSuccess }: 
           </div>
         )}
 
-        {loadingOptions ? (
-          <div className="mt-5 text-sm text-gray-500">Loading payment options...</div>
-        ) : (
-          <div className="mt-5 grid grid-cols-2 gap-4">
-            {paymentOptions.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => handleSelect(option)}
-                className="flex items-center justify-center gap-2 rounded-xl border py-3 hover:bg-gray-50 disabled:opacity-50"
-                disabled={loading || !orderId}
-              >
-                {option.name}
-              </button>
-            ))}
+        <div className="mt-6">
+          {loadingOptions ? (
+            <div className="text-sm text-gray-500">Loading payment options...</div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {paymentOptions.map((option) => {
+                const lower = option.name.toLowerCase();
+                const Icon =
+                  lower.includes("cash") ? Banknote : lower.includes("card") ? CreditCard : Wallet;
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => handleSelect(option)}
+                    className="flex items-center justify-center gap-2 rounded-lg border border-amber-300 bg-[#fffaf1] px-4 py-3 text-sm font-medium text-gray-800 shadow-sm transition hover:-translate-y-[1px] hover:shadow-md disabled:opacity-60"
+                    disabled={loading || !orderId}
+                  >
+                    <Icon size={18} />
+                    {option.name}
+                  </button>
+                );
+              })}
 
-            {paymentOptions.length === 0 && !loadingOptions && (
-              <div className="col-span-2 text-sm text-gray-500">
-                No active payment options available
-              </div>
-            )}
-          </div>
-        )}
+              {paymentOptions.length === 0 && !loadingOptions && (
+                <div className="col-span-2 text-sm text-gray-500">
+                  No active payment options available
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

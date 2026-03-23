@@ -8,10 +8,10 @@ type Props = {
 };
 
 const OrderNotesModal = ({ open, value, onClose, onSave }: Props) => {
-  const [note, setNote] = useState(value);
+  const [note, setNote] = useState(value || "");
 
   useEffect(() => {
-    setNote(value);
+    setNote(value || "");
   }, [value]);
 
   if (!open) return null;

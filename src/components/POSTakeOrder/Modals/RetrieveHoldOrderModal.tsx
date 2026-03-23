@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { getHeldOrders, retrieveHeldOrder } from "../../../services/orderService";
 import type { Order } from "../../../services/orderService";
 import { useAuth } from "../../../contexts/AuthContext";
+import { useBranch } from "../../../contexts/BranchContext";
 
 interface RetrieveHoldOrderModalProps {
   open: boolean;
@@ -19,6 +20,7 @@ const RetrieveHoldOrderModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const { currentBranchId } = useBranch();
 
   useEffect(() => {
     if (open) {
@@ -31,12 +33,14 @@ const RetrieveHoldOrderModal = ({
     setError(null);
     try {
       // Get branchId from user context
-      let branchId: string | undefined;
+      let branchId: string | undefined = currentBranchId;
 
-      if (user?.userType === 'Staff') {
-        branchId = user.branch?.id;
-      } else if (user?.userType === 'BusinessOwner') {
-        branchId = user.branches?.find(b => b.isMainBranch)?.id || user.branches?.[0]?.id;
+      if (!branchId) {
+        if (user?.userType === 'Staff') {
+          branchId = user.branch?.id;
+        } else if (user?.userType === 'BusinessOwner') {
+          branchId = user.branches?.find(b => b.isMainBranch)?.id || user.branches?.[0]?.id;
+        }
       }
 
       if (!branchId) {
@@ -126,7 +130,7 @@ const RetrieveHoldOrderModal = ({
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="font-semibold text-lg">
-                        {order.orderNumber}
+                        Order No.: #{order.orderNumber}
                       </div>
                       <div className="text-sm text-gray-600 mt-1">
                         {order.customerName || "Walk-in Customer"}

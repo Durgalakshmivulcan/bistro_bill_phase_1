@@ -36,6 +36,7 @@ export interface Customer {
   id: string;
   name: string;
   phone: string;
+  address?: string | null;
   email: string | null;
   gender: string | null;
   dob: Date | null;

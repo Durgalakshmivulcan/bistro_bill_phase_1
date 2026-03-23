@@ -19,7 +19,15 @@ import { ApiResponse } from '../types/api';
 // Type Definitions
 // ============================================
 
-export type OrderType = 'DineIn' | 'Takeaway' | 'Delivery' | 'Online';
+// Keep legacy literals for UI while API expects the capital-A variants
+export type OrderType =
+  | 'DineIn'
+  | 'TakeAway'
+  | 'Takeaway'
+  | 'Delivery'
+  | 'Catering'
+  | 'Subscription'
+  | 'Online';
 export type OrderStatus = 'Draft' | 'Placed' | 'InProgress' | 'Ready' | 'Completed' | 'Cancelled' | 'OnHold';
 export type PaymentStatus = 'Unpaid' | 'PartiallyPaid' | 'Paid' | 'Refunded';
 export type OrderItemStatus = 'Pending' | 'Preparing' | 'Ready' | 'Served' | 'Cancelled';
@@ -423,7 +431,45 @@ export const generateKOT = async (
 export const getTableStatusOverview = async (
   branchId: string
 ): Promise<ApiResponse<TableStatusResponse>> => {
-  return api.get<ApiResponse<TableStatusResponse>>(`/pos/tables/${branchId}`);
+  const response = await api.get<ApiResponse<any>>(`/pos/tables/${branchId}`);
+
+  // Normalise backend table payload to the UI-friendly shape expected across POS views
+  if (response.success && response.data?.floors) {
+    const mapStatus = (status: string): 'available' | 'occupied' | 'reserved' => {
+      if (status === 'running') return 'occupied';
+      if (status === 'reserved') return 'reserved';
+      return 'available';
+    };
+
+    const floors: FloorWithTables[] = response.data.floors.map((floor: any) => ({
+      floorId: floor.id,
+      floorName: floor.name,
+      tables: (floor.tables || []).map((table: any) => ({
+        id: table.id,
+        name: table.label || table.name || 'Table',
+        capacity: table.chairs ?? table.capacity ?? 0,
+        currentStatus: mapStatus(table.status),
+        floorId: floor.id,
+        floorName: floor.name,
+        currentOrder: table.currentOrder
+          ? {
+              id: table.currentOrder.id,
+              orderNumber: table.currentOrder.orderNumber,
+              customerName: table.currentOrder.customerName,
+              total: Number(table.currentOrder.total ?? 0),
+              paidAmount: Number(table.currentOrder.paidAmount ?? 0),
+              dueAmount: Number(table.currentOrder.dueAmount ?? 0),
+              status: table.currentOrder.orderStatus || table.currentOrder.status,
+              createdAt: table.currentOrder.createdAt || new Date().toISOString(),
+            }
+          : undefined,
+      })),
+    }));
+
+    return { ...response, data: { ...response.data, floors } };
+  }
+
+  return response;
 };
 
 // ============================================

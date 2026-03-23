@@ -21,7 +21,8 @@ type ProductBrowserProps = {
 
 // Map sidebar labels to API query params
 const SIDEBAR_FILTER_MAP: Record<string, Partial<OrderFilterParams>> = {
-  "Open Orders": { status: "Placed,InProgress,Ready" },
+  // Map to backend enums: Placed->Confirmed, InProgress->Preparing
+  "Open Orders": { status: "Confirmed,Preparing,Ready" },
   "Closed Orders": { status: "Completed" },
   "Cancelled Orders": { status: "Cancelled" },
   "Amount Due": { paymentStatus: "Unpaid,PartiallyPaid" },

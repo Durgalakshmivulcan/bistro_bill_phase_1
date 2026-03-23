@@ -115,7 +115,7 @@ const POSPage: React.FC = () => {
         </div>
 
         {/* Desktop / Tablet Order Panel */}
-        <div className="hidden lg:block h-[calc(100vh-140px)] sticky top-6 overflow-y-auto overflow-x-hidden min-w-0 bg-white rounded-2xl shadow-sm border border-[#EADFC2]">
+        <div className="hidden lg:block h-[calc(100vh-140px)] sticky top-6 overflow-y-auto overflow-x-hidden min-w-[380px] max-w-[460px] bg-white rounded-2xl shadow-md border border-[#EADFC2]">
           <OrderPanel />
         </div>
 

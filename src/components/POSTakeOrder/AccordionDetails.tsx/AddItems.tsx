@@ -64,7 +64,7 @@ const AddItems = () => {
               <button
                 onClick={() => {
                   setNoteItemId(item.productId);
-                  setNoteValue(item.notes || "Add Notes");
+                  setNoteValue(item.notes || "");
                 }}
                 className="mt-1 flex items-center gap-1 text-xs text-gray-500 hover:text-black"
               >
