@@ -257,7 +257,6 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setDiscountReason,
     currentOrderId,
     setCurrentOrderId,
-    eventName,
     eventDate,
     setEventDate,
     eventTime,

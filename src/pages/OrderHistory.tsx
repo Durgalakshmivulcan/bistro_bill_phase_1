@@ -52,7 +52,7 @@ const OrderHistory: React.FC = () => {
         const transformedOrders: OrderItem[] = response.data.orders.map((order: Order, index: number) => ({
           id: parseInt(order.id, 10) || (page - 1) * ITEMS_PER_PAGE + index + 1,
           orderNo: order.orderNumber,
-          branch: order.branchName || "Hitech City",
+          branch: "-",
           customerName: order.customerName || "Guest",
           phone: order.customerPhone || "N/A",
           orderType: formatOrderType(order.type),

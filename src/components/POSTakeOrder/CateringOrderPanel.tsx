@@ -37,20 +37,20 @@ const CateringOrderPanel = () => {
             <button
               type="button"
               className={`h-10 px-4 border rounded-lg ${eventTime && eventTime.includes('AM') ? 'bg-black text-white' : 'bg-white'}`}
-              onClick={() => setEventTime(prev => {
-                const base = prev?.replace(/\\s?(AM|PM)$/i, '') || '11:30';
-                return `${base} AM`;
-              })}
+              onClick={() => {
+                const base = eventTime?.replace(/\\s?(AM|PM)$/i, '') || '11:30';
+                setEventTime(`${base} AM`);
+              }}
             >
               AM
             </button>
             <button
               type="button"
               className={`h-10 px-4 border rounded-lg ${eventTime && eventTime.includes('PM') ? 'bg-black text-white' : 'bg-white'}`}
-              onClick={() => setEventTime(prev => {
-                const base = prev?.replace(/\\s?(AM|PM)$/i, '') || '11:30';
-                return `${base} PM`;
-              })}
+              onClick={() => {
+                const base = eventTime?.replace(/\\s?(AM|PM)$/i, '') || '11:30';
+                setEventTime(`${base} PM`);
+              }}
             >
               PM
             </button>
