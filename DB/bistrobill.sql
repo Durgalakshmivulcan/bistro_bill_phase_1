@@ -287,13 +287,15 @@ CREATE TYPE public."OrderSource" AS ENUM (
 --
 
 CREATE TYPE public."OrderStatus" AS ENUM (
-    'Pending',
-    'Confirmed',
-    'Preparing',
-    'Ready',
-    'Served',
-    'Completed',
-    'Cancelled'
+    'Draft',
+  'Pending',
+  'Confirmed',
+  'Preparing',
+  'OnHold',
+  'Ready',
+  'Served',
+  'Completed',
+  'Cancelled'
 );
 
 

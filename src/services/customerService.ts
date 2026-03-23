@@ -146,6 +146,9 @@ export interface CreateCustomerData {
   dob?: string; // ISO date string
   type?: CustomerType;
   gstin?: string;
+  taxStateCode?: string;
+  companyName?: string;
+  address?: string;
   customerGroupId?: string;
   notes?: string;
   tagIds?: string[];
@@ -162,6 +165,9 @@ export interface UpdateCustomerData {
   dob?: string; // ISO date string
   type?: CustomerType;
   gstin?: string;
+  taxStateCode?: string;
+  companyName?: string;
+  address?: string;
   customerGroupId?: string;
   notes?: string;
   tagIds?: string[];

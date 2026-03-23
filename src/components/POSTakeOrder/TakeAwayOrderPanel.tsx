@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AccordionItem from "./AccordionItem";
+import CaptainDetails from "./AccordionDetails.tsx/CaptainDetails";
 import CustomerDetails from "./AccordionDetails.tsx/CustomerDetails";
 import AddItems from "./AccordionDetails.tsx/AddItems";
 import PaymentSummary from "./AccordionDetails.tsx/PaymentSummary";
@@ -13,6 +14,14 @@ const TakeAwayOrderPanel = () => {
 
   return (
     <>
+      <AccordionItem
+        title="Captain Detail's"
+        isOpen={openAccordion === "captain"}
+        onToggle={() => toggle("captain")}
+      >
+        <CaptainDetails />
+      </AccordionItem>
+
       <AccordionItem
         title="Customer Details"
         isOpen={openAccordion === "customer"}

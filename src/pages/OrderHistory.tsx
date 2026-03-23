@@ -52,7 +52,7 @@ const OrderHistory: React.FC = () => {
         const transformedOrders: OrderItem[] = response.data.orders.map((order: Order, index: number) => ({
           id: parseInt(order.id, 10) || (page - 1) * ITEMS_PER_PAGE + index + 1,
           orderNo: order.orderNumber,
-          branch: "-",
+          branch: order.branchName || "Hitech City",
           customerName: order.customerName || "Guest",
           phone: order.customerPhone || "N/A",
           orderType: formatOrderType(order.type),
@@ -186,17 +186,54 @@ const OrderHistory: React.FC = () => {
 
   // Search logic (Order No / Customer / Phone) - client-side on current page
   const filteredOrders = useMemo(() => {
-    if (!search.trim()) return orders;
+    let result = [...orders];
 
-    const value = search.toLowerCase();
+    if (filters.branch) {
+      result = result.filter((o) =>
+        o.branch.toLowerCase().includes(filters.branch!.toLowerCase())
+      );
+    }
 
-    return orders.filter(
-      (order) =>
-        order.orderNo.toLowerCase().includes(value) ||
-        order.customerName.toLowerCase().includes(value) ||
-        order.phone.toLowerCase().includes(value)
-    );
-  }, [search, orders]);
+    if (filters.customer) {
+      result = result.filter((o) =>
+        o.customerName.toLowerCase().includes(filters.customer!.toLowerCase())
+      );
+    }
+
+    if (filters.type) {
+      result = result.filter((o) => o.orderType.toLowerCase().includes(filters.type!.toLowerCase()));
+    }
+
+    if (filters.paymentStatus) {
+      result = result.filter((o) => o.status.toLowerCase().includes(filters.paymentStatus!.toLowerCase()));
+    }
+
+    if (filters.startDate) {
+      result = result.filter((o) => {
+        const d = new Date(o.createdAt);
+        return d >= new Date(filters.startDate!);
+      });
+    }
+
+    if (filters.endDate) {
+      result = result.filter((o) => {
+        const d = new Date(o.createdAt);
+        return d <= new Date(filters.endDate!);
+      });
+    }
+
+    if (search.trim()) {
+      const value = search.toLowerCase();
+      result = result.filter(
+        (order) =>
+          order.orderNo.toLowerCase().includes(value) ||
+          order.customerName.toLowerCase().includes(value) ||
+          order.phone.toLowerCase().includes(value)
+      );
+    }
+
+    return result;
+  }, [search, orders, filters]);
 
   return (
     <DashboardLayout>
@@ -206,20 +243,22 @@ const OrderHistory: React.FC = () => {
 
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <h1 className="text-2xl font-bold">Order History</h1>
+              <h1 className="text-3xl font-semibold text-[#0c0c0c]">Order History</h1>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  placeholder="Search by order, customer, phone..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full sm:w-72 rounded-md border px-4 py-2 text-sm bg-white"
-                  disabled={loading}
-                />
+                <div className="flex items-center bg-white border rounded-md px-3 py-2 shadow-sm">
+                  <input
+                    placeholder="Search here..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-64 text-sm focus:outline-none"
+                    disabled={loading}
+                  />
+                </div>
 
                 <button
                   onClick={handleExport}
-                  className="border px-4 py-2 rounded-md text-sm bg-white hover:bg-gray-50"
+                  className="border px-4 py-2 rounded-md text-sm bg-white hover:bg-gray-50 shadow-sm"
                   disabled={loading}
                 >
                   Export

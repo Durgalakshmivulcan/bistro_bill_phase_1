@@ -26,7 +26,7 @@ const DineInOrderPanel = () => {
         isOpen={open === "customer"}
         onToggle={() => toggle("customer")}
       >
-        <CustomerDetails />
+        <CustomerDetails addressEditable={false} />
       </AccordionItem>
 
       <AccordionItem
