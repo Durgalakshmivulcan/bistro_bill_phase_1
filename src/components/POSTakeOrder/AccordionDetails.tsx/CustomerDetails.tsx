@@ -8,7 +8,15 @@ import { useOrder } from "../../../contexts/OrderContext";
 import { getCustomers, getCustomer, createCustomer, Customer } from "../../../services/customerService";
 import { showSuccessToast, showErrorToast } from "../../../utils/toast";
 
-const CustomerDetails = () => {
+interface CustomerDetailsProps {
+  /**
+   * Controls whether the address field can be edited.
+   * For Dine In this should be disabled; for Take Away it stays enabled.
+   */
+  addressEditable?: boolean;
+}
+
+const CustomerDetails: React.FC<CustomerDetailsProps> = ({ addressEditable = true }) => {
   const [mode, setMode] = useState<"view" | "add">("view");
   const { customer, setCustomer } = useOrder();
 
@@ -19,6 +27,9 @@ const CustomerDetails = () => {
   const [lookupDone, setLookupDone] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [foundCustomer, setFoundCustomer] = useState<Customer | null>(null);
+  const [gstinNumber, setGstinNumber] = useState(customer.gstinNumber || "");
+  const [taxStateCode, setTaxStateCode] = useState(customer.taxStateCode || "");
+  const [companyName, setCompanyName] = useState(customer.companyName || "");
 
   // add mode form state
   const [customerGroup, setCustomerGroup] = useState("");
@@ -45,24 +56,39 @@ const CustomerDetails = () => {
       const res = await getCustomers({ search: trimmed, limit: 1 });
       if (res.success && res.data?.customers?.length) {
         const c = res.data.customers[0];
-        let resolvedAddress = "";
+        let resolvedAddress = c.address || "";
+        let resolvedGstin = c.gstin || "";
+        let resolvedTaxState = taxStateCode;
+        let resolvedCompany = companyName;
         try {
           const detail = await getCustomer(c.id);
           if (detail.success && detail.data) {
-            resolvedAddress = detail.data.address || "";
+            resolvedAddress = detail.data.address || resolvedAddress || "";
+            resolvedGstin = detail.data.gstin || resolvedGstin;
+            // Pick up optional fields if backend sends them
+            // @ts-expect-error backend may include these even if not typed
+            resolvedTaxState = detail.data.taxStateCode || resolvedTaxState;
+            // @ts-expect-error backend may include these even if not typed
+            resolvedCompany = detail.data.companyName || resolvedCompany;
           }
         } catch {
-          resolvedAddress = "";
+          resolvedAddress = resolvedAddress || "";
         }
         setFoundCustomer(c);
         setCustomerName(c.name);
         setAddress(resolvedAddress);
+        setGstinNumber(resolvedGstin);
+        setTaxStateCode(resolvedTaxState || "");
+        setCompanyName(resolvedCompany || "");
         setLookupDone(true);
         setCustomer({
           customerId: c.id,
           customerName: c.name,
           customerPhone: c.phone,
           address: resolvedAddress || undefined,
+          gstinNumber: resolvedGstin || undefined,
+          taxStateCode: resolvedTaxState || undefined,
+          companyName: resolvedCompany || undefined,
         });
       } else {
         setFoundCustomer(null);
@@ -148,16 +174,40 @@ const CustomerDetails = () => {
           </p>
         )}
 
-      <div>
-        <label className="text-sm font-medium">Address</label>
-        <input
-          className="w-full h-10 border rounded-lg px-3 mt-1 bg-gray-100 text-gray-700"
-          placeholder={foundCustomer ? "Auto-filled address" : "Lookup customer to auto-fill"}
-          disabled
-          readOnly
-          value={address}
-        />
-      </div>
+        <div>
+          <label className="text-sm font-medium">Address</label>
+          <input
+            className={`w-full h-10 border rounded-lg px-3 mt-1 ${
+              addressEditable ? "bg-white" : "bg-gray-100 text-gray-700"
+            }`}
+            placeholder={
+              foundCustomer
+                ? addressEditable
+                  ? "Edit or keep auto-filled address"
+                  : "Auto-filled address"
+                : addressEditable
+                ? "Enter address"
+                : "Lookup customer to auto-fill"
+            }
+            disabled={!addressEditable}
+            readOnly={!addressEditable}
+            value={address}
+            onChange={(e) => {
+              if (!addressEditable) return;
+              const value = e.target.value;
+              setAddress(value);
+        setCustomer({
+          customerId: foundCustomer?.id || customer.customerId,
+          customerName: foundCustomer?.name || customer.customerName,
+          customerPhone: foundCustomer?.phone || customer.customerPhone,
+          address: value || undefined,
+          gstinNumber: gstinNumber || undefined,
+          taxStateCode: taxStateCode || undefined,
+          companyName: companyName || undefined,
+        });
+            }}
+          />
+        </div>
       </div>
     );
   }
@@ -176,6 +226,10 @@ const CustomerDetails = () => {
     setAnnDay("");
     setAnnMonth("");
     setAnnYear("");
+    setGstinNumber("");
+    setTaxStateCode("");
+    setCompanyName("");
+    setAddress("");
   };
 
   /* ================= SAVE HANDLER ================= */
@@ -207,6 +261,10 @@ const CustomerDetails = () => {
         gender: gender || undefined,
         dob,
         type: customerGroup === "vip" ? "VIP" : customerGroup === "corporate" ? "Wholesale" : "Regular",
+        gstin: gstinNumber || undefined,
+        taxStateCode: taxStateCode || undefined,
+        companyName: companyName || undefined,
+        address: address || undefined,
       });
 
       if (res.success && res.data) {
@@ -216,6 +274,9 @@ const CustomerDetails = () => {
           customerName: c.name,
           customerPhone: c.phone,
           address: address || undefined,
+          gstinNumber: gstinNumber || undefined,
+          taxStateCode: taxStateCode || undefined,
+          companyName: companyName || undefined,
         });
         setPhone(c.phone);
         setCustomerName(c.name);
@@ -430,6 +491,50 @@ const CustomerDetails = () => {
             }))}
           />
         </div>
+      </div>
+
+      {/* GSTIN / Tax State Code */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-medium">GSTIN</label>
+          <input
+            className="w-full h-10 border rounded-lg px-3 mt-1"
+            value={gstinNumber}
+            onChange={(e) => setGstinNumber(e.target.value)}
+            placeholder="Enter GSTIN Number"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium">Tax State Code</label>
+          <input
+            className="w-full h-10 border rounded-lg px-3 mt-1"
+            value={taxStateCode}
+            onChange={(e) => setTaxStateCode(e.target.value)}
+            placeholder="Enter Tax State Code"
+          />
+        </div>
+      </div>
+
+      {/* Company */}
+      <div>
+        <label className="text-xs font-medium">Company</label>
+        <input
+          className="w-full h-10 border rounded-lg px-3 mt-1"
+          value={companyName}
+          onChange={(e) => setCompanyName(e.target.value)}
+          placeholder="Company Name"
+        />
+      </div>
+
+      {/* Address */}
+      <div>
+        <label className="text-xs font-medium">Address</label>
+        <input
+          className="w-full h-10 border rounded-lg px-3 mt-1"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Enter Address"
+        />
       </div>
 
       {/* Save */}

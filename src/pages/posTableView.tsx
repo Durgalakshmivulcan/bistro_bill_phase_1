@@ -572,47 +572,75 @@ const handleBack = () => {
 
           {/* Table Areas - Show only if data loaded successfully */}
           {!loading && !error && filteredFloors.length > 0 && filteredFloors.map((floor) => (
-            <div key={floor.floorId} className="rounded-xl bg-[#F5F2EC] p-4 sm:p-6 mt-6 space-y-6">
+            <div key={floor.floorId} className="rounded-xl bg-[#f7f3eb] p-4 sm:p-6 mt-6 space-y-4 border border-[#e5dcc7]">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">{floor.floorName}</h2>
                 <span className="text-sm text-bb-textSoft">
                   {floor.tables.length} table{floor.tables.length !== 1 ? 's' : ''}
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              <div className="flex flex-wrap gap-4">
                 {floor.tables.map((table) => {
                   const isRecentlyChanged = recentlyChangedTables.has(table.id);
                   const nextReservation = getNextReservation(table.id);
                   const hasReservation = !!nextReservation;
                   const reservationIsActive = nextReservation ? isReservationActive(nextReservation) : false;
-                  const statusColor =
-                    hasReservation && table.currentStatus === 'available' ? 'bg-amber-100 text-amber-700 border-amber-300' :
-                    table.currentStatus === 'available' ? 'bg-green-100 text-green-700 border-green-300' :
-                    table.currentStatus === 'occupied' ? 'bg-blue-100 text-blue-700 border-blue-300' :
-                    table.currentStatus === 'reserved' ? 'bg-red-100 text-red-700 border-red-300' :
-                    'bg-gray-100 text-gray-700 border-gray-300';
+                  const statusColors = {
+                    available: "bg-[#d9f1bf] text-[#3e6c1f] border-[#c6e0a9]",
+                    occupied: "bg-[#d8e8ff] text-[#1f5fbe] border-[#bcd6ff]",
+                    reserved: "bg-[#f9d4cd] text-[#b23b34] border-[#eeb8af]",
+                  } as const;
+                  const bubbleColor =
+                    table.currentStatus === "available"
+                      ? statusColors.available
+                      : table.currentStatus === "occupied"
+                      ? statusColors.occupied
+                      : statusColors.reserved;
                   return (
                     <div
                       key={table.id}
                       onClick={() => handleTableClick(table, floor.floorId, floor.floorName)}
                       onMouseEnter={() => hasReservation ? setHoveredTableId(table.id) : undefined}
                       onMouseLeave={() => setHoveredTableId(null)}
-                      className={`relative text-center p-4 bg-white rounded-lg shadow border transition-all cursor-pointer hover:ring-2 hover:ring-bb-primary ${
-                        isRecentlyChanged ? 'animate-pulse ring-2 ring-bb-primary' : ''
+                      className={`relative w-[120px] h-[96px] bg-white border border-[#d7c5ab] rounded-xl shadow-sm cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md ${
+                        isRecentlyChanged ? 'ring-2 ring-bb-primary' : ''
                       } ${selectedTable?.tableId === table.id ? 'ring-2 ring-bb-primary bg-yellow-50' : ''}`}
                     >
+                      {/* Seats top */}
+                      <div className="absolute top-1 left-3 right-3 flex justify-between">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <span key={i} className="w-6 h-2 rounded-full bg-[#e7d6c0]" />
+                        ))}
+                      </div>
+                      {/* Seats bottom */}
+                      <div className="absolute bottom-1 left-3 right-3 flex justify-between">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <span key={i} className="w-6 h-2 rounded-full bg-[#e7d6c0]" />
+                        ))}
+                      </div>
+                      {/* Seats left/right */}
+                      <div className="absolute inset-y-3 left-1 flex flex-col justify-between">
+                        {Array.from({ length: 2 }).map((_, i) => (
+                          <span key={i} className="w-2 h-6 rounded-full bg-[#e7d6c0]" />
+                        ))}
+                      </div>
+                      <div className="absolute inset-y-3 right-1 flex flex-col justify-between">
+                        {Array.from({ length: 2 }).map((_, i) => (
+                          <span key={i} className="w-2 h-6 rounded-full bg-[#e7d6c0]" />
+                        ))}
+                      </div>
+
+                      {/* Center circle */}
+                      <div className={`absolute inset-0 m-auto w-16 h-16 rounded-full border ${bubbleColor} flex items-center justify-center font-semibold`}>
+                        {table.name}
+                      </div>
+
                       {/* Reserved Badge */}
                       {hasReservation && (
                         <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">
                           Reserved
                         </div>
                       )}
-
-                      <div className="font-medium">{table.name}</div>
-                      <div className={`text-xs mt-1 px-2 py-0.5 rounded-full inline-block ${statusColor}`}>
-                        {hasReservation && table.currentStatus === 'available' ? 'reserved' : table.currentStatus}
-                      </div>
-                      <div className="text-xs text-bb-textSoft mt-1">Capacity: {table.capacity}</div>
 
                       {/* Mark Arrived button - show when reservation time window is active */}
                       {nextReservation && reservationIsActive && (

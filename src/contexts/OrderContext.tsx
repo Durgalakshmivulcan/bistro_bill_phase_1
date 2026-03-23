@@ -35,6 +35,9 @@ export interface CustomerInfo {
   customerName?: string;
   customerPhone?: string;
   address?: string;
+  gstinNumber?: string;
+  taxStateCode?: string;
+  companyName?: string;
 }
 
 export interface TableInfo {
@@ -92,10 +95,10 @@ interface OrderContextType {
   setCurrentOrderId: (id?: string) => void;
 
   // Catering Event Details
-  eventName: string;
-  setEventName: (name: string) => void;
   eventDate: string;
   setEventDate: (date: string) => void;
+  eventTime: string;
+  setEventTime: (time: string) => void;
 
   // Subscription Plan
   subscriptionPlanId: string;
@@ -123,8 +126,8 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [orderNotes, setOrderNotes] = useState<string>('');
   const [discountReason, setDiscountReason] = useState<string | undefined>();
   const [currentOrderId, setCurrentOrderId] = useState<string | undefined>();
-  const [eventName, setEventName] = useState<string>('');
   const [eventDate, setEventDate] = useState<string>('');
+  const [eventTime, setEventTime] = useState<string>('');
   const [subscriptionPlanId, setSubscriptionPlanId] = useState<string>('');
 
   const [summary, setSummary] = useState<OrderSummary>({
@@ -222,8 +225,8 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setOrderNotes('');
     setDiscountReason(undefined);
     setCurrentOrderId(undefined);
-    setEventName('');
     setEventDate('');
+    setEventTime('');
     setSubscriptionPlanId('');
     setSummary({
       subtotal: 0,
@@ -255,9 +258,10 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     currentOrderId,
     setCurrentOrderId,
     eventName,
-    setEventName,
     eventDate,
     setEventDate,
+    eventTime,
+    setEventTime,
     subscriptionPlanId,
     setSubscriptionPlanId,
     resetOrder,

@@ -19,14 +19,14 @@ const headers = [
 
 const OrderTable: React.FC<Props> = ({ orders }) => {
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
+    <div className="bg-white rounded-lg shadow-sm overflow-x-auto border border-[#e6dfc6]">
       <table className="min-w-[1100px] w-full text-sm">
-        <thead className="bg-yellow-400 text-black">
+        <thead className="bg-[#f3d37c] text-[#111]">
           <tr>
             {headers.map((h) => (
               <th
                 key={h}
-                className="px-4 py-3 text-left font-medium whitespace-nowrap"
+                className="px-4 py-3 text-left font-semibold whitespace-nowrap"
               >
                 {h}
               </th>
@@ -35,8 +35,8 @@ const OrderTable: React.FC<Props> = ({ orders }) => {
         </thead>
 
         <tbody>
-          {orders.map((order) => (
-            <OrderRow key={order.id} order={order} />
+          {orders.map((order, idx) => (
+            <OrderRow key={order.id} order={order} striped={idx % 2 === 1} />
           ))}
         </tbody>
       </table>

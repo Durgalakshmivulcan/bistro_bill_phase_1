@@ -89,7 +89,7 @@ export default function Select({
       </button>
 
       {open && !disabled && (
-        <div className="absolute z-50 mt-1 w-full bg-white border rounded-md shadow">
+        <div className="absolute z-50 mt-1 w-full bg-white border rounded-md shadow max-h-72 overflow-y-auto overscroll-contain">
           {options.map((opt) => (
             <button
               key={opt.value}

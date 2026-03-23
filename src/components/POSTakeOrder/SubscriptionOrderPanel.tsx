@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import AccordionItem from "./AccordionItem";
 import CustomerDetails from "./AccordionDetails.tsx/CustomerDetails";
+import AddItems from "./AccordionDetails.tsx/AddItems";
 import PaymentSummary from "./AccordionDetails.tsx/PaymentSummary";
 import { getSubscriptionPlans, SubscriptionPlan } from "../../services/settingsService";
 import { useOrder } from "../../contexts/OrderContext";
@@ -16,31 +17,31 @@ const SubscriptionOrderPanel = () => {
     setOpenAccordion(prev => (prev === key ? null : key));
   };
 
-  useEffect(() => {
-    const fetchPlans = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await getSubscriptionPlans({ status: "active" });
-        if (response.success && response.data) {
-          setPlans(response.data.plans);
-        } else {
-          setError(response.error?.message || "Failed to load subscription plans");
-        }
-      } catch (err) {
-        setError("An error occurred while loading subscription plans");
-      } finally {
-        setLoading(false);
+  const fetchPlans = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getSubscriptionPlans({ status: "active" });
+      if (response.success && response.data) {
+        setPlans(response.data.plans);
+      } else {
+        setError(response.error?.message || "Unable to load billing details.");
       }
-    };
+    } catch (err) {
+      setError("Unable to load billing details.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchPlans();
   }, []);
 
   return (
     <>
       <AccordionItem
-        title="Subscription Plan"
+        title="Billing Details"
         isOpen={openAccordion === "plan"}
         onToggle={() => toggle("plan")}
       >
@@ -48,7 +49,16 @@ const SubscriptionOrderPanel = () => {
           {loading ? (
             <div className="text-bb-textSoft text-sm">Loading plans...</div>
           ) : error ? (
-            <div className="text-bb-danger text-sm">{error}</div>
+            <div className="flex items-center justify-between text-sm text-bb-danger bg-bb-bgSoft border border-bb-danger/40 rounded-lg px-3 py-2">
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={fetchPlans}
+                className="text-xs font-semibold px-2 py-1 border border-bb-danger rounded-md hover:bg-bb-danger hover:text-white transition"
+              >
+                Retry
+              </button>
+            </div>
           ) : (
             <select
               className="w-full h-10 border rounded-lg px-3"
@@ -72,6 +82,14 @@ const SubscriptionOrderPanel = () => {
         onToggle={() => toggle("customer")}
       >
         <CustomerDetails />
+      </AccordionItem>
+
+      <AccordionItem
+        title="Add Items"
+        isOpen={openAccordion === "items"}
+        onToggle={() => toggle("items")}
+      >
+        <AddItems />
       </AccordionItem>
 
       <AccordionItem

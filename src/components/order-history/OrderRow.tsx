@@ -20,9 +20,10 @@ const PAYMENT_ROUTE_MAP: Partial<Record<OrderItem["status"], string>> = {
 
 type Props = {
   order: OrderItem;
+  striped?: boolean;
 };
 
-const OrderRow: React.FC<Props> = ({ order }) => {
+const OrderRow: React.FC<Props> = ({ order, striped = false }) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -61,7 +62,7 @@ const OrderRow: React.FC<Props> = ({ order }) => {
   
 
   return (
-    <tr className="border-b last:border-none">
+    <tr className={`${striped ? "bg-[#fffaf1]" : "bg-white"} border-b last:border-none`}>
       <td className="px-4 py-3 font-medium">{order.orderNo}</td>
       <td className="px-4 py-3">{order.branch}</td>
 
@@ -75,9 +76,7 @@ const OrderRow: React.FC<Props> = ({ order }) => {
 
       <td className="px-4 py-3">
         <span
-          className={`px-2 py-1 rounded text-xs ${
-            paymentTagStyles[order.status]
-          }`}
+          className={`px-2 py-1 rounded text-xs ${paymentTagStyles[order.status]}`}
         >
           {order.status}
         </span>

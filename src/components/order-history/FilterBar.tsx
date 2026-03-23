@@ -6,6 +6,8 @@ export interface OrderFilters {
   type?: string;
   startDate?: string;
   endDate?: string;
+  branch?: string;
+  customer?: string;
 }
 
 interface FilterBarProps {
@@ -26,6 +28,21 @@ const orderTypeOptions = [
   { label: "Takeaway", value: "Takeaway" },
   { label: "Delivery", value: "Delivery" },
   { label: "Online", value: "Online" },
+  { label: "Catering", value: "Catering" },
+  { label: "Subscription", value: "Subscription" },
+];
+
+const branchOptions = [
+  { label: "Hitech City", value: "Hitech City" },
+  { label: "Kukatpally", value: "Kukatpally" },
+  { label: "Gachibowli", value: "Gachibowli" },
+];
+
+const customerOptions = [
+  { label: "Priya Gupta", value: "Priya Gupta" },
+  { label: "Vivek", value: "Vivek" },
+  { label: "Anil Desai", value: "Anil Desai" },
+  { label: "Rani Patel", value: "Rani Patel" },
 ];
 
 const FilterBar: React.FC<FilterBarProps> = ({ filters, onFilterChange, onClear }) => {
@@ -71,45 +88,99 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, onFilterChange, onClear 
     return value;
   };
 
+  const pillClasses = (active: boolean) =>
+    `bg-white border px-4 py-2 rounded-md text-sm flex items-center gap-2 shadow-sm ${
+      active ? "border-[#d8b04c] bg-[#fff8e6]" : "hover:bg-gray-50"
+    }`;
+
+  const dropdownClasses =
+    "absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-10 min-w-[180px]";
+
   return (
     <div className="flex flex-wrap gap-3 items-center" ref={dropdownRef}>
-      {/* Date Range Filter */}
-      <div className="flex items-center gap-2">
+      {/* Date Filter (start only to match UI) */}
+      <div className="relative">
+        <label className="sr-only">Filter by Date</label>
         <input
           type="date"
           value={filters.startDate || ""}
-          onChange={(e) => handleDateChange("startDate", e.target.value)}
-          className="bg-white border px-3 py-2 rounded-md text-sm"
-          placeholder="Start Date"
+          onChange={(e) => {
+            handleDateChange("startDate", e.target.value);
+            handleDateChange("endDate", e.target.value);
+          }}
+          className="bg-white border px-4 py-2 rounded-md text-sm shadow-sm cursor-pointer"
         />
-        <span className="text-sm text-gray-500">to</span>
-        <input
-          type="date"
-          value={filters.endDate || ""}
-          onChange={(e) => handleDateChange("endDate", e.target.value)}
-          className="bg-white border px-3 py-2 rounded-md text-sm"
-        />
+      </div>
+
+      {/* Branch Filter */}
+      <div className="relative">
+        <button
+          onClick={() => toggleDropdown("branch")}
+          className={pillClasses(!!filters.branch)}
+        >
+          {getActiveLabel("branch" as keyof OrderFilters, "Filter by Branch")}
+          <span>⌄</span>
+        </button>
+        {openDropdown === "branch" && (
+          <div className={dropdownClasses}>
+            {branchOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleSelect("branch" as keyof OrderFilters, option.value)}
+                className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                  filters.branch === option.value ? "bg-[#fff3d4] font-medium" : ""
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Customer Filter */}
+      <div className="relative">
+        <button
+          onClick={() => toggleDropdown("customer")}
+          className={pillClasses(!!filters.customer)}
+        >
+          {getActiveLabel("customer" as keyof OrderFilters, "Filter by Customer")}
+          <span>⌄</span>
+        </button>
+        {openDropdown === "customer" && (
+          <div className={dropdownClasses}>
+            {customerOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleSelect("customer" as keyof OrderFilters, option.value)}
+                className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                  filters.customer === option.value ? "bg-[#fff3d4] font-medium" : ""
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Order Type Filter */}
       <div className="relative">
         <button
           onClick={() => toggleDropdown("type")}
-          className={`bg-white border px-4 py-2 rounded-md text-sm flex items-center gap-2 ${
-            filters.type ? "border-bb-primary bg-yellow-50" : ""
-          }`}
+          className={pillClasses(!!filters.type)}
         >
           {getActiveLabel("type", "Filter by Order Type")}
           <span>⌄</span>
         </button>
         {openDropdown === "type" && (
-          <div className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-10 min-w-[160px]">
+          <div className={dropdownClasses}>
             {orderTypeOptions.map((option) => (
               <button
                 key={option.value}
                 onClick={() => handleSelect("type", option.value)}
                 className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
-                  filters.type === option.value ? "bg-yellow-50 font-medium" : ""
+                  filters.type === option.value ? "bg-[#fff3d4] font-medium" : ""
                 }`}
               >
                 {option.label}
@@ -123,21 +194,19 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, onFilterChange, onClear 
       <div className="relative">
         <button
           onClick={() => toggleDropdown("paymentStatus")}
-          className={`bg-white border px-4 py-2 rounded-md text-sm flex items-center gap-2 ${
-            filters.paymentStatus ? "border-bb-primary bg-yellow-50" : ""
-          }`}
+          className={pillClasses(!!filters.paymentStatus)}
         >
           {getActiveLabel("paymentStatus", "Filter by Payment Tag")}
           <span>⌄</span>
         </button>
         {openDropdown === "paymentStatus" && (
-          <div className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg z-10 min-w-[160px]">
+          <div className={dropdownClasses}>
             {statusOptions.map((option) => (
               <button
                 key={option.value}
                 onClick={() => handleSelect("paymentStatus", option.value)}
                 className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
-                  filters.paymentStatus === option.value ? "bg-yellow-50 font-medium" : ""
+                  filters.paymentStatus === option.value ? "bg-[#fff3d4] font-medium" : ""
                 }`}
               >
                 {option.label}
@@ -150,9 +219,9 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters, onFilterChange, onClear 
       {/* Clear Button */}
       <button
         onClick={onClear}
-        className={`ml-auto px-5 py-2 rounded-md text-sm font-medium ${
+        className={`ml-auto px-5 py-2 rounded-md text-sm font-medium border shadow-sm ${
           hasActiveFilters
-            ? "bg-yellow-400 hover:bg-yellow-500"
+            ? "bg-[#f6c441] hover:bg-[#eeb62b] border-[#e0ac28]"
             : "bg-gray-200 text-gray-500 cursor-not-allowed"
         }`}
         disabled={!hasActiveFilters}
