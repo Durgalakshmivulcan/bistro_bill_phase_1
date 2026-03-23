@@ -28,10 +28,15 @@ const formatOrderType = (type: string): OrderType => {
   switch (type) {
     case 'DineIn':
       return 'Dine In';
+    case 'TakeAway':
     case 'Takeaway':
       return 'Take Away';
     case 'Delivery':
       return 'Catering'; // Map Delivery to Catering as closest match
+    case 'Catering':
+      return 'Catering';
+    case 'Subscription':
+      return 'Subscription';
     case 'Online':
       return 'Subscription'; // Map Online to Subscription as closest match
     default:

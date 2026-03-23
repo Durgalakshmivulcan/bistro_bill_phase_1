@@ -9,6 +9,11 @@ import { TableSkeleton } from "../components/Common";
 
 const ITEMS_PER_PAGE = 20;
 
+const toAmount = (value: unknown): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const OrderHistory: React.FC = () => {
   const [search, setSearch] = useState("");
   const [orders, setOrders] = useState<OrderItem[]>([]);
@@ -44,14 +49,14 @@ const OrderHistory: React.FC = () => {
       const response = await getOrders(params);
 
       if (response.success && response.data) {
-        const transformedOrders: OrderItem[] = response.data.orders.map((order: Order) => ({
-          id: parseInt(order.id) || 0,
+        const transformedOrders: OrderItem[] = response.data.orders.map((order: Order, index: number) => ({
+          id: parseInt(order.id, 10) || (page - 1) * ITEMS_PER_PAGE + index + 1,
           orderNo: order.orderNumber,
           branch: "-",
           customerName: order.customerName || "Guest",
           phone: order.customerPhone || "N/A",
           orderType: formatOrderType(order.type),
-          orderValue: `₹ ${order.total.toFixed(2)}`,
+          orderValue: `₹ ${toAmount(order.total).toFixed(2)}`,
           status: formatPaymentStatus(order.paymentStatus),
           createdAt: formatDate(order.createdAt),
           createdBy: "System",
@@ -94,8 +99,11 @@ const OrderHistory: React.FC = () => {
   const formatOrderType = (type: string): string => {
     const typeMap: Record<string, string> = {
       DineIn: "Dine In",
+      TakeAway: "Take Away",
       Takeaway: "Take Away",
       Delivery: "Delivery",
+      Catering: "Catering",
+      Subscription: "Subscription",
       Online: "Online",
     };
     return typeMap[type] || type;

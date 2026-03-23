@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import DiscountSection from "../components/POSTakeOrder/DiscountSection";
 import MenuTabs from "../components/POSTakeOrder/MenuTabs";
 import MenuGrid from "../components/POSTakeOrder/MenuGrid";
-import OrderPanel from "../components/POSTakeOrder/OrderPanel";
+import OrderPanel from "../components/POSTakeOrder/OrderPanelFlow";
 import MenuListView from "../components/POSTakeOrder/MenuListView";
 import POSHeader from "../layout/POSHeader";
 import { useOrder } from "../contexts/OrderContext";
