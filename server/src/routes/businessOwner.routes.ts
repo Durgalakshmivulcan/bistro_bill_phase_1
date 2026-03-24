@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { authenticate, requireUserType } from "../middleware/auth.middleware";
-import { imageUpload } from "../middleware/upload.middleware";
-import { updateOwnBusinessProfile } from "../controllers/businessOwner.controller";
+import { imageUpload, uploadToS3Middleware } from "../middleware/upload.middleware";
+import {
+  deleteOwnBusinessAvatar,
+  updateOwnBusinessProfile,
+} from "../controllers/businessOwner.controller";
 
 const router = Router();
 
@@ -13,7 +16,18 @@ router.put(
   authenticate,
   requireUserType("BusinessOwner"),
   imageUpload.single("avatar"),
+  uploadToS3Middleware("business-owner"),
   updateOwnBusinessProfile
+);
+
+/**
+ * DELETE /api/v1/business-owner/profile/avatar
+ */
+router.delete(
+  "/profile/avatar",
+  authenticate,
+  requireUserType("BusinessOwner"),
+  deleteOwnBusinessAvatar
 );
 
 export default router;

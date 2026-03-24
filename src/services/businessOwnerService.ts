@@ -30,3 +30,7 @@ export const updateBusinessOwnerProfile = async (
     }
   );
 };
+
+export const deleteBusinessOwnerAvatar = async (): Promise<ApiResponse> => {
+  return api.delete<ApiResponse>("/business-owner/profile/avatar");
+};

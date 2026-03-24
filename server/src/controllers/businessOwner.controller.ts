@@ -1105,6 +1105,193 @@ export async function deleteBusinessOwner(
     res.status(500).json(response);
   }
 }
-export const updateOwnBusinessProfile = async (_req: any, res: any) => {
-  res.json({ message: "Business profile updated" });
-};
+export async function updateOwnBusinessProfile(
+  req: AuthenticatedRequest & {
+    uploadedFile?: {
+      url: string;
+    };
+  },
+  res: Response
+): Promise<void> {
+  try {
+    if (!req.user || req.user.userType !== 'BusinessOwner') {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only business owners can update this profile',
+        },
+      };
+      res.status(403).json(response);
+      return;
+    }
+
+    const { ownerName, phone } = req.body;
+
+    if (ownerName !== undefined && (!ownerName || ownerName.trim().length === 0)) {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Owner name cannot be empty',
+        },
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    if (phone !== undefined && phone) {
+      const phoneRegex = /^\+?[\d\s\-()]{7,15}$/;
+      if (!phoneRegex.test(phone)) {
+        const response: ApiResponse = {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid phone number format',
+          },
+        };
+        res.status(400).json(response);
+        return;
+      }
+    }
+
+    const updateData: Prisma.BusinessOwnerUpdateInput = {};
+    if (ownerName !== undefined) updateData.ownerName = ownerName.trim();
+    if (phone !== undefined) updateData.phone = phone || null;
+    if (req.uploadedFile?.url) updateData.avatar = req.uploadedFile.url;
+
+    if (Object.keys(updateData).length === 0) {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'No fields to update',
+        },
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const updatedOwner = await prisma.businessOwner.update({
+      where: { id: req.user.id },
+      include: {
+        branches: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            isMainBranch: true,
+            status: true,
+          },
+          orderBy: { isMainBranch: 'desc' },
+        },
+        plan: true,
+      },
+      data: updateData,
+    });
+
+    const response: ApiResponse = {
+      success: true,
+      data: {
+        id: updatedOwner.id,
+        email: updatedOwner.email,
+        ownerName: updatedOwner.ownerName,
+        restaurantName: updatedOwner.restaurantName,
+        phone: updatedOwner.phone || '',
+        businessType: updatedOwner.businessType || '',
+        avatar: updatedOwner.avatar,
+        userType: 'BusinessOwner',
+        status: updatedOwner.status,
+        createdAt: updatedOwner.createdAt,
+        branches: updatedOwner.branches.map((branch) => ({
+          id: branch.id,
+          name: branch.name,
+          code: branch.code,
+          isMainBranch: branch.isMainBranch,
+          status: branch.status,
+        })),
+        plan: updatedOwner.plan
+          ? {
+              id: updatedOwner.plan.id,
+              name: updatedOwner.plan.name,
+              price: updatedOwner.plan.price,
+              maxBranches: updatedOwner.plan.maxBranches,
+              features: updatedOwner.plan.features,
+              subscriptionStartDate: updatedOwner.subscriptionStartDate,
+              subscriptionEndDate: updatedOwner.subscriptionEndDate,
+            }
+          : null,
+      },
+      message: 'Profile updated successfully',
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error updating business owner profile:', error);
+    const response: ApiResponse = {
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to update profile',
+      },
+    };
+    res.status(500).json(response);
+  }
+}
+
+export async function deleteOwnBusinessAvatar(
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> {
+  try {
+    if (!req.user || req.user.userType !== 'BusinessOwner') {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only business owners can update this profile',
+        },
+      };
+      res.status(403).json(response);
+      return;
+    }
+
+    const existingOwner = await prisma.businessOwner.findUnique({
+      where: { id: req.user.id },
+      select: { avatar: true },
+    });
+
+    if (existingOwner?.avatar) {
+      try {
+        const s3Service = await import('../services/s3.service');
+        const oldKey = existingOwner.avatar.split('.com/')[1];
+        if (oldKey) {
+          await s3Service.deleteFromS3(oldKey);
+        }
+      } catch (e) {
+        console.error('Failed to delete avatar from S3:', e);
+      }
+    }
+
+    await prisma.businessOwner.update({
+      where: { id: req.user.id },
+      data: { avatar: null },
+    });
+
+    const response: ApiResponse = {
+      success: true,
+      message: 'Avatar removed successfully',
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error deleting business owner avatar:', error);
+    const response: ApiResponse = {
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to remove avatar',
+      },
+    };
+    res.status(500).json(response);
+  }
+}

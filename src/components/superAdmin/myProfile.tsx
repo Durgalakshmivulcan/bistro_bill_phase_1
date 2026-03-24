@@ -1,17 +1,17 @@
-import Input from "../form/Input";
 import DashboardLayout from "../../layout/DashboardLayout";
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import ProfileModule from "./settings/profilemodule";
 import { useAuth } from "../../contexts/AuthContext";
 import { SuperAdminUser, BusinessOwnerUser } from "../../services/authService";
 import {
-  updateSuperAdminProfile,
   deleteSuperAdminAvatar,
+  updateSuperAdminProfile,
 } from "../../services/superAdminService";
-import { updateProfile } from "../../services/settingsService";
-import { updateBusinessOwnerProfile } from "../../services/businessOwnerService";
-import { ApiResponse } from "../../types/api";
+import {
+  deleteBusinessOwnerAvatar,
+  updateBusinessOwnerProfile,
+} from "../../services/businessOwnerService";
 import Swal from "sweetalert2";
 
 export default function MyAccount() {
@@ -22,16 +22,19 @@ export default function MyAccount() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isEditing, setIsEditing] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarMarkedForDeletion, setAvatarMarkedForDeletion] = useState(false);
 
   const isSuperAdmin = user?.userType === "SuperAdmin";
   const isBusinessOwner = user?.userType === "BusinessOwner";
   const canEditProfile = isSuperAdmin || isBusinessOwner;
+  const canEditAvatar = isSuperAdmin || isBusinessOwner;
 
   // Populate form from user context
   useEffect(() => {
@@ -45,12 +48,16 @@ export default function MyAccount() {
       setName(sa.name || "");
       setPhone(sa.phone || "");
       setAvatarPreview(sa.avatar || null);
+      setAvatarFile(null);
+      setAvatarMarkedForDeletion(false);
       setLoading(false);
     } else if (user.userType === "BusinessOwner") {
       const bo = user as BusinessOwnerUser;
       setName(bo.ownerName || "");
       setPhone(bo.phone || "");
       setAvatarPreview(bo.avatar || null);
+      setAvatarFile(null);
+      setAvatarMarkedForDeletion(false);
       setLoading(false);
     } else {
       setLoading(false);
@@ -59,6 +66,13 @@ export default function MyAccount() {
 
   const roleLabel = isSuperAdmin ? "Super Admin" : isBusinessOwner ? "Business Owner" : "Staff";
   const emailValue = user?.email || "";
+
+  const fieldBaseClassName =
+    "h-11 w-full rounded-md border border-[#ddd4c4] bg-white px-4 text-[15px] text-[#2f2a24] outline-none transition focus:border-[#b79d61]";
+  const disabledFieldClassName =
+    "h-11 w-full rounded-md border border-[#e4dccd] bg-[#f5efe2] px-4 text-[15px] text-[#9b9488] opacity-100";
+  const hasAvatar = Boolean(avatarPreview);
+  const showDeleteAvatarButton = canEditAvatar;
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -76,7 +90,7 @@ export default function MyAccount() {
   };
 
   const handleSave = async () => {
-  if (!canEditProfile || !validateForm()) return;
+  if (!canEditProfile || !isEditing || !validateForm()) return;
 
   const confirm = await Swal.fire({
     title: "Are you sure?",
@@ -114,8 +128,25 @@ export default function MyAccount() {
       );
     }
 
+    if (avatarMarkedForDeletion) {
+      const deleteResponse = isSuperAdmin
+        ? await deleteSuperAdminAvatar()
+        : await deleteBusinessOwnerAvatar();
+
+      if (!deleteResponse.success) {
+        throw new Error(
+          deleteResponse.error?.message ||
+            deleteResponse.message ||
+            "Failed to remove avatar"
+        );
+      }
+    }
+
     setAvatarFile(null);
+    setAvatarMarkedForDeletion(false);
+    if (fileRef.current) fileRef.current.value = "";
     await refreshUser();
+    setIsEditing(false);
 
     // ✅ Sweet Success Alert
     await Swal.fire({
@@ -141,8 +172,8 @@ export default function MyAccount() {
 };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isSuperAdmin) {
-      setError("Avatar update is only available for Super Admin currently.");
+    if (!canEditAvatar || !isEditing) {
+      setError("You do not have permission to update the avatar.");
       return;
     }
 
@@ -163,29 +194,45 @@ export default function MyAccount() {
 
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
+    setAvatarMarkedForDeletion(false);
     setError(null);
   };
 
   const handleDeleteAvatar = async () => {
-    if (!isSuperAdmin) return;
-
-    setSaving(true);
-    setError(null);
-    try {
-      const response = await deleteSuperAdminAvatar();
-      if (response.success) {
-        setAvatarPreview(null);
-        setAvatarFile(null);
-        if (fileRef.current) fileRef.current.value = "";
-        await refreshUser();
-      } else {
-        setError(response.error?.message || "Failed to remove avatar");
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to remove avatar");
-    } finally {
-      setSaving(false);
+    if (!canEditAvatar) {
+      return;
     }
+
+    if (!isEditing) {
+      setIsEditing(true);
+    }
+
+    if (!hasAvatar) {
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      setAvatarMarkedForDeletion(false);
+      setError(null);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
+    const confirm = await Swal.fire({
+      title: "Remove profile picture?",
+      text: "This will remove the current profile picture.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#000",
+      confirmButtonText: "Delete",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setAvatarMarkedForDeletion(true);
+    setError(null);
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   if (loading) {
@@ -212,112 +259,140 @@ export default function MyAccount() {
           </div>
         )}
 
-        <div className="bg-bb-bg max-w-5xl mx-auto rounded-xl p-4 sm:p-6">
-          {/* PROFILE */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-6">
-            <div className="relative w-fit lg:mx-0 sm:mx-auto">
-              <img
-                src={avatarPreview || "/images/user.jpg"}
-                alt="profile"
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover"
-              />
+        <div className="mx-auto max-w-5xl overflow-hidden rounded-xl border bg-bb-bg shadow-sm">
+          <div className="p-5 sm:p-7">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+              <div className="relative w-fit self-center sm:self-auto">
+                <img
+                  src={avatarPreview || "/images/user.jpg"}
+                  alt="profile"
+                  className="h-28 w-28 rounded-full sm:h-32 sm:w-32"
+                />
 
-              {/* DELETE BADGE */}
-              {avatarPreview && (
-                <button
-                  type="button"
-                  onClick={handleDeleteAvatar}
-                  disabled={saving || !isSuperAdmin}
-                  className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#BD2E2E] rounded-full flex items-center justify-center shadow-md disabled:opacity-50"
-                >
-                  <Trash2 size={14} className="text-white" />
-                </button>
-              )}
+                {showDeleteAvatarButton && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteAvatar}
+                    disabled={saving}
+                    className="absolute bottom-0 right-0 flex h-10 w-10 translate-x-1 translate-y-1 items-center justify-center rounded-full bg-[#BD2E2E] text-white shadow-md transition hover:bg-[#BD2E2E] disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Delete profile picture"
+                  >
+                    <Trash2 size={20} strokeWidth={2.4} />
+                  </button>
+                )}
 
-              {/* HIDDEN FILE INPUT */}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/png, image/jpeg"
-                className="hidden"
-                onChange={handleAvatarChange}
-              />
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png, image/jpeg"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+              </div>
+
+              <div className="pt-1 text-left">
+                <p className="text-xl font-medium text-[#2f2a24]">Upload Profile Picture</p>
+                <p className="mt-1 text-sm text-[#6f675c]">
+                  Image should be of JPG or PNG format only
+                </p>
+
+                <div className="mt-5 flex flex-wrap justify-center gap-3 sm:justify-start">
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={saving || !canEditAvatar || !isEditing}
+                    className="min-w-[102px] rounded-md border border-[#2f2a24] bg-white px-6 py-2 text-base font-medium text-[#2f2a24] transition hover:bg-[#f7f1e5] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Upload
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!canEditProfile) return;
+                      setIsEditing(true);
+                      setError(null);
+                    }}
+                    disabled={saving || !canEditProfile}
+                    className="min-w-[102px] rounded-md bg-[#f7c53a] px-6 py-2 text-base font-medium text-[#2f2a24] transition hover:bg-[#e8b52b] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="text-left">
-              <p className="text-sm text-bb-textSoft mb-2">
-                Upload Profile Picture
-                <br />
-                Image should be of JPG or PNG format only
-              </p>
-
-              <div className="flex justify-center sm:justify-start gap-2">
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  disabled={saving || !isSuperAdmin}
-                  className="bg-white border border-black px-4 py-1.5 rounded text-sm font-medium disabled:opacity-50"
-                >
-                  Upload
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  disabled={saving || !isSuperAdmin}
-                  className="bg-yellow-400 px-4 py-1.5 rounded text-sm font-medium disabled:opacity-50"
-                >
-                  Edit
-                </button>
+            <div className="mt-7 border-t border-[#ddd4c4] pt-7">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-x-7 sm:gap-y-6">
+                <div>
+                  <label className="mb-2 block text-[15px] font-semibold text-[#4d463f]">
+                    Name
+                  </label>
+                  <input
+                    value={name}
+                    disabled={!isEditing}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (formErrors.name) {
+                        const { name: _, ...rest } = formErrors;
+                        setFormErrors(rest);
+                      }
+                    }}
+                    className={!isEditing ? disabledFieldClassName : fieldBaseClassName}
+                  />
+                  {formErrors.name && (
+                    <p className="mt-1 text-xs text-red-500">{formErrors.name}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-2 block text-[15px] font-semibold text-[#4d463f]">
+                    Phone Number
+                  </label>
+                  <input
+                    value={phone}
+                    disabled={!isEditing}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (formErrors.phone) {
+                        const { phone: _, ...rest } = formErrors;
+                        setFormErrors(rest);
+                      }
+                    }}
+                    className={!isEditing ? disabledFieldClassName : fieldBaseClassName}
+                  />
+                  {formErrors.phone && (
+                    <p className="mt-1 text-xs text-red-500">{formErrors.phone}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-2 block text-[15px] font-semibold text-[#4d463f]">
+                    Role
+                  </label>
+                  <input
+                    value={roleLabel}
+                    disabled
+                    className={disabledFieldClassName}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-[15px] font-semibold text-[#4d463f]">
+                    Email ID
+                  </label>
+                  <input
+                    value={emailValue}
+                    disabled
+                    className={disabledFieldClassName}
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* FORM */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            <div>
-              <Input
-                label="Name"
-                value={name}
-                onChange={(val) => {
-                  setName(val);
-                  if (formErrors.name) {
-                    const { name: _, ...rest } = formErrors;
-                    setFormErrors(rest);
-                  }
-                }}
-              />
-              {formErrors.name && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
-              )}
-            </div>
-            <div>
-              <Input
-                label="Phone Number"
-                value={phone}
-                onChange={(val) => {
-                  setPhone(val);
-                  if (formErrors.phone) {
-                    const { phone: _, ...rest } = formErrors;
-                    setFormErrors(rest);
-                  }
-                }}
-              />
-              {formErrors.phone && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
-              )}
-            </div>
-
-            <Input label="Role" value={roleLabel} disabled />
-            <Input label="Email ID" value={emailValue} disabled />
-          </div>
-
-          {/* ACTION */}
           {canEditProfile && (
-            <div className="mt-6 flex justify-end sm:justify-end">
+            <div className="flex justify-end border-t bg-bb-bg px-5 py-5 sm:px-7">
               <button
                 onClick={handleSave}
-                disabled={saving}
-                className="bg-black text-white px-6 py-2 rounded disabled:opacity-50"
+                disabled={saving || !isEditing}
+                className="rounded-md bg-[#2f2a24] px-6 py-2.5 text-base font-medium text-white transition hover:bg-[#1f1b17] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>
@@ -333,4 +408,3 @@ export default function MyAccount() {
     </DashboardLayout>
   );
 }
-
