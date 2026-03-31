@@ -19,7 +19,7 @@ export interface PaginationState {
  * Custom hook for managing pagination state with optional URL persistence
  *
  * @param defaultPage - Initial page number (default: 1)
- * @param defaultPageSize - Initial page size (default: 25)
+ * @param defaultPageSize - Initial page size (default: 10)
  * @param persistInUrl - Whether to persist pagination state in URL query params (default: true)
  *
  * @returns Pagination state and setters
@@ -27,13 +27,13 @@ export interface PaginationState {
  * @example
  * const { page, pageSize, setPage, setPageSize } = usePagination({
  *   defaultPage: 1,
- *   defaultPageSize: 25,
+ *   defaultPageSize: 10,
  *   persistInUrl: true
  * });
  */
 export const usePagination = ({
   defaultPage = 1,
-  defaultPageSize = 25,
+  defaultPageSize = 10,
   persistInUrl = true,
 }: UsePaginationProps = {}): PaginationState => {
   const [searchParams, setSearchParams] = useSearchParams();

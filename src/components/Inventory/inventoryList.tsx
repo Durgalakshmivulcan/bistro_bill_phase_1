@@ -45,9 +45,9 @@ export default function InventoryList() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   // Pagination state
-  const { page, pageSize, setPage, setPageSize, resetPagination } = usePagination({
+  const { page, pageSize, setPage, resetPagination } = usePagination({
     defaultPage: 1,
-    defaultPageSize: 25,
+    defaultPageSize: 10,
     persistInUrl: true,
   });
   const [totalItems, setTotalItems] = useState(0);
@@ -134,9 +134,9 @@ export default function InventoryList() {
           setInventoryProducts(response.data.inventoryProducts);
 
           // Update pagination metadata
-          if (response.pagination) {
-            setTotalItems(response.pagination.total || 0);
-            setTotalPages(response.pagination.totalPages || 0);
+          if ((response.data as any)?.pagination) {
+            setTotalItems((response.data as any).pagination.total || 0);
+            setTotalPages((response.data as any).pagination.totalPages || 0);
           } else {
             // Fallback if backend doesn't send pagination metadata
             setTotalItems(response.data.inventoryProducts.length);
@@ -159,11 +159,7 @@ export default function InventoryList() {
     try {
       const response = await deleteInventoryProduct(id);
       if (response.success) {
-        // Refresh the inventory list after successful deletion
-        const refreshResponse = await getInventoryProducts();
-        if (refreshResponse.success && refreshResponse.data) {
-          setInventoryProducts(refreshResponse.data.inventoryProducts);
-        }
+        await refreshInventoryList();
         setShowDelete(false);
         setDeleteId(null);
       } else {
@@ -177,11 +173,7 @@ export default function InventoryList() {
   };
 
   const handleAdjustStockSuccess = async () => {
-    // Refresh the inventory list after successful stock adjustment
-    const refreshResponse = await getInventoryProducts();
-    if (refreshResponse.success && refreshResponse.data) {
-      setInventoryProducts(refreshResponse.data.inventoryProducts);
-    }
+    await refreshInventoryList();
   };
 
   const handleExportProducts = async () => {
@@ -312,9 +304,9 @@ export default function InventoryList() {
     });
     if (refreshResponse.success && refreshResponse.data) {
       setInventoryProducts(refreshResponse.data.inventoryProducts);
-      if (refreshResponse.pagination) {
-        setTotalItems(refreshResponse.pagination.total || 0);
-        setTotalPages(refreshResponse.pagination.totalPages || 0);
+      if ((refreshResponse.data as any)?.pagination) {
+        setTotalItems((refreshResponse.data as any).pagination.total || 0);
+        setTotalPages((refreshResponse.data as any).pagination.totalPages || 0);
       }
     }
   };
@@ -506,11 +498,7 @@ export default function InventoryList() {
         setImportSuccess(message);
         setTimeout(() => setImportSuccess(null), 5000);
 
-        // Refresh the inventory list
-        const refreshResponse = await getInventoryProducts();
-        if (refreshResponse.success && refreshResponse.data) {
-          setInventoryProducts(refreshResponse.data.inventoryProducts);
-        }
+        await refreshInventoryList();
       } else {
         setError(response.message || "Import failed");
         setTimeout(() => setError(null), 3000);
@@ -821,7 +809,7 @@ export default function InventoryList() {
                       className="w-4 h-4 cursor-pointer"
                     />
                   </td>
-                  <td className="px-4 py-3">{i + 1}</td>
+                  <td className="px-4 py-3">{(page - 1) * pageSize + i + 1}</td>
                   <td className="px-4 py-3">
                     <img
                       src={item.image || "/placeholder.jpg"}
@@ -912,9 +900,7 @@ export default function InventoryList() {
           totalItems={totalItems}
           itemsPerPage={pageSize}
           onPageChange={setPage}
-          onItemsPerPageChange={setPageSize}
-          pageSizeOptions={[10, 25, 50, 100]}
-          showPageSize={true}
+          showPageSize={false}
         />
       )}
 

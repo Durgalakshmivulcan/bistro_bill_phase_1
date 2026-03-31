@@ -49,7 +49,7 @@ const CatalogProductsPage = () => {
   const [maxPrice, setMaxPrice] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
+  const [itemsPerPage] = useState(10);
 
   const [importing, setImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);

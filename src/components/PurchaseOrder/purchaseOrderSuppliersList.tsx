@@ -1,6 +1,7 @@
 import { Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ActionsMenu from "../form/ActionButtons";
+import Pagination from "../Common/Pagination";
 import LoadingSpinner from "../Common/LoadingSpinner";
 import PurchaseOrderTabs from "../NavTabs/PurchaseOrderTabs";
 import { useState, useEffect, useRef } from "react";
@@ -28,9 +29,10 @@ export default function PurchaseOrderSuppliersList() {
   // Pagination state
   const { page, pageSize, setPage, resetPagination } = usePagination({
     defaultPage: 1,
-    defaultPageSize: 25,
+    defaultPageSize: 10,
     persistInUrl: true,
   });
+  const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
   // Debounce search query for API calls
@@ -54,10 +56,12 @@ export default function PurchaseOrderSuppliersList() {
         setSuppliers(response.data.suppliers);
 
         // Update pagination metadata
-        if (response.pagination) {
-          setTotalPages(response.pagination.totalPages || 0);
+        if ((response.data as any)?.pagination) {
+          setTotalItems((response.data as any).pagination.total || 0);
+          setTotalPages((response.data as any).pagination.totalPages || 0);
         } else {
           // Fallback if backend doesn't send pagination metadata
+          setTotalItems(response.data.suppliers.length);
           setTotalPages(1);
         }
       } else {
@@ -313,8 +317,19 @@ export default function PurchaseOrderSuppliersList() {
         )}
       </div>
 
-      {/* Pagination Controls (UI to match screenshot) */}
       {!loading && suppliers.length > 0 && totalPages > 1 && (
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={pageSize}
+          onPageChange={setPage}
+          showPageSize={false}
+        />
+      )}
+
+      {/* Legacy Pagination Controls */}
+      {false && !loading && suppliers.length > 0 && totalPages > 1 && (
         <div className="flex justify-end pt-2">
           <div className="flex items-center gap-1 text-sm">
             <button

@@ -114,9 +114,9 @@ export default function CustomersListing() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Pagination state
-  const { page, pageSize, setPage, setPageSize, resetPagination } = usePagination({
+  const { page, pageSize, setPage, resetPagination } = usePagination({
     defaultPage: 1,
-    defaultPageSize: 25,
+    defaultPageSize: 10,
     persistInUrl: true,
   });
   const [totalItems, setTotalItems] = useState(0);
@@ -302,9 +302,18 @@ export default function CustomersListing() {
         setCustomers(response.data.customers);
 
         // Update pagination metadata
-        if (response.pagination) {
-          setTotalItems(response.pagination.total || 0);
-          setTotalPages(response.pagination.totalPages || 0);
+        const paginationMeta =
+          (response.data as any)?.pagination ||
+          (typeof (response.data as any)?.total === "number"
+            ? {
+                total: (response.data as any).total,
+                totalPages: (response.data as any).totalPages,
+              }
+            : null);
+
+        if (paginationMeta) {
+          setTotalItems(paginationMeta.total || 0);
+          setTotalPages(paginationMeta.totalPages || 0);
         } else {
           // Fallback if backend doesn't send pagination metadata
           setTotalItems(response.data.customers.length);
@@ -1326,9 +1335,7 @@ export default function CustomersListing() {
           totalItems={totalItems}
           itemsPerPage={pageSize}
           onPageChange={setPage}
-          onItemsPerPageChange={setPageSize}
-          pageSizeOptions={[10, 25, 50, 100]}
-          showPageSize={true}
+          showPageSize={false}
         />
       )}
 
@@ -1896,4 +1903,3 @@ export default function CustomersListing() {
     </div>
   );
 }
-

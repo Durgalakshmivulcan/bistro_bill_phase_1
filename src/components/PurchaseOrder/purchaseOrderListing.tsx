@@ -2,6 +2,7 @@ import { Search, X } from "lucide-react";
 import Select from "../form/Select";
 import { useNavigate } from "react-router-dom";
 import Actions from "../form/ActionButtons";
+import Pagination from "../Common/Pagination";
 import LoadingSpinner from "../Common/LoadingSpinner";
 import PurchaseOrderTabs from "../NavTabs/PurchaseOrderTabs";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -35,7 +36,7 @@ export default function PurchaseOrderPOList() {
   // Pagination state
   const { page, pageSize, setPage, resetPagination } = usePagination({
     defaultPage: 1,
-    defaultPageSize: 25,
+    defaultPageSize: 10,
     persistInUrl: true,
   });
   const [totalItems, setTotalItems] = useState(0);
@@ -200,9 +201,9 @@ export default function PurchaseOrderPOList() {
         setPurchaseOrders(response.data.purchaseOrders);
 
         // Update pagination metadata
-        if (response.pagination) {
-          setTotalItems(response.pagination.total || 0);
-          setTotalPages(response.pagination.totalPages || 0);
+        if ((response.data as any)?.pagination) {
+          setTotalItems((response.data as any).pagination.total || 0);
+          setTotalPages((response.data as any).pagination.totalPages || 0);
         } else {
           // Fallback if backend doesn't send pagination metadata
           setTotalItems(response.data.purchaseOrders.length);
@@ -831,7 +832,7 @@ export default function PurchaseOrderPOList() {
                   key={po.id}
                   className={`border-t ${index % 2 ? "bg-[#FFF9E8]" : "bg-white"}`}
                 >
-                  <td className="px-4 py-3">{index + 1}</td>
+                  <td className="px-4 py-3">{(page - 1) * pageSize + index + 1}</td>
                   <td className="px-4 py-3">
                     {formatDate(po.createdAt)}
                   </td>
@@ -910,8 +911,19 @@ export default function PurchaseOrderPOList() {
         )}
       </div>
 
-      {/* Pagination Controls */}
       {!loading && filteredPurchaseOrders.length > 0 && totalPages > 1 && (
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={pageSize}
+          onPageChange={setPage}
+          showPageSize={false}
+        />
+      )}
+
+      {/* Legacy Pagination Controls */}
+      {false && !loading && filteredPurchaseOrders.length > 0 && totalPages > 1 && (
         <div className="flex justify-end pt-2">
           <div className="flex items-center gap-1 text-sm">
             <button

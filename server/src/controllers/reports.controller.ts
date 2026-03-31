@@ -948,7 +948,7 @@ export const getProductSales = async (req: AuthenticatedRequest, res: Response) 
 
     // Parse pagination parameters
     const pageNumber = page ? parseInt(page as string, 10) : 1;
-    const pageSize = limit ? parseInt(limit as string, 10) : 20;
+    const pageSize = limit ? parseInt(limit as string, 10) : 10;
 
     if (isNaN(pageNumber) || pageNumber <= 0) {
       return res.status(400).json({

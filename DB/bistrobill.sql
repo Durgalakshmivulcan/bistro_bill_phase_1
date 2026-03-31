@@ -1041,6 +1041,7 @@ CREATE TABLE public."Menu" (
     "businessOwnerId" text NOT NULL,
     name text NOT NULL,
     description text,
+    image text,
     status text DEFAULT 'active'::text NOT NULL,
     "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updatedAt" timestamp(3) without time zone NOT NULL
@@ -2114,6 +2115,8 @@ COPY public."BlogTag" (id, "businessOwnerId", name, slug, status, "createdAt", "
 
 COPY public."Branch" (id, "businessOwnerId", "parentBranchId", name, code, phone, email, address, city, state, country, "zipCode", "isMainBranch", status, "createdAt", "updatedAt") FROM stdin;
 aa1ce36f-4934-44a1-8f4d-d45f345030a5	111bd836-595b-4982-bb3d-a24ade82c52a	\N	Hitech City	HTC	+91 912345678	hitechcity@spiceparadise.com	123 Main Road, Hitech City	Hyderabad	Telangana	India	500081	t	active	2026-02-07 03:29:58.481	2026-02-07 03:29:58.481
+durga-branch-002	111bd836-595b-4982-bb3d-a24ade82c52a	\N	MVP Colony	MVP	+91 7032760202	mvp@kitchenhouse.com	MVP Main Road	Vizag	Andhra Pradesh	India	530017	f	active	2026-02-07 03:29:58.482	2026-02-07 03:29:58.482
+durga-branch-003	111bd836-595b-4982-bb3d-a24ade82c52a	\N	Dwaraka Nagar	DWK	+91 7032760203	dwaraka@kitchenhouse.com	Dwaraka Circle	Vizag	Andhra Pradesh	India	530016	f	active	2026-02-07 03:29:58.482	2026-02-07 03:29:58.482
 d3ee3575-ad4b-41fc-89d1-682a2cbcdf11	7fdfb940-d78a-4609-a441-fd28eb9f9869	\N	Uppal	UPL	+91 912345699	uppal@spiceparadise.com	456 Uppal Main Road	Hyderabad	Telangana	India	500039	f	active	2026-02-07 03:29:58.482	2026-02-07 08:47:55.726
 \.
 
@@ -2145,6 +2148,20 @@ COPY public."BusinessHours" (id, "branchId", "dayOfWeek", "openTime", "closeTime
 47029b3a-33dd-4fcd-8eca-a61fd84e8104	aa1ce36f-4934-44a1-8f4d-d45f345030a5	4	09:00	23:00	f
 176b08cd-afdf-4476-9c8f-aef25794a596	aa1ce36f-4934-44a1-8f4d-d45f345030a5	5	09:00	00:00	f
 4c6a1306-3f95-49a9-906e-c056b6395a80	aa1ce36f-4934-44a1-8f4d-d45f345030a5	6	10:00	00:00	f
+durga-bh-201	durga-branch-002	0	09:00	22:00	f
+durga-bh-202	durga-branch-002	1	09:00	22:30	f
+durga-bh-203	durga-branch-002	2	09:00	22:30	f
+durga-bh-204	durga-branch-002	3	09:00	22:30	f
+durga-bh-205	durga-branch-002	4	09:00	22:30	f
+durga-bh-206	durga-branch-002	5	09:00	23:00	f
+durga-bh-207	durga-branch-002	6	09:30	23:00	f
+durga-bh-301	durga-branch-003	0	10:00	22:00	f
+durga-bh-302	durga-branch-003	1	10:00	22:30	f
+durga-bh-303	durga-branch-003	2	10:00	22:30	f
+durga-bh-304	durga-branch-003	3	10:00	22:30	f
+durga-bh-305	durga-branch-003	4	10:00	22:30	f
+durga-bh-306	durga-branch-003	5	10:00	23:00	f
+durga-bh-307	durga-branch-003	6	10:30	23:00	f
 \.
 
 
@@ -2166,6 +2183,7 @@ COPY public."BusinessOwner" (id, email, password, "ownerName", "restaurantName",
 
 COPY public."BusinessPreference" (id, "businessOwnerId", currency, timezone, "dateFormat", "invoicePrefix", "kotPrefix", "autoAcceptOrders", "enableReservations", settings, "createdAt", "updatedAt") FROM stdin;
 1d2bc2b1-942c-4268-b52b-a07839613092	7fdfb940-d78a-4609-a441-fd28eb9f9869	INR	Asia/Kolkata	DD/MM/YYYY	INV	KOT	f	t	{"allowSplitPayments": true, "printKotOnOrderCreate": true, "requireCustomerForDineIn": false}	2026-02-07 03:29:58.591	2026-02-07 03:29:58.591
+durga-pref-001	111bd836-595b-4982-bb3d-a24ade82c52a	INR	Asia/Kolkata	DD/MM/YYYY	KHINV	KHKOT	t	t	{"allowSplitPayments": true, "printKotOnOrderCreate": true, "requireCustomerForDineIn": true, "defaultServiceMode": "DineIn", "enableTokenSystem": true}	2026-02-07 03:29:58.591	2026-02-07 03:29:58.591
 \.
 
 
@@ -2207,6 +2225,25 @@ COPY public."CustomReport" (id, "businessOwnerId", name, description, "reportTyp
 
 COPY public."Customer" (id, "businessOwnerId", name, phone, email, gender, dob, type, gstin, "totalSpent", "customerGroupId", notes, "createdAt", "updatedAt", "loyaltyPoints") FROM stdin;
 c109960a-4560-4c1c-8c0b-c58c1cbe526d	111bd836-595b-4982-bb3d-a24ade82c52a	Elizabeth Brink	+91 7243657890	elizabeth@gmail.com	Female	2000-02-09 00:00:00	Regular	\N	1250.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	\N	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	0
+durga-cust-002	111bd836-595b-4982-bb3d-a24ade82c52a	Sai Kiran	+91 9000001002	sai.kiran@kitchenhouse.com	Male	1994-03-12 00:00:00	Regular	\N	1480.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	Prefers less oil	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	85
+durga-cust-003	111bd836-595b-4982-bb3d-a24ade82c52a	Keerthi Reddy	+91 9000001003	keerthi.reddy@kitchenhouse.com	Female	1996-07-21 00:00:00	VIP	\N	3250.00	6a891362-7338-4f89-b931-34db31b76afc	Frequent family diner	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	210
+durga-cust-004	111bd836-595b-4982-bb3d-a24ade82c52a	Rajesh Kumar	+91 9000001004	rajesh.kumar@kitchenhouse.com	Male	1989-11-09 00:00:00	Corporate	29ABCDE1234F1Z5	4200.00	84cd5023-9049-4ca8-8610-efc21d17125b	Monthly catering inquiries	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	320
+durga-cust-005	111bd836-595b-4982-bb3d-a24ade82c52a	Anusha Nair	+91 9000001005	anusha.nair@kitchenhouse.com	Female	1998-04-03 00:00:00	Regular	\N	980.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	Likes soups and coffee	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	48
+durga-cust-006	111bd836-595b-4982-bb3d-a24ade82c52a	Harsha Vardhan	+91 9000001006	harsha.vardhan@kitchenhouse.com	Male	1991-06-15 00:00:00	VIP	\N	5120.00	6a891362-7338-4f89-b931-34db31b76afc	Prefers corner table	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	415
+durga-cust-007	111bd836-595b-4982-bb3d-a24ade82c52a	Meghana Rao	+91 9000001007	meghana.rao@kitchenhouse.com	Female	1993-08-28 00:00:00	Regular	\N	870.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	Usually orders takeaway	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	36
+durga-cust-008	111bd836-595b-4982-bb3d-a24ade82c52a	Vinay Teja	+91 9000001008	vinay.teja@kitchenhouse.com	Male	1997-09-14 00:00:00	Corporate	37ABCDE2234F1Z4	2890.00	84cd5023-9049-4ca8-8610-efc21d17125b	Office lunch account	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	154
+durga-cust-009	111bd836-595b-4982-bb3d-a24ade82c52a	Sravya Polisetty	+91 9000001009	sravya.p@kitchenhouse.com	Female	2000-01-30 00:00:00	Regular	\N	760.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	Orders filter coffee often	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	28
+durga-cust-010	111bd836-595b-4982-bb3d-a24ade82c52a	Abhinav Das	+91 9000001010	abhinav.das@kitchenhouse.com	Male	1995-12-11 00:00:00	VIP	\N	4680.00	6a891362-7338-4f89-b931-34db31b76afc	Weekend dinner regular	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	295
+durga-cust-011	111bd836-595b-4982-bb3d-a24ade82c52a	Nandini Sharma	+91 9000001011	nandini.sharma@kitchenhouse.com	Female	1992-10-22 00:00:00	Regular	\N	1110.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	Asks for Jain options	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	62
+durga-cust-012	111bd836-595b-4982-bb3d-a24ade82c52a	Praneeth Goud	+91 9000001012	praneeth.goud@kitchenhouse.com	Male	1990-05-18 00:00:00	Corporate	37ABCDE3234F1Z3	3390.00	84cd5023-9049-4ca8-8610-efc21d17125b	Books team lunches	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	188
+durga-cust-013	111bd836-595b-4982-bb3d-a24ade82c52a	Swetha Menon	+91 9000001013	swetha.menon@kitchenhouse.com	Female	1999-02-26 00:00:00	Regular	\N	1340.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	Likes dessert counter	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	72
+durga-cust-014	111bd836-595b-4982-bb3d-a24ade82c52a	Akhil Chandra	+91 9000001014	akhil.chandra@kitchenhouse.com	Male	1996-03-08 00:00:00	VIP	\N	3890.00	6a891362-7338-4f89-b931-34db31b76afc	Prefers AC section	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	244
+durga-cust-015	111bd836-595b-4982-bb3d-a24ade82c52a	Lavanya Devi	+91 9000001015	lavanya.devi@kitchenhouse.com	Female	1994-01-19 00:00:00	Regular	\N	920.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	Prefers quick bites	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	41
+durga-cust-016	111bd836-595b-4982-bb3d-a24ade82c52a	Ritwik Sen	+91 9000001016	ritwik.sen@kitchenhouse.com	Male	1988-07-05 00:00:00	Corporate	37ABCDE4234F1Z2	2710.00	84cd5023-9049-4ca8-8610-efc21d17125b	Uses GST invoices	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	133
+durga-cust-017	111bd836-595b-4982-bb3d-a24ade82c52a	Sanjana Patel	+91 9000001017	sanjana.patel@kitchenhouse.com	Female	1997-09-29 00:00:00	Regular	\N	1180.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	Loves thali meals	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	59
+durga-cust-018	111bd836-595b-4982-bb3d-a24ade82c52a	Kiranmayi P	+91 9000001018	kiranmayi.p@kitchenhouse.com	Female	1993-12-24 00:00:00	VIP	\N	5520.00	6a891362-7338-4f89-b931-34db31b76afc	Family celebration guest	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	438
+durga-cust-019	111bd836-595b-4982-bb3d-a24ade82c52a	Rahul Jain	+91 9000001019	rahul.jain@kitchenhouse.com	Male	1991-04-17 00:00:00	Regular	\N	860.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	No onion no garlic meals	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	33
+durga-cust-020	111bd836-595b-4982-bb3d-a24ade82c52a	Divya Sree	+91 9000001020	divya.sree@kitchenhouse.com	Female	1998-06-06 00:00:00	Corporate	37ABCDE5234F1Z1	2460.00	84cd5023-9049-4ca8-8610-efc21d17125b	Books monthly client dinners	2026-02-07 03:29:58.564	2026-02-07 03:29:58.564	121
 a619748d-1246-429e-83ec-eda1bb9413d2	7fdfb940-d78a-4609-a441-fd28eb9f9869	Mark Taylor	+91 9564123574	mark@gmail.com	Male	2001-03-06 00:00:00	Corporate	\N	1450.00	84cd5023-9049-4ca8-8610-efc21d17125b	\N	2026-02-07 03:29:58.565	2026-02-07 03:29:58.565	0
 4e0a84ae-3429-4681-8015-e8f54e86263d	7fdfb940-d78a-4609-a441-fd28eb9f9869	Jessica John	+91 7894561230	jessica@gmail.com	Female	2000-07-08 00:00:00	VIP	\N	1850.00	6a891362-7338-4f89-b931-34db31b76afc	\N	2026-02-07 03:29:58.565	2026-02-07 03:29:58.565	0
 9f7c1c8b-bf40-4f12-9e2d-1c5c0a94d0a9	7fdfb940-d78a-4609-a441-fd28eb9f9869	Rahul Mehta	+91 9000012345	rahul.mehta@example.com	Male	1992-05-17 00:00:00	Regular	\N	620.00	0566f450-0f8a-4e3d-a6f5-3b0a8a522a32	Loves extra spice	2026-03-17 03:29:58.565	2026-03-17 03:29:58.565	0
@@ -2261,7 +2298,7 @@ c281e122-56f5-437c-931c-ba6df90456e1	7fdfb940-d78a-4609-a441-fd28eb9f9869	BOGO20
 5dd29ecd-1f4c-4936-8e90-5de20ce1f0a1	111bd836-595b-4982-bb3d-a24ade82c52a	FEST35	Festival Offers	\N	OrderType	Percentage	35.00	\N	150.00	2025-03-08 00:00:00	2025-04-08 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
 d0681287-b9bd-468a-a189-85ea0f9696c9	111bd836-595b-4982-bb3d-a24ade82c52a	MIDNIGHT15	Mid-Night Cravings	\N	ProductCategory	Percentage	15.00	\N	\N	2025-02-09 00:00:00	2025-02-28 00:00:00	\N	0	active	2026-02-07 03:29:58.571	2026-02-07 03:29:58.571
 d7b8a6fb-0f2c-42e1-9af8-8e51e9a6d4f5	7fdfb940-d78a-4609-a441-fd28eb9f9869	TODAY20	Today Veg Saver	10% off on popular veg dishes for today only	Custom	Percentage	20.00	\N	150.00	2026-03-17 00:00:00	2026-03-18 23:59:59	\N	0	active	2026-03-17 00:00:00	2026-03-17 00:00:00
-8f1c6c42-9d33-4fd8-8e68-e7d2b0b1b92e	7fdfb940-d78a-4609-a441-fd28eb9f9869	MEAL50	Lunch Combo Deal	Flat ₹50 off on select mains when ordered today	Custom	Fixed	50.00	300.00	\N	2026-03-17 00:00:00	2026-03-18 23:59:59	\N	0	active	2026-03-17 00:00:00	2026-03-17 00:00:00
+8f1c6c42-9d33-4fd8-8e68-e7d2b0b1b92e	7fdfb940-d78a-4609-a441-fd28eb9f9869	MEAL50	Lunch Combo Deal	Flat ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹50 off on select mains when ordered today	Custom	Fixed	50.00	300.00	\N	2026-03-17 00:00:00	2026-03-18 23:59:59	\N	0	active	2026-03-17 00:00:00	2026-03-17 00:00:00
 \.
 
 
@@ -2313,6 +2350,11 @@ COPY public."Floor" (id, "branchId", name, type, status, "createdAt", "updatedAt
 b5e1b7b3-0a73-46be-a0c7-40f5e8d09351	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Non-AC Area	NonAC	active	2026-02-07 03:29:58.572	2026-02-07 03:29:58.572
 b28f87be-c5e3-47b5-a15c-1afdd08bad3a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	AC Area	AC	active	2026-02-07 03:29:58.573	2026-02-07 03:29:58.573
 f5b87516-4c10-4cee-96ff-34d6c01ce1b7	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Family Section	Family	active	2026-02-07 03:29:58.573	2026-02-07 03:29:58.573
+durga-floor-004	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Outdoor Patio	Outdoor	active	2026-02-07 03:29:58.573	2026-02-07 03:29:58.573
+durga-floor-005	durga-branch-002	Express Hall	NonAC	active	2026-02-07 03:29:58.573	2026-02-07 03:29:58.573
+durga-floor-006	durga-branch-002	Family Lounge	Family	active	2026-02-07 03:29:58.573	2026-02-07 03:29:58.573
+durga-floor-007	durga-branch-003	Main Dining	AC	active	2026-02-07 03:29:58.573	2026-02-07 03:29:58.573
+durga-floor-008	durga-branch-003	Rooftop Corner	Outdoor	active	2026-02-07 03:29:58.573	2026-02-07 03:29:58.573
 \.
 
 
@@ -2338,6 +2380,25 @@ COPY public."IntegrationLog" (id, "integrationId", action, status, "requestPaylo
 
 COPY public."InventoryProduct" (id, "businessOwnerId", "branchId", name, image, "supplierId", "inStock", "quantitySold", "restockAlert", "costPrice", "sellingPrice", "expiryDate", unit, status, "createdAt", "updatedAt") FROM stdin;
 f542137f-007b-45d5-b4ce-c9c1860fd808	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Coca-Cola	/images/coke.png	995f2d55-7907-45fc-96e5-132237834872	9523.00	29523.00	20.00	20.00	45.00	2025-02-09 00:00:00	bottles	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-002	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Idly Rice	/images/inventory/idly-rice.png	durga-sup-002	420.00	180.00	80.00	42.00	58.00	2025-08-15 00:00:00	kg	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-003	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Urad Dal	/images/inventory/urad-dal.png	durga-sup-003	210.00	95.00	40.00	98.00	125.00	2025-09-10 00:00:00	kg	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-004	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Dosa Batter	/images/inventory/dosa-batter.png	durga-sup-004	160.00	120.00	35.00	54.00	75.00	2025-03-15 00:00:00	liters	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-005	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Paneer Blocks	/images/inventory/paneer.png	durga-sup-005	145.00	88.00	30.00	210.00	255.00	2025-03-22 00:00:00	kg	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-006	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Whole Wheat Bread	/images/inventory/bread.png	durga-sup-006	95.00	62.00	25.00	32.00	48.00	2025-04-03 00:00:00	packets	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-007	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Curd Buckets	/images/inventory/curd.png	durga-sup-007	118.00	54.00	20.00	68.00	96.00	2025-03-18 00:00:00	liters	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-008	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Basmati Rice	/images/inventory/basmati-rice.png	durga-sup-008	360.00	142.00	70.00	86.00	112.00	2025-10-12 00:00:00	kg	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-009	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Mixed Vegetables	/images/inventory/mixed-veg.png	durga-sup-009	275.00	160.00	50.00	48.00	72.00	2025-03-08 00:00:00	kg	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-010	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Sweet Corn	/images/inventory/sweet-corn.png	durga-sup-010	132.00	76.00	25.00	74.00	101.00	2025-05-20 00:00:00	cans	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-011	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Ghee Tins	/images/inventory/ghee.png	durga-sup-011	84.00	41.00	18.00	455.00	530.00	2025-11-01 00:00:00	tins	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-012	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Cooking Oil	/images/inventory/oil.png	durga-sup-012	190.00	97.00	35.00	118.00	154.00	2025-12-09 00:00:00	liters	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-013	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Spice Mix	/images/inventory/spice-mix.png	durga-sup-013	72.00	39.00	15.00	165.00	210.00	2025-09-30 00:00:00	packets	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-014	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Cashew Nuts	/images/inventory/cashew.png	durga-sup-014	58.00	24.00	10.00	640.00	720.00	2025-08-26 00:00:00	kg	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-015	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Tea Powder	/images/inventory/tea.png	durga-sup-015	66.00	31.00	12.00	285.00	340.00	2025-10-18 00:00:00	packets	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-016	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Coffee Decoction	/images/inventory/coffee.png	durga-sup-016	81.00	44.00	16.00	195.00	245.00	2025-03-12 00:00:00	liters	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-017	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Milk Packs	/images/inventory/milk.png	durga-sup-017	220.00	155.00	45.00	28.00	36.00	2025-03-05 00:00:00	packs	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-018	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Sugar	/images/inventory/sugar.png	durga-sup-018	305.00	140.00	55.00	44.00	60.00	2025-11-28 00:00:00	kg	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-019	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Gulab Jamun Mix	/images/inventory/gulab-jamun-mix.png	durga-sup-019	92.00	37.00	18.00	122.00	168.00	2025-07-14 00:00:00	boxes	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-inv-020	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Disposable Containers	/images/inventory/containers.png	durga-sup-020	510.00	280.00	100.00	6.00	10.00	2026-01-31 00:00:00	pieces	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
 2c9aea87-69d8-4bb9-a337-b8d8ef59fd88	7fdfb940-d78a-4609-a441-fd28eb9f9869	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Nescafe Coffee	/images/nescafe.png	0a658c7e-6cb0-4455-b402-1db703c35cf4	6353.00	15523.00	90.00	40.00	100.00	2025-03-08 00:00:00	packets	active	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
 \.
 
@@ -2348,6 +2409,9 @@ f542137f-007b-45d5-b4ce-c9c1860fd808	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce3
 
 COPY public."Kitchen" (id, "branchId", name, description, status, "createdAt", "updatedAt") FROM stdin;
 ebf68b4e-0e70-47d7-b0ab-061f2f2cc7d2	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Main Kitchen	Primary kitchen for all food preparation	active	2026-02-07 03:29:58.572	2026-02-07 03:29:58.572
+durga-kit-002	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Tandoor Kitchen	Handles breads and grilled specialties	active	2026-02-07 03:29:58.572	2026-02-07 03:29:58.572
+durga-kit-003	durga-branch-002	Express Kitchen	Fast service kitchen for quick bites	active	2026-02-07 03:29:58.572	2026-02-07 03:29:58.572
+durga-kit-004	durga-branch-003	Central Production	Preps combos, thalis, and catering orders	active	2026-02-07 03:29:58.572	2026-02-07 03:29:58.572
 \.
 
 
@@ -2388,10 +2452,29 @@ fb6b9db9-5c7d-4a6f-8df7-24e8c9b8eb5f	1	Litre	l	2026-02-07 03:29:58.570
 -- Data for Name: Menu; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public."Menu" (id, "businessOwnerId", name, description, status, "createdAt", "updatedAt") FROM stdin;
-ffaefac3-f907-4241-bde3-05ed39c0089a	111bd836-595b-4982-bb3d-a24ade82c52a	Dine-In	Full menu available for dine-in customers	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
-22d83029-ef32-4d88-9f3c-455322c41ae9	7fdfb940-d78a-4609-a441-fd28eb9f9869	Delivery	Menu items available for delivery	active	2026-02-07 03:29:58.553	2026-02-07 03:29:58.553
-f69706ad-b902-450d-aeec-d1bc909f50c5	7fdfb940-d78a-4609-a441-fd28eb9f9869	TakeAway	Menu items available for takeaway	active	2026-02-07 03:29:58.553	2026-02-07 03:29:58.553
+COPY public."Menu" (id, "businessOwnerId", name, description, image, status, "createdAt", "updatedAt") FROM stdin;
+ffaefac3-f907-4241-bde3-05ed39c0089a	111bd836-595b-4982-bb3d-a24ade82c52a	Dine-In	Full menu available for dine-in customers	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-002	111bd836-595b-4982-bb3d-a24ade82c52a	Breakfast Specials	Quick breakfast menu for morning customers	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-003	111bd836-595b-4982-bb3d-a24ade82c52a	Lunch Combos	Fixed lunch combinations for office crowd	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-004	111bd836-595b-4982-bb3d-a24ade82c52a	Dinner Classics	Comfort food for evening dining	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-005	111bd836-595b-4982-bb3d-a24ade82c52a	Weekend Thalis	Special thali selections for weekends	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-006	111bd836-595b-4982-bb3d-a24ade82c52a	Express Snacks	Fast moving snack items for short visits	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-007	111bd836-595b-4982-bb3d-a24ade82c52a	Family Meals	Shared portions for family groups	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-008	111bd836-595b-4982-bb3d-a24ade82c52a	Festival Menu	Seasonal festive items and sweets	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-009	111bd836-595b-4982-bb3d-a24ade82c52a	Beverages	Hot and cold drink lineup	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-010	111bd836-595b-4982-bb3d-a24ade82c52a	Takeaway Favorites	Best sellers prepared for takeaway	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-011	111bd836-595b-4982-bb3d-a24ade82c52a	Kids Menu	Mild and smaller portions for children	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-012	111bd836-595b-4982-bb3d-a24ade82c52a	Office Lunch	Convenient weekday lunch plates	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-013	111bd836-595b-4982-bb3d-a24ade82c52a	Quick Bites	Light snacks and fast service items	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-014	111bd836-595b-4982-bb3d-a24ade82c52a	South Indian Selects	Traditional south Indian plates	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-015	111bd836-595b-4982-bb3d-a24ade82c52a	North Indian Selects	Curries, breads, and combo meals	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-016	111bd836-595b-4982-bb3d-a24ade82c52a	Rice Bowls	Comforting rice-based meals	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-017	111bd836-595b-4982-bb3d-a24ade82c52a	Soup And Starter	Warm soups and appetizing starters	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-018	111bd836-595b-4982-bb3d-a24ade82c52a	Dessert Counter	Sweets and post-meal desserts	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-019	111bd836-595b-4982-bb3d-a24ade82c52a	Cafe Corner	Coffee, tea, and snacks	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+durga-menu-020	111bd836-595b-4982-bb3d-a24ade82c52a	Chef Recommendations	Daily chef specials and curated meals	\N	active	2026-02-07 03:29:58.552	2026-02-07 03:29:58.552
+22d83029-ef32-4d88-9f3c-455322c41ae9	7fdfb940-d78a-4609-a441-fd28eb9f9869	Delivery	Menu items available for delivery	\N	active	2026-02-07 03:29:58.553	2026-02-07 03:29:58.553
+f69706ad-b902-450d-aeec-d1bc909f50c5	7fdfb940-d78a-4609-a441-fd28eb9f9869	TakeAway	Menu items available for takeaway	\N	active	2026-02-07 03:29:58.553	2026-02-07 03:29:58.553
 \.
 
 
@@ -2790,6 +2873,23 @@ COPY public."Product" (id, "businessOwnerId", name, sku, type, "categoryId", "su
 59fcb5ea-5ad9-4711-9615-69a4f3ba94e3	111bd836-595b-4982-bb3d-a24ade82c52a	Andhra Thali (Veg)	PRD-004	Combo	bb9678cb-2ae0-4303-a0f0-78aab1e45c69	\N	\N	ffaefac3-f907-4241-bde3-05ed39c0089a	Traditional Andhra thali with multiple curries, rice, and sweets	ANDTHL	\N	25	1	t	active	2026-02-07 03:29:58.559	2026-02-07 03:29:58.559
 33ffde00-a67f-4a46-9dcc-bd4f6ffc8680	111bd836-595b-4982-bb3d-a24ade82c52a	Veg Grilled Sandwich	PRD-005	Regular	1e613ee9-1889-43c3-814d-10109d311ca0	\N	\N	ffaefac3-f907-4241-bde3-05ed39c0089a	Grilled sandwich with fresh vegetables and cheese	VGSND	\N	10	1	t	active	2026-02-07 03:29:58.561	2026-02-07 03:29:58.561
 78ea8cb3-9992-402d-9493-1a019bd6ecdf	111bd836-595b-4982-bb3d-a24ade82c52a	Curd Rice	PRD-006	Regular	b519059a-524c-4437-8307-a039c8a9c4b1	\N	\N	ffaefac3-f907-4241-bde3-05ed39c0089a	South Indian style curd rice with tempering	CRDRC	\N	10	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-007	111bd836-595b-4982-bb3d-a24ade82c52a	Masala Dosa	PRD-007	Regular	4b92eed7-1093-4464-acb8-39eca4627acd	6f1e3a1a-8f4f-4f88-ae28-7f8d12b9d101	c1323368-203b-4585-a039-492897d18422	ffaefac3-f907-4241-bde3-05ed39c0089a	Crisp dosa stuffed with potato masala and served with chutneys	MASDOS	\N	18	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-008	111bd836-595b-4982-bb3d-a24ade82c52a	Paneer Butter Masala	PRD-008	Regular	cd7478a2-9e9d-4729-be0e-4d68bddf6e5d	2a1a61b7-7a8a-4c5f-87d4-3b55ebfbc903	bbd68632-86ce-4cc0-9dc6-2406fb53b905	ffaefac3-f907-4241-bde3-05ed39c0089a	Creamy paneer gravy cooked with butter and rich tomato base	PNRBTR	\N	22	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-009	111bd836-595b-4982-bb3d-a24ade82c52a	Tomato Soup	PRD-009	Regular	4b92eed7-1093-4464-acb8-39eca4627acd	6f1e3a1a-8f4f-4f88-ae28-7f8d12b9d101	36e4996d-92f3-46c7-9aa7-ee1c9c7eeb15	ffaefac3-f907-4241-bde3-05ed39c0089a	Warm tomato soup finished with herbs and cream	TMSUP	\N	8	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-010	111bd836-595b-4982-bb3d-a24ade82c52a	Pani Puri	PRD-010	Regular	4b92eed7-1093-4464-acb8-39eca4627acd	8d0b8e0b-7b29-4ff0-9ed9-98dbf6ee5202	c1323368-203b-4585-a039-492897d18422	ffaefac3-f907-4241-bde3-05ed39c0089a	Crunchy pani puri served with spicy and sweet water	PNIPUR	\N	10	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-011	111bd836-595b-4982-bb3d-a24ade82c52a	North Indian Combo	PRD-011	Combo	cd7478a2-9e9d-4729-be0e-4d68bddf6e5d	2a1a61b7-7a8a-4c5f-87d4-3b55ebfbc903	bbd68632-86ce-4cc0-9dc6-2406fb53b905	ffaefac3-f907-4241-bde3-05ed39c0089a	Paneer curry, jeera rice, roti, and dessert combo	NTHCOM	\N	20	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-012	111bd836-595b-4982-bb3d-a24ade82c52a	Mini Veg Thali	PRD-012	Combo	bb9678cb-2ae0-4303-a0f0-78aab1e45c69	9bfb53da-2f08-4b4a-a46d-4379b3c6fd04	36e4996d-92f3-46c7-9aa7-ee1c9c7eeb15	ffaefac3-f907-4241-bde3-05ed39c0089a	Compact veg thali with curry, rice, and sweet	MNTHLI	\N	18	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-013	111bd836-595b-4982-bb3d-a24ade82c52a	Filter Coffee	PRD-013	Regular	4b92eed7-1093-4464-acb8-39eca4627acd	6f1e3a1a-8f4f-4f88-ae28-7f8d12b9d101	c1323368-203b-4585-a039-492897d18422	ffaefac3-f907-4241-bde3-05ed39c0089a	Authentic South Indian filter coffee served hot	FLCOFF	\N	5	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-014	111bd836-595b-4982-bb3d-a24ade82c52a	Veg Noodles	PRD-014	Regular	1e613ee9-1889-43c3-814d-10109d311ca0	8d0b8e0b-7b29-4ff0-9ed9-98dbf6ee5202	36e4996d-92f3-46c7-9aa7-ee1c9c7eeb15	ffaefac3-f907-4241-bde3-05ed39c0089a	Street-style veg noodles tossed with sauces and vegetables	VGNDLS	\N	15	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-015	111bd836-595b-4982-bb3d-a24ade82c52a	Veg Club Sandwich	PRD-015	Regular	1e613ee9-1889-43c3-814d-10109d311ca0	8d0b8e0b-7b29-4ff0-9ed9-98dbf6ee5202	bbd68632-86ce-4cc0-9dc6-2406fb53b905	ffaefac3-f907-4241-bde3-05ed39c0089a	Triple-layer grilled sandwich with vegetables and sauces	VCLSND	\N	12	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-016	111bd836-595b-4982-bb3d-a24ade82c52a	Lemon Rice	PRD-016	Regular	b519059a-524c-4437-8307-a039c8a9c4b1	9bfb53da-2f08-4b4a-a46d-4379b3c6fd04	c1323368-203b-4585-a039-492897d18422	ffaefac3-f907-4241-bde3-05ed39c0089a	Zesty lemon rice with tempered peanuts and curry leaves	LMNRIC	\N	10	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-017	111bd836-595b-4982-bb3d-a24ade82c52a	Cashew Veg Pulao	PRD-017	Regular	b519059a-524c-4437-8307-a039c8a9c4b1	9bfb53da-2f08-4b4a-a46d-4379b3c6fd04	bbd68632-86ce-4cc0-9dc6-2406fb53b905	ffaefac3-f907-4241-bde3-05ed39c0089a	Fragrant pulao cooked with vegetables and roasted cashews	CSWPUL	\N	18	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-018	111bd836-595b-4982-bb3d-a24ade82c52a	Gobi Manchurian	PRD-018	Regular	4b92eed7-1093-4464-acb8-39eca4627acd	8d0b8e0b-7b29-4ff0-9ed9-98dbf6ee5202	36e4996d-92f3-46c7-9aa7-ee1c9c7eeb15	ffaefac3-f907-4241-bde3-05ed39c0089a	Crispy cauliflower tossed in tangy Manchurian sauce	GBIMAN	\N	14	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-019	111bd836-595b-4982-bb3d-a24ade82c52a	Sweet Corn Soup	PRD-019	Regular	4b92eed7-1093-4464-acb8-39eca4627acd	6f1e3a1a-8f4f-4f88-ae28-7f8d12b9d101	c1323368-203b-4585-a039-492897d18422	ffaefac3-f907-4241-bde3-05ed39c0089a	Classic sweet corn soup with pepper seasoning	SWCSUP	\N	8	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-020	111bd836-595b-4982-bb3d-a24ade82c52a	Gulab Jamun	PRD-020	Regular	bb9678cb-2ae0-4303-a0f0-78aab1e45c69	9bfb53da-2f08-4b4a-a46d-4379b3c6fd04	36e4996d-92f3-46c7-9aa7-ee1c9c7eeb15	ffaefac3-f907-4241-bde3-05ed39c0089a	Soft gulab jamun soaked in cardamom sugar syrup	GLBJAM	\N	7	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-021	111bd836-595b-4982-bb3d-a24ade82c52a	Roti Combo Meal	PRD-021	Combo	cd7478a2-9e9d-4729-be0e-4d68bddf6e5d	2a1a61b7-7a8a-4c5f-87d4-3b55ebfbc903	bbd68632-86ce-4cc0-9dc6-2406fb53b905	ffaefac3-f907-4241-bde3-05ed39c0089a	Roti, paneer gravy, salad, and dessert combo	RTICMB	\N	16	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-022	111bd836-595b-4982-bb3d-a24ade82c52a	Butter Milk	PRD-022	Regular	b519059a-524c-4437-8307-a039c8a9c4b1	9bfb53da-2f08-4b4a-a46d-4379b3c6fd04	c1323368-203b-4585-a039-492897d18422	ffaefac3-f907-4241-bde3-05ed39c0089a	Chilled spiced buttermilk for meal accompaniment	BTRMLK	\N	4	1	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-prd-023	111bd836-595b-4982-bb3d-a24ade82c52a	Chef Special Meal	PRD-023	Combo	bb9678cb-2ae0-4303-a0f0-78aab1e45c69	9bfb53da-2f08-4b4a-a46d-4379b3c6fd04	bbd68632-86ce-4cc0-9dc6-2406fb53b905	ffaefac3-f907-4241-bde3-05ed39c0089a	Chef curated meal with curry, rice, bread, and dessert	CHFSPC	\N	25	2	t	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
 \.
 
 
@@ -2798,6 +2898,26 @@ COPY public."Product" (id, "businessOwnerId", name, sku, type, "categoryId", "su
 --
 
 COPY public."ProductAddon" (id, "productId", name, price, status, "createdAt", "updatedAt") FROM stdin;
+durga-addon-001	59fcb5ea-5ad9-4711-9615-69a4f3ba94e3	Extra Sweet	15.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-002	33ffde00-a67f-4a46-9dcc-bd4f6ffc8680	Extra Cheese	25.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-003	78ea8cb3-9992-402d-9493-1a019bd6ecdf	Extra Curd	18.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-004	durga-prd-007	Extra Chutney	12.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-005	durga-prd-008	Butter Topping	20.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-006	durga-prd-009	Bread Croutons	14.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-007	durga-prd-010	Extra Pani	10.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-008	durga-prd-011	Jeera Rice Upgrade	35.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-009	durga-prd-012	Mini Sweet Box	22.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-010	durga-prd-013	Extra Decoction	10.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-011	durga-prd-014	Schezwan Sauce	16.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-012	durga-prd-015	Cheese Slice	18.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-013	durga-prd-016	Fryums	12.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-014	durga-prd-017	Raita Cup	20.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-015	durga-prd-018	Spring Onion	14.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-016	durga-prd-019	Pepper Boost	8.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-017	durga-prd-020	Vanilla Ice Cream	25.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-018	durga-prd-021	Extra Roti	18.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-019	durga-prd-022	Jeera Tadka	8.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-addon-020	durga-prd-023	Dessert Upgrade	30.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
 \.
 
 
@@ -2820,6 +2940,23 @@ d35616c2-55d2-4908-9279-3b170cb13ebe	1a8e83a5-bb4b-4d78-8ccf-cf48c5ef5aa4	/image
 f283a9c4-a24d-444c-a6fd-ff343b457fb9	59fcb5ea-5ad9-4711-9615-69a4f3ba94e3	/images/products/Mini-Thali.webp	t	1	2026-02-07 03:29:58.559
 adf836f1-1778-4640-8962-2c09c9101761	33ffde00-a67f-4a46-9dcc-bd4f6ffc8680	/images/products/veg-grilled-sandwich.jpg	t	1	2026-02-07 03:29:58.561
 e903ad31-065d-4031-b7c2-b7a8940dc385	78ea8cb3-9992-402d-9493-1a019bd6ecdf	/images/products/South-indian-curd-rice.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-007	durga-prd-007	/images/products/masala-dosa.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-008	durga-prd-008	/images/products/paneer-butter-masala.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-009	durga-prd-009	/images/products/tomato-soup.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-010	durga-prd-010	/images/products/pani-puri.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-011	durga-prd-011	/images/products/north-indian-combo.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-012	durga-prd-012	/images/products/mini-veg-thali.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-013	durga-prd-013	/images/products/filter-coffee.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-014	durga-prd-014	/images/products/veg-noodles.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-015	durga-prd-015	/images/products/veg-club-sandwich.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-016	durga-prd-016	/images/products/lemon-rice.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-017	durga-prd-017	/images/products/cashew-veg-pulao.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-018	durga-prd-018	/images/products/gobi-manchurian.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-019	durga-prd-019	/images/products/sweet-corn-soup.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-020	durga-prd-020	/images/products/gulab-jamun.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-021	durga-prd-021	/images/products/roti-combo.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-022	durga-prd-022	/images/products/buttermilk.jpg	t	1	2026-02-07 03:29:58.562
+durga-img-023	durga-prd-023	/images/products/chef-special-meal.jpg	t	1	2026-02-07 03:29:58.562
 \.
 
 
@@ -2836,6 +2973,26 @@ COPY public."ProductKitchen" ("productId", "kitchenId") FROM stdin;
 --
 
 COPY public."ProductNutrition" (id, "productId", calories, protein, carbs, fat, fiber, sugar, sodium, vitamins, minerals) FROM stdin;
+durga-nut-001	59fcb5ea-5ad9-4711-9615-69a4f3ba94e3	680	16.00	92.00	18.00	8.00	14.00	780.00	{"B12":"12%"}	{"Iron":"18%"}
+durga-nut-002	33ffde00-a67f-4a46-9dcc-bd4f6ffc8680	420	12.00	46.00	15.00	5.00	6.00	620.00	{"A":"10%"}	{"Calcium":"14%"}
+durga-nut-003	78ea8cb3-9992-402d-9493-1a019bd6ecdf	310	8.00	44.00	8.00	2.00	4.00	510.00	{"B6":"8%"}	{"Calcium":"16%"}
+durga-nut-004	durga-prd-007	390	9.00	52.00	10.00	4.00	3.00	580.00	{"B1":"9%"}	{"Iron":"10%"}
+durga-nut-005	durga-prd-008	460	14.00	18.00	28.00	3.00	7.00	690.00	{"A":"12%"}	{"Calcium":"22%"}
+durga-nut-006	durga-prd-009	120	3.00	19.00	3.00	2.00	9.00	420.00	{"C":"20%"}	{"Potassium":"8%"}
+durga-nut-007	durga-prd-010	180	4.00	28.00	5.00	3.00	6.00	510.00	{"C":"12%"}	{"Iron":"6%"}
+durga-nut-008	durga-prd-011	640	20.00	84.00	22.00	7.00	10.00	830.00	{"B12":"10%"}	{"Iron":"16%"}
+durga-nut-009	durga-prd-012	540	15.00	72.00	16.00	6.00	11.00	760.00	{"A":"9%"}	{"Calcium":"15%"}
+durga-nut-010	durga-prd-013	90	2.00	10.00	3.00	0.00	8.00	60.00	{"B2":"6%"}	{"Magnesium":"5%"}
+durga-nut-011	durga-prd-014	350	7.00	54.00	11.00	4.00	5.00	720.00	{"B6":"7%"}	{"Iron":"8%"}
+durga-nut-012	durga-prd-015	430	11.00	49.00	17.00	5.00	7.00	670.00	{"A":"8%"}	{"Calcium":"11%"}
+durga-nut-013	durga-prd-016	280	5.00	46.00	8.00	3.00	4.00	480.00	{"C":"7%"}	{"Iron":"7%"}
+durga-nut-014	durga-prd-017	410	9.00	58.00	13.00	4.00	4.00	590.00	{"B1":"8%"}	{"Magnesium":"10%"}
+durga-nut-015	durga-prd-018	290	6.00	33.00	14.00	5.00	6.00	810.00	{"C":"9%"}	{"Iron":"8%"}
+durga-nut-016	durga-prd-019	140	4.00	22.00	4.00	2.00	7.00	460.00	{"A":"6%"}	{"Potassium":"7%"}
+durga-nut-017	durga-prd-020	260	4.00	38.00	9.00	1.00	24.00	130.00	{"A":"4%"}	{"Calcium":"8%"}
+durga-nut-018	durga-prd-021	520	17.00	56.00	19.00	5.00	7.00	740.00	{"B12":"9%"}	{"Iron":"14%"}
+durga-nut-019	durga-prd-022	70	3.00	7.00	2.00	0.00	5.00	210.00	{"B2":"5%"}	{"Calcium":"10%"}
+durga-nut-020	durga-prd-023	720	22.00	88.00	25.00	8.00	12.00	860.00	{"A":"11%"}	{"Iron":"19%"}
 \.
 
 
@@ -2850,6 +3007,23 @@ af98c47d-5815-45b9-9083-7d8f23cafaca	283433b6-4c6d-4a61-af0d-44278a75d223	\N	Din
 3f7edad8-4de4-4b15-a6d3-0b757e827648	59fcb5ea-5ad9-4711-9615-69a4f3ba94e3	\N	DineIn	120.00	\N	\N	2026-02-07 03:29:58.559	2026-02-07 03:29:58.559
 407c5f9d-9d67-46a9-b3ae-776418f6ba73	33ffde00-a67f-4a46-9dcc-bd4f6ffc8680	\N	DineIn	80.00	\N	\N	2026-02-07 03:29:58.561	2026-02-07 03:29:58.561
 f0c8f32a-4990-4154-b7d7-d72b1f5a1a0b	78ea8cb3-9992-402d-9493-1a019bd6ecdf	\N	DineIn	130.00	\N	\N	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-007	durga-prd-007	\N	DineIn	95.00	89.00	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-008	durga-prd-008	\N	DineIn	220.00	205.00	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-009	durga-prd-009	\N	DineIn	85.00	\N	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-010	durga-prd-010	\N	DineIn	70.00	\N	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-011	durga-prd-011	\N	DineIn	240.00	225.00	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-012	durga-prd-012	\N	DineIn	175.00	165.00	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-013	durga-prd-013	\N	DineIn	45.00	\N	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-014	durga-prd-014	\N	DineIn	135.00	125.00	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-015	durga-prd-015	\N	DineIn	125.00	\N	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-016	durga-prd-016	\N	DineIn	90.00	\N	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-017	durga-prd-017	\N	DineIn	165.00	155.00	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-018	durga-prd-018	\N	DineIn	150.00	140.00	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-019	durga-prd-019	\N	DineIn	95.00	\N	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-020	durga-prd-020	\N	DineIn	75.00	\N	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-021	durga-prd-021	\N	DineIn	190.00	180.00	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-022	durga-prd-022	\N	DineIn	35.00	\N	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-price-023	durga-prd-023	\N	DineIn	260.00	245.00	29351e96-e188-4f33-b506-643019935afd	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
 \.
 
 
@@ -2866,6 +3040,26 @@ COPY public."ProductTag" ("productId", "tagId") FROM stdin;
 --
 
 COPY public."ProductVariant" (id, "productId", name, sku, "additionalPrice", status, "createdAt", "updatedAt") FROM stdin;
+durga-var-001	59fcb5ea-5ad9-4711-9615-69a4f3ba94e3	Regular	PRD-004-REG	0.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-002	33ffde00-a67f-4a46-9dcc-bd4f6ffc8680	Cheese Loaded	PRD-005-CHZ	20.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-003	78ea8cb3-9992-402d-9493-1a019bd6ecdf	Family Bowl	PRD-006-FAM	35.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-004	durga-prd-007	Butter Roast	PRD-007-BR	15.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-005	durga-prd-008	Full Portion	PRD-008-FP	40.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-006	durga-prd-009	Cream Finish	PRD-009-CR	10.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-007	durga-prd-010	Party Plate	PRD-010-PTY	30.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-008	durga-prd-011	Premium Combo	PRD-011-PRM	35.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-009	durga-prd-012	Jumbo Combo	PRD-012-JMB	25.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-010	durga-prd-013	Strong Brew	PRD-013-STR	8.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-011	durga-prd-014	Extra Spicy	PRD-014-SPY	12.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-012	durga-prd-015	Triple Layer	PRD-015-TRI	18.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-013	durga-prd-016	Mini Bowl	PRD-016-MIN	-10.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-014	durga-prd-017	Family Pack	PRD-017-FAM	45.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-015	durga-prd-018	Dry Style	PRD-018-DRY	10.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-016	durga-prd-019	Cup Size	PRD-019-CUP	-5.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-017	durga-prd-020	Double Piece	PRD-020-DBL	20.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-018	durga-prd-021	Executive Meal	PRD-021-EXE	25.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-019	durga-prd-022	Large Glass	PRD-022-LRG	12.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
+durga-var-020	durga-prd-023	Royal Meal	PRD-023-RYL	55.00	active	2026-02-07 03:29:58.562	2026-02-07 03:29:58.562
 \.
 
 
@@ -2875,6 +3069,25 @@ COPY public."ProductVariant" (id, "productId", name, sku, "additionalPrice", sta
 
 COPY public."PurchaseOrder" (id, "businessOwnerId", "branchId", "supplierId", "invoiceNumber", "amountPaid", "grandTotal", status, notes, "createdAt", "updatedAt") FROM stdin;
 e70dc0d6-3b09-4c40-bff7-92b9ecaa0ccd	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	2e248362-ff14-49c9-b408-44b02ade2884	INV-2025-0001	116000.00	116000.00	Approved	\N	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-002	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-002	INV-2025-0002	17640.00	17640.00	Approved	Idly rice replenishment	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-003	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-003	INV-2025-0003	11760.00	11760.00	Approved	Urad dal stock purchase	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-004	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-004	INV-2025-0004	8640.00	8640.00	Received	Fresh batter supply	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-005	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-005	INV-2025-0005	30450.00	30450.00	Approved	Paneer weekly supply	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-006	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-006	INV-2025-0006	9120.00	9120.00	Received	Bread restock	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-007	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-007	INV-2025-0007	11328.12	11328.12	Approved	Dairy and curd supply	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-008	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-008	INV-2025-0008	30960.00	30960.00	Approved	Basmati stock order	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-009	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-009	INV-2025-0009	13152.00	13152.00	Received	Vegetable basket purchase	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-010	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-010	INV-2025-0010	9768.00	9768.00	Approved	Sweet corn procurement	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-011	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-011	INV-2025-0011	19110.00	19110.00	Approved	Ghee tins for kitchen	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-012	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-012	INV-2025-0012	22420.00	22420.00	Approved	Cooking oil restock	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-013	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-013	INV-2025-0013	11880.00	11880.00	Received	Spice packets order	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-014	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-014	INV-2025-0014	15123.20	15123.20	Approved	Cashew nut purchase	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-015	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-015	INV-2025-0015	9690.00	9690.00	Approved	Tea powder order	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-016	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-016	INV-2025-0016	8580.00	8580.00	Received	Coffee decoction drums	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-017	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-017	INV-2025-0017	7920.00	7920.00	Approved	Daily milk supply	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-018	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-018	INV-2025-0018	13420.00	13420.00	Approved	Sugar sacks order	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-019	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-019	INV-2025-0019	11224.00	11224.00	Received	Sweet mix boxes	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
+durga-po-020	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce36f-4934-44a1-8f4d-d45f345030a5	durga-sup-020	INV-2025-0020	8160.00	8160.00	Approved	Packaging material order	2026-02-07 03:29:58.58	2026-02-07 03:29:58.58
 9b576e6c-26ad-4cb4-b428-e1513952127b	7fdfb940-d78a-4609-a441-fd28eb9f9869	d3ee3575-ad4b-41fc-89d1-682a2cbcdf11	6b305730-8702-4c80-bec9-ef2e14f0ef7d	INV-2025-0002	0.00	638000.00	Pending	\N	2026-02-07 03:29:58.582	2026-02-07 03:29:58.582
 \.
 
@@ -2885,6 +3098,25 @@ e70dc0d6-3b09-4c40-bff7-92b9ecaa0ccd	111bd836-595b-4982-bb3d-a24ade82c52a	aa1ce3
 
 COPY public."PurchaseOrderItem" (id, "purchaseOrderId", "inventoryProductId", quantity, "unitPrice", "totalPrice") FROM stdin;
 c6f36d2d-2f72-49bd-91f5-cc6151beaa0e	e70dc0d6-3b09-4c40-bff7-92b9ecaa0ccd	f542137f-007b-45d5-b4ce-c9c1860fd808	1000.00	20.00	20000.00
+durga-poi-002	durga-po-002	durga-inv-002	420.00	42.00	17640.00
+durga-poi-003	durga-po-003	durga-inv-003	120.00	98.00	11760.00
+durga-poi-004	durga-po-004	durga-inv-004	160.00	54.00	8640.00
+durga-poi-005	durga-po-005	durga-inv-005	145.00	210.00	30450.00
+durga-poi-006	durga-po-006	durga-inv-006	285.00	32.00	9120.00
+durga-poi-007	durga-po-007	durga-inv-007	166.59	68.00	11328.12
+durga-poi-008	durga-po-008	durga-inv-008	360.00	86.00	30960.00
+durga-poi-009	durga-po-009	durga-inv-009	274.00	48.00	13152.00
+durga-poi-010	durga-po-010	durga-inv-010	132.00	74.00	9768.00
+durga-poi-011	durga-po-011	durga-inv-011	42.00	455.00	19110.00
+durga-poi-012	durga-po-012	durga-inv-012	190.00	118.00	22420.00
+durga-poi-013	durga-po-013	durga-inv-013	72.00	165.00	11880.00
+durga-poi-014	durga-po-014	durga-inv-014	23.63	640.00	15123.20
+durga-poi-015	durga-po-015	durga-inv-015	34.00	285.00	9690.00
+durga-poi-016	durga-po-016	durga-inv-016	44.00	195.00	8580.00
+durga-poi-017	durga-po-017	durga-inv-017	220.00	36.00	7920.00
+durga-poi-018	durga-po-018	durga-inv-018	305.00	44.00	13420.00
+durga-poi-019	durga-po-019	durga-inv-019	92.00	122.00	11224.00
+durga-poi-020	durga-po-020	durga-inv-020	1360.00	6.00	8160.00
 4d05f242-9759-4ea4-b20e-cd1928b98ce0	9b576e6c-26ad-4cb4-b428-e1513952127b	2c9aea87-69d8-4bb9-a337-b8d8ef59fd88	500.00	40.00	20000.00
 \.
 
@@ -3395,6 +3627,10 @@ e89061f4-8486-46a2-8059-7b8893aea303	eb3b1da4-5430-4689-88da-c0f8500e08e7	318f72
 
 COPY public."Room" (id, "branchId", name, capacity, "hourlyRate", status, "createdAt", "updatedAt") FROM stdin;
 550e8400-e29b-41d4-a716-446655440000	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Conference Room A	10	500	AVAILABLE	2026-02-12 10:00:00	2026-02-12 10:00:00
+durga-room-002	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Family Party Room	18	900	AVAILABLE	2026-02-12 10:00:00	2026-02-12 10:00:00
+durga-room-003	aa1ce36f-4934-44a1-8f4d-d45f345030a5	Executive Dining Room	12	1200	AVAILABLE	2026-02-12 10:00:00	2026-02-12 10:00:00
+durga-room-004	durga-branch-002	MVP Private Room	14	800	AVAILABLE	2026-02-12 10:00:00	2026-02-12 10:00:00
+durga-room-005	durga-branch-003	Rooftop Celebration Room	20	1500	AVAILABLE	2026-02-12 10:00:00	2026-02-12 10:00:00
 \.
 
 
@@ -3500,6 +3736,25 @@ COPY public."SuperAdmin" (id, email, password, name, phone, avatar, "resetToken"
 
 COPY public."Supplier" (id, "businessOwnerId", code, name, phone, email, address, "gstNumber", "tinNumber", "taxStateCode", "bankAccount", "bankName", "bankBranch", "ifscCode", status, "createdAt", "updatedAt") FROM stdin;
 2e248362-ff14-49c9-b408-44b02ade2884	111bd836-595b-4982-bb3d-a24ade82c52a	43215	TechNova	+91 9123456789	tech@nova.com	768 Reach Street, Baltimore, MD 21202	\N	\N	\N	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-002	111bd836-595b-4982-bb3d-a24ade82c52a	43216	Sri Lakshmi Grains	+91 9123400002	grains@slakshmi.com	12 Market Yard, Vizag	37AAECS1234F1Z1	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-003	111bd836-595b-4982-bb3d-a24ade82c52a	43217	Coastal Pulses	+91 9123400003	pulses@coastal.com	15 Wholesale Lane, Vizag	37AAECC1234F1Z2	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-004	111bd836-595b-4982-bb3d-a24ade82c52a	43218	Batter Fresh Foods	+91 9123400004	batter@freshfoods.com	8 Service Road, Vizag	37AAECB1234F1Z3	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-005	111bd836-595b-4982-bb3d-a24ade82c52a	43219	Royal Dairy Supply	+91 9123400005	dairy@royal.com	21 Dairy Street, Vizag	37AAECR1234F1Z4	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-006	111bd836-595b-4982-bb3d-a24ade82c52a	43220	Bake Basket	+91 9123400006	sales@bakebasket.com	44 Bakery Road, Vizag	37AAECB1234F1Z5	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-007	111bd836-595b-4982-bb3d-a24ade82c52a	43221	Fresh Cream Dairy	+91 9123400007	orders@freshcream.com	63 Milk Colony, Vizag	37AAECF1234F1Z6	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-008	111bd836-595b-4982-bb3d-a24ade82c52a	43222	Godavari Rice Traders	+91 9123400008	rice@godavari.com	77 Port Road, Vizag	37AAECG1234F1Z7	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-009	111bd836-595b-4982-bb3d-a24ade82c52a	43223	Farm Basket Veggies	+91 9123400009	veg@farmbasket.com	9 Farmers Lane, Vizag	37AAECH1234F1Z8	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-010	111bd836-595b-4982-bb3d-a24ade82c52a	43224	Corn Valley Foods	+91 9123400010	corn@valleyfoods.com	5 Corn Street, Vizag	37AAECI1234F1Z9	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-011	111bd836-595b-4982-bb3d-a24ade82c52a	43225	Pure Ghee House	+91 9123400011	ghee@purehouse.com	17 Temple Road, Vizag	37AAECJ1234F1Z1	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-012	111bd836-595b-4982-bb3d-a24ade82c52a	43226	Sunrise Oil Depot	+91 9123400012	oil@sunrise.com	22 Industrial Area, Vizag	37AAECK1234F1Z2	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-013	111bd836-595b-4982-bb3d-a24ade82c52a	43227	Spice Trail Distributors	+91 9123400013	spice@trail.com	11 Spice Bazar, Vizag	37AAECL1234F1Z3	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-014	111bd836-595b-4982-bb3d-a24ade82c52a	43228	Nut House Premium	+91 9123400014	nuts@nuthouse.com	28 Dryfruit Market, Vizag	37AAECM1234F1Z4	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-015	111bd836-595b-4982-bb3d-a24ade82c52a	43229	Eastern Tea Company	+91 9123400015	tea@easterntea.com	41 Tea Estate Road, Vizag	37AAECN1234F1Z5	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-016	111bd836-595b-4982-bb3d-a24ade82c52a	43230	Classic Coffee Works	+91 9123400016	coffee@classicworks.com	6 Brew Street, Vizag	37AAECO1234F1Z6	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-017	111bd836-595b-4982-bb3d-a24ade82c52a	43231	Milk Route Supply	+91 9123400017	milk@route.com	13 Dairy Avenue, Vizag	37AAECP1234F1Z7	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-018	111bd836-595b-4982-bb3d-a24ade82c52a	43232	Sai Sugar Mart	+91 9123400018	sugar@saimart.com	31 Mill Road, Vizag	37AAECQ1234F1Z8	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-019	111bd836-595b-4982-bb3d-a24ade82c52a	43233	Sweet Mix Traders	+91 9123400019	sweets@mixtraders.com	55 Sweet Street, Vizag	37AAECR1234F1Z9	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
+durga-sup-020	111bd836-595b-4982-bb3d-a24ade82c52a	43234	Pack Right Solutions	+91 9123400020	pack@rightsolutions.com	24 Packaging Park, Vizag	37AAECS1234F1Z2	\N	37	\N	\N	\N	\N	active	2026-02-07 03:29:58.577	2026-02-07 03:29:58.577
 6b305730-8702-4c80-bec9-ef2e14f0ef7d	7fdfb940-d78a-4609-a441-fd28eb9f9869	22120	Gear Glow	+91 7569842135	gear@glow.com	102 West Street, Columbus, OH 43215	\N	\N	\N	\N	\N	\N	\N	active	2026-02-07 03:29:58.578	2026-02-07 03:29:58.578
 995f2d55-7907-45fc-96e5-132237834872	7fdfb940-d78a-4609-a441-fd28eb9f9869	33456	Nature's Pure	+91 8765432109	contact@naturespure.com	45 Green Valley Road, Hyderabad	\N	\N	\N	\N	\N	\N	\N	active	2026-02-07 03:29:58.578	2026-02-07 03:29:58.578
 0a658c7e-6cb0-4455-b402-1db703c35cf4	7fdfb940-d78a-4609-a441-fd28eb9f9869	44567	Artisan Roasters	+91 9876123456	sales@artisanroasters.com	78 Coffee Lane, Bangalore	\N	\N	\N	\N	\N	\N	\N	active	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
@@ -3511,6 +3766,26 @@ COPY public."Supplier" (id, "businessOwnerId", code, name, phone, email, address
 --
 
 COPY public."SupplierContact" (id, "supplierId", name, email, phone, "createdAt", "updatedAt") FROM stdin;
+durga-supc-001	2e248362-ff14-49c9-b408-44b02ade2884	Ramesh Kumar	tech@nova.com	+91 9123456789	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-002	durga-sup-002	Suresh Rao	grains@slakshmi.com	+91 9123400002	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-003	durga-sup-003	Keerthi Nair	pulses@coastal.com	+91 9123400003	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-004	durga-sup-004	Pavan Teja	batter@freshfoods.com	+91 9123400004	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-005	durga-sup-005	Swathi Devi	dairy@royal.com	+91 9123400005	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-006	durga-sup-006	Vikram Jain	sales@bakebasket.com	+91 9123400006	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-007	durga-sup-007	Meghana Das	orders@freshcream.com	+91 9123400007	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-008	durga-sup-008	Ravi Chandra	rice@godavari.com	+91 9123400008	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-009	durga-sup-009	Sai Kiran	veg@farmbasket.com	+91 9123400009	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-010	durga-sup-010	Harikrishna	corn@valleyfoods.com	+91 9123400010	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-011	durga-sup-011	Srinivas	ghee@purehouse.com	+91 9123400011	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-012	durga-sup-012	Anitha	oil@sunrise.com	+91 9123400012	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-013	durga-sup-013	Pradeep	spice@trail.com	+91 9123400013	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-014	durga-sup-014	Nandini	nuts@nuthouse.com	+91 9123400014	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-015	durga-sup-015	Kavya	tea@easterntea.com	+91 9123400015	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-016	durga-sup-016	Mohan	coffee@classicworks.com	+91 9123400016	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-017	durga-sup-017	Reshma	milk@route.com	+91 9123400017	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-018	durga-sup-018	Raghu	sugar@saimart.com	+91 9123400018	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-019	durga-sup-019	Bhargavi	sweets@mixtraders.com	+91 9123400019	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supc-020	durga-sup-020	Dinesh	pack@rightsolutions.com	+91 9123400020	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
 \.
 
 
@@ -3519,6 +3794,26 @@ COPY public."SupplierContact" (id, "supplierId", name, email, phone, "createdAt"
 --
 
 COPY public."SupplierRating" (id, "supplierId", "businessOwnerId", rating, comment, "createdAt", "updatedAt") FROM stdin;
+durga-supr-001	2e248362-ff14-49c9-b408-44b02ade2884	111bd836-595b-4982-bb3d-a24ade82c52a	5	Reliable bulk supply and timely deliveries.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-002	durga-sup-002	111bd836-595b-4982-bb3d-a24ade82c52a	5	Good rice quality and consistent pricing.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-003	durga-sup-003	111bd836-595b-4982-bb3d-a24ade82c52a	4	Clean packing for pulses and staples.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-004	durga-sup-004	111bd836-595b-4982-bb3d-a24ade82c52a	4	Batter freshness has been dependable.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-005	durga-sup-005	111bd836-595b-4982-bb3d-a24ade82c52a	5	Paneer quality is premium and consistent.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-006	durga-sup-006	111bd836-595b-4982-bb3d-a24ade82c52a	4	Bread deliveries suit breakfast service.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-007	durga-sup-007	111bd836-595b-4982-bb3d-a24ade82c52a	5	Dairy items arrive chilled and fresh.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-008	durga-sup-008	111bd836-595b-4982-bb3d-a24ade82c52a	4	Strong grain quality for pulao and combos.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-009	durga-sup-009	111bd836-595b-4982-bb3d-a24ade82c52a	5	Vegetables are fresh and sorted well.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-010	durga-sup-010	111bd836-595b-4982-bb3d-a24ade82c52a	4	Canned stock has a good shelf life.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-011	durga-sup-011	111bd836-595b-4982-bb3d-a24ade82c52a	5	Pure ghee quality stands out.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-012	durga-sup-012	111bd836-595b-4982-bb3d-a24ade82c52a	4	Oil supply is timely and easy to reorder.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-013	durga-sup-013	111bd836-595b-4982-bb3d-a24ade82c52a	5	Well blended spices for restaurant recipes.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-014	durga-sup-014	111bd836-595b-4982-bb3d-a24ade82c52a	5	Cashews are clean and premium grade.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-015	durga-sup-015	111bd836-595b-4982-bb3d-a24ade82c52a	4	Tea powder remains aromatic on every batch.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-016	durga-sup-016	111bd836-595b-4982-bb3d-a24ade82c52a	5	Coffee supply supports the cafe menu well.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-017	durga-sup-017	111bd836-595b-4982-bb3d-a24ade82c52a	5	Milk delivery slots are very reliable.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-018	durga-sup-018	111bd836-595b-4982-bb3d-a24ade82c52a	4	Sugar sacks are packed cleanly.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-019	durga-sup-019	111bd836-595b-4982-bb3d-a24ade82c52a	4	Good dessert mix for fast production.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
+durga-supr-020	durga-sup-020	111bd836-595b-4982-bb3d-a24ade82c52a	4	Packaging stock is consistent for takeaway orders.	2026-02-07 03:29:58.579	2026-02-07 03:29:58.579
 \.
 
 
@@ -3550,6 +3845,22 @@ db598c98-de5c-4503-80ce-d2e4f6efa6da	f5b87516-4c10-4cee-96ff-34d6c01ce1b7	F-11	s
 6acc5252-c7eb-420e-b125-ce20e669ddb9	f5b87516-4c10-4cee-96ff-34d6c01ce1b7	F-12	square	4	available	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
 d95187e8-04c2-49cd-888a-74f556786dba	f5b87516-4c10-4cee-96ff-34d6c01ce1b7	F-13	square	4	reserved	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
 e08d600d-3b38-4b0e-ad7a-a8741bc500fb	f5b87516-4c10-4cee-96ff-34d6c01ce1b7	F-14	square	4	running	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-015	durga-floor-004	P-01	round	4	available	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-016	durga-floor-004	P-02	round	4	available	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-017	durga-floor-004	P-03	long	6	reserved	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-018	durga-floor-005	E-01	square	4	available	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-019	durga-floor-005	E-02	square	2	running	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-020	durga-floor-005	E-03	square	4	available	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-021	durga-floor-006	MVP-F1	round	6	available	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-022	durga-floor-006	MVP-F2	long	8	reserved	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-023	durga-floor-006	MVP-F3	square	4	running	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-024	durga-floor-007	DW-01	square	4	available	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-025	durga-floor-007	DW-02	long	6	available	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-026	durga-floor-007	DW-03	round	4	reserved	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-027	durga-floor-008	RF-01	round	4	available	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-028	durga-floor-008	RF-02	long	8	running	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-029	durga-floor-008	RF-03	round	2	available	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
+durga-tab-030	durga-floor-008	RF-04	long	10	reserved	2026-02-07 03:29:58.576	2026-02-07 03:29:58.576
 \.
 
 

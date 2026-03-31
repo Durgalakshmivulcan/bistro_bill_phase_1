@@ -143,7 +143,7 @@ export default function CatalogChannelMenu() {
   const [unavailableModalStep, setUnavailableModalStep] = useState<"channels" | "slots">("channels");
   const [channelUnavailableMap, setChannelUnavailableMap] = useState<ChannelUnavailableMap>({});
   const groupsPerPage = 4;
-  const productsPerPage = 20;
+  const productsPerPage = 10;
 
   useEffect(() => {
     void loadInitialData();

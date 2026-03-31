@@ -25,7 +25,7 @@ export async function listReservations(
     const { branchId, date, startDate, endDate, status, page, limit, search } = req.query;
 
     const currentPage = page && typeof page === 'string' ? parseInt(page, 10) : 1;
-    const pageSize = limit && typeof limit === 'string' ? parseInt(limit, 10) : 20;
+    const pageSize = limit && typeof limit === 'string' ? parseInt(limit, 10) : 10;
     const skip = (currentPage - 1) * pageSize;
 
     const where: any = {};
